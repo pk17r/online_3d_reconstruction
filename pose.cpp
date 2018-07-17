@@ -442,28 +442,24 @@ int main(int argc, char* argv[])
 
 	int retval = parseCmdArgs(argc, argv);
 	std::ifstream infile(calib_file);
-	cout << "check if calib file exits: " << infile.good() << endl;
 	cv::FileStorage fs(calib_file, cv::FileStorage::READ);
-	cout << "try opening calib file..." << endl;
-	cout << "calib file opened" << endl;
-	fs["K1"] >> K1;
-	fs["K2"] >> K2;
-	fs["D1"] >> D1;
-	fs["D2"] >> D2;
-
-	fs["R1"] >> R1;
-	fs["R2"] >> R2;
-	fs["P1"] >> P1;
-	fs["P2"] >> P2;
-	
-	fs["R"] >> R;
-	fs["T"] >> T;
-	fs["E"] >> E;
-	fs["F"] >> F;
+	//fs["K1"] >> K1;
+	//fs["K2"] >> K2;
+	//fs["D1"] >> D1;
+	//fs["D2"] >> D2;
+    //
+	//fs["R1"] >> R1;
+	//fs["R2"] >> R2;
+	//fs["P1"] >> P1;
+	//fs["P2"] >> P2;
+	//
+	//fs["R"] >> R;
+	//fs["T"] >> T;
+	//fs["E"] >> E;
+	//fs["F"] >> F;
 	fs["Q"] >> Q;
-
 	fs.release();
-	cout << "calib file closed" << endl;
+	cout << "read calib file." << endl;
 
 	// Check if have enough images
 	int num_images = static_cast<int>(img_names.size());
@@ -523,7 +519,7 @@ int main(int argc, char* argv[])
 		if (i == 0)
 		{
 			work_megapix = 1.0 * full_img.rows * full_img.cols / 1000000;
-			cout << "work_megapix: " << work_megapix << endl;
+			//cout << "work_megapix: " << work_megapix << endl;
 			rows = full_img.rows;
 			cols = full_img.cols;
 			cols_start_aft_cutout = (int)(cols/cutout_ratio);
@@ -535,10 +531,10 @@ int main(int argc, char* argv[])
 		disp_img = imread(disparityPrefix + img_names[i],CV_LOAD_IMAGE_GRAYSCALE);
 		disparity_images[i] = disp_img;
 		
-		string ty =  type2str( full_img.type() );
-		printf("full_img: %s %dx%d \n", ty.c_str(), cols, rows );
-		ty =  type2str( disp_img.type() );
-		printf("disp_img: %s %dx%d \n", ty.c_str(), cols, rows );
+		//string ty =  type2str( full_img.type() );
+		//printf("full_img: %s %dx%d \n", ty.c_str(), cols, rows );
+		//ty =  type2str( disp_img.type() );
+		//printf("disp_img: %s %dx%d \n", ty.c_str(), cols, rows );
 		
 		if (full_img.empty())
 		{
@@ -587,95 +583,6 @@ int main(int argc, char* argv[])
 	
 	reduction_ratio = 1.0 * full_images[0].rows / disparity_images[0].rows;
 	
-	/*{
-		Mat disp_img_src = disparity_images[0];
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		cloud0->width    = 3;
-		cloud0->height   = 2;
-		cloud0->is_dense = false;
-		cloud0->points.resize (cloud0->width * cloud0->height);
-		cout << "Cloud0 points:" << endl;
-		string ty =  type2str( full_images[0].type() );
-		printf("full_images[0]: %s %dx%d \n", ty.c_str(), full_images[0].cols, full_images[0].rows );
-		
-		cout << "\n" << disp_img_src << "\n" << endl;
-		
-		cv::Mat_<double> vec_tmp(4,1);
-		ty =  type2str( disp_img_src.type() );
-		printf("disp_img_src: %s %dx%d \n", ty.c_str(), disp_img_src.cols, disp_img_src.rows );
-		
-		for (int y = 0; y < disp_img_src.rows; ++y)
-		{
-			for (int x = 0; x < disp_img_src.cols; ++x)
-			{
-				double disp_val_src = (double)disp_img_src.at<uchar>(y,x);
-				//cout << "disp_val_src at (" << y << "," << x << "): " << disp_val_src << endl;
-				
-				if (disp_val_src > minDisparity)
-				{
-					//https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
-					
-					//vec(0) = i; vec(1) = j; vec(2) = disp_val_src; vec(3) = 1;
-					//vec = Q * vec;
-					//vec /= vec(3);
-					//cout << "before vec_tmp" << endl;
-					vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val_src; vec_tmp(3)=1;
-					vec_tmp = Q*vec_tmp;
-					vec_tmp /= vec_tmp(3);
-					//cout << "vec_tmp: " << vec_tmp << endl;
-					
-					//double x = j - full_img_sizes[0].width / 2;
-					//double y = full_img_sizes[0].height / 2 - i;
-					//double x = j;
-					//double y = i;
-					double Z = 1.0 * focallength * baseline / disp_val_src;
-					double X = 1.0 * x * baseline / disp_val_src;
-					double Y = 1.0 * y * baseline / disp_val_src;
-					
-					//cout << "before pt_3d" << endl;
-					pcl::PointXYZRGB pt_3d;
-					//pt_3d.x = (float)vec_tmp(0);
-					//pt_3d.y = (float)vec_tmp(1);
-					//pt_3d.z = -(float)vec_tmp(2);
-					//cout << "after xyz" << endl;
-					pt_3d.x = X;
-					pt_3d.y = Y;
-					pt_3d.z = - Z;
-					//cout << "pt_3d: " << pt_3d << endl;
-					Vec3b color = full_images[0].at<Vec3b>(Point(x, y));
-					//cout << "r: " << color[0] << " g: " << color[1] << " b: " << color[2] << endl;
-					uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-					//cout << "rgb: " << rgb << endl;
-					pt_3d.rgb = *reinterpret_cast<float*>(&rgb);
-					//pt_3d.r = full_images[0].at<uchar>(i, j, 0);
-					//pt_3d.g = full_images[0].at<uchar>(i, j, 1);
-					//pt_3d.b = full_images[0].at<uchar>(i, j, 2);
-					cloud0->points.push_back(pt_3d);
-					cout << y << "," << x << "," << disp_val_src << "," << X << "," << Y << "," << Z << endl;
-				}
-			}
-		}
-		cout << "point cloud created!" << endl;
-		pcl::visualization::PCLVisualizer viewer0 ("3d image 0");
-		
-		// Define R,G,B colors for the point cloud
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloud0);
-		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
-		
-		// We add the point cloud to the viewer and pass the color handler
-		viewer0.addPointCloud<pcl::PointXYZRGB> (cloud0, rgb, "original_cloud");
-		
-		viewer0.addCoordinateSystem (1.0, "cloud", 0);
-		viewer0.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-		viewer0.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original_cloud");
-		viewer0.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
-		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
-
-		while (!viewer0.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-			viewer0.spinOnce ();
-		}
-	}*/
-	
 	LOG("Pairwise matching");
 #if ENABLE_LOG
 	t = getTickCount();
@@ -713,8 +620,6 @@ int main(int argc, char* argv[])
 		f << pairwise_matches[1].H << endl;
 		f << "H between images 1 and 0:" << endl;
 		f << pairwise_matches[2].H << endl;
-		//f << "images 0 and 1: first match: imgIdx " << pairwise_matches[1].matches[0].imgIdx << " trainIdx " << pairwise_matches[1].matches[0].trainIdx << " queryIdx " << pairwise_matches[1].matches[0].queryIdx << endl;
-		//f << "feature descriptor: trainIdx : " << features[0].descriptors[pairwise_matches[1].matches[0].trainIdx] << endl;
 		
 		MatchesInfo match = pairwise_matches[1];
 		
@@ -736,8 +641,6 @@ int main(int argc, char* argv[])
 			resize(disp_img_dst, disp_img2_dst, Size(), reduction_ratio, reduction_ratio, INTER_NEAREST);
 			disp_img_src = disp_img2_src * reduction_ratio;	//increasing the disparity on enlarging disparity image
 			disp_img_dst = disp_img2_dst * reduction_ratio;
-			//imwrite("../output/disp_img2_src.png", disp_img2_src);
-			//imwrite("../output/disp_img2_dst.png", disp_img2_dst);
 		}
 		
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -746,69 +649,42 @@ int main(int argc, char* argv[])
 		cloud0->is_dense = false;
 		cloud0->points.resize (cloud0->width * cloud0->height);
 		
-		//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZ> ());
-		//cloud1->width    = 50;
-		//cloud1->height   = 30;
-		//cloud1->is_dense = false;
-		//cloud1->points.resize (cloud1->width * cloud1->height);
-		
-		cout << "Cloud0 points:" << endl;
+		//cout << "Cloud0 points:" << endl;
 		int accepted_points = 0;
 		
-		string ty =  type2str( disp_img_src.type() );
-		printf("disp_img_src: %s %dx%d \n", ty.c_str(), disp_img_src.cols, disp_img_src.rows );
+		//string ty =  type2str( disp_img_src.type() );
+		//printf("disp_img_src: %s %dx%d \n", ty.c_str(), disp_img_src.cols, disp_img_src.rows );
 		
 		cv::Mat_<double> vec_tmp(4,1);
 		
-		//for (int y = boundingBox; y < rows - boundingBox; ++y)
-		for (int y = 0; y < disp_img_src.rows; ++y)
+		//for (int y = 0; y < disp_img_src.rows; ++y)
+		for (int y = boundingBox; y < rows - boundingBox; ++y)
 		{
-			//for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
-			for (int x = 0; x < disp_img_src.cols; ++x)
+			//for (int x = 0; x < disp_img_src.cols; ++x)
+			for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
 			{
 				double disp_val_src = (double)disp_img_src.at<uchar>(y,x);
-				//cout << "disp_val_src at (" << y << "," << x << "): " << disp_val_src << endl;
 				
 				if (disp_val_src > minDisparity)
 				{
 					//https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
 					
-					//vec(0) = i; vec(1) = j; vec(2) = disp_val_src; vec(3) = 1;
-					//vec = Q * vec;
-					//vec /= vec(3);
-					//cout << "before vec_tmp" << endl;
 					vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val_src; vec_tmp(3)=1;
 					vec_tmp = Q*vec_tmp;
 					vec_tmp /= vec_tmp(3);
-					//cout << "vec_tmp: " << vec_tmp << endl;
 					
 					accepted_points++;
-					//double x = j - full_img_sizes[0].width / 2;
-					//double y = full_img_sizes[0].height / 2 - i;
-					//double x = j;
-					//double y = i;
 					double Z = 1.0 * focallength * baseline / disp_val_src;
 					double X = 1.0 * x * Z / focallength;
 					double Y = 1.0 * y * Z / focallength;
 					
-					//cout << "before pt_3d" << endl;
 					pcl::PointXYZRGB pt_3d;
 					pt_3d.x = (float)vec_tmp(0);
 					pt_3d.y = (float)vec_tmp(1);
 					pt_3d.z = -(float)vec_tmp(2);
-					//cout << "after xyz" << endl;
-					//pt_3d.x = X;
-					//pt_3d.y = Y;
-					//pt_3d.z = - Z;
-					//cout << "pt_3d: " << pt_3d << endl;
 					Vec3b color = full_images[0].at<Vec3b>(Point(x, y));
-					//cout << "r: " << color[0] << " g: " << color[1] << " b: " << color[2] << endl;
 					uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-					//cout << "rgb: " << rgb << endl;
 					pt_3d.rgb = *reinterpret_cast<float*>(&rgb);
-					//pt_3d.r = full_images[0].at<uchar>(i, j, 0);
-					//pt_3d.g = full_images[0].at<uchar>(i, j, 1);
-					//pt_3d.b = full_images[0].at<uchar>(i, j, 2);
 					cloud0->points.push_back(pt_3d);
 					//cout << pt_3d << endl;
 				}
@@ -819,7 +695,6 @@ int main(int argc, char* argv[])
 		
 		// Define R,G,B colors for the point cloud
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloud0);
-		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
 		
 		// We add the point cloud to the viewer and pass the color handler
 		viewer0.addPointCloud<pcl::PointXYZRGB> (cloud0, rgb, "original_cloud");
@@ -835,26 +710,26 @@ int main(int argc, char* argv[])
 			viewer0.spinOnce ();
 		}
 
-		f << "train is dst and query is src" << endl;
+		//f << "train is dst and query is src" << endl;
 
 		for (int i = 0; i < match.inliers_mask.size(); i++)
 		{
 			if (match.inliers_mask[i] == 1 && match.matches[i].imgIdx == match.src_img_idx)
 			{
-				f << "match_index " << i << " train_imgIdx " << match.matches[i].imgIdx << " src_img_idx " << match.src_img_idx << " dst_img_idx " << match.dst_img_idx;
+				//f << "match_index " << i << " train_imgIdx " << match.matches[i].imgIdx << " src_img_idx " << match.src_img_idx << " dst_img_idx " << match.dst_img_idx;
 				int trainIdx = match.matches[i].trainIdx;
 				int queryIdx = match.matches[i].queryIdx;
-				f << " trainIdx " << trainIdx << " and queryIdx " << queryIdx << " distance " << match.matches[i].distance << endl;
-				f << "descript src query " << descriptor_src.row(queryIdx) << endl;
-				f << "descript dst train " << descriptor_dst.row(trainIdx) << endl;
-				f << "keypoint src query (" << keypoints_src[queryIdx].pt.x << "," << keypoints_src[queryIdx].pt.y;
-				f << ") keypoint dst train (" << keypoints_dst[trainIdx].pt.x << "," << keypoints_dst[trainIdx].pt.y << ")" << endl;
+				//f << " trainIdx " << trainIdx << " and queryIdx " << queryIdx << " distance " << match.matches[i].distance << endl;
+				//f << "descript src query " << descriptor_src.row(queryIdx) << endl;
+				//f << "descript dst train " << descriptor_dst.row(trainIdx) << endl;
+				//f << "keypoint src query (" << keypoints_src[queryIdx].pt.x << "," << keypoints_src[queryIdx].pt.y;
+				//f << ") keypoint dst train (" << keypoints_dst[trainIdx].pt.x << "," << keypoints_dst[trainIdx].pt.y << ")" << endl;
 
 				//*3. convert corresponding features to 3D using disparity image information
 				int disp_val_src = (int)disp_img_src.at<char>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
 				int disp_val_dst = (int)disp_img_dst.at<char>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
 
-				f << "disp_val_src " << disp_val_src << " disp_val_dst " << disp_val_dst << endl;
+				//f << "disp_val_src " << disp_val_src << " disp_val_dst " << disp_val_dst << endl;
 
 				cv::Mat_<double> vec_src(4, 1);
 				cv::Mat_<double> vec_dst(4, 1);
@@ -868,11 +743,7 @@ int main(int argc, char* argv[])
 					vec_src = Q * vec_src;
 					vec_src /= vec_src(3);
 					
-					Point3d src_3D_pt = Point3d(vec_src(0), vec_src(1), vec_src(2));		//used
-
-					double Zs = focallength * baseline / disp_val_src;
-					double Xs = (xs - cols / 2) * Zs / focallength;
-					double Ys = (rows / 2 - ys) * Zs / focallength;		//not used
+					Point3d src_3D_pt = Point3d(vec_src(0), vec_src(1), vec_src(2));
 
 					double xd = keypoints_dst[trainIdx].pt.x;
 					double yd = keypoints_dst[trainIdx].pt.y;
@@ -881,20 +752,15 @@ int main(int argc, char* argv[])
 					vec_dst = Q * vec_dst;
 					vec_dst /= vec_dst(3);
 
-					Point3d dst_3D_pt = Point3d(vec_dst(0), vec_dst(1), vec_dst(2));		//used
+					Point3d dst_3D_pt = Point3d(vec_dst(0), vec_dst(1), vec_dst(2));
 					
-					double Zd = focallength * baseline / disp_val_dst;
-					double Xd = (xd - cols / 2) * Zd / focallength;
-					double Yd = (rows / 2 - yd) * Zd / focallength;		//not used
-
 					keypoints3D_src.push_back(src_3D_pt);
 					keypoints3D_2D_index_src.push_back(queryIdx);
 
 					keypoints3D_dst.push_back(dst_3D_pt);
 					keypoints3D_2D_index_dst.push_back(trainIdx);
 
-					f << "src 3D point " << Point3d(Xs, Ys, Zs) << " dst 3D point " << Point3d(Xd, Yd, Zd) << endl;
-					f << "srcQ3D point " << src_3D_pt << " dstQ3D point " << dst_3D_pt << endl;
+					f << "srcQ3D_point " << src_3D_pt << " dstQ3D_point " << dst_3D_pt << endl;
 				}
 
 			}
@@ -908,22 +774,10 @@ int main(int argc, char* argv[])
 			inliers[i] = match.inliers_mask[i];
 		}
 		drawMatches(full_images[0], keypoints_src, full_images[1], keypoints_dst, match.matches, matchedImageInliers, Scalar::all(-1), Scalar::all(-1), inliers, DrawMatchesFlags::DEFAULT);
-		imwrite("../output/matchedImage.jpg", matchedImage);
-		imwrite("../output/matchedImageInliers.jpg", matchedImageInliers);
+		imwrite("output/matchedImage.jpg", matchedImage);
+		imwrite("output/matchedImageInliers.jpg", matchedImageInliers);
 
 		//*4. find transformation between corresponding 3D points using estimateAffine3D: Output 3D affine transformation matrix  3 x 4
-		f << "K1:\n" << K1 << endl;
-		f << "K2:\n" << K2 << endl;
-		f << "D1:\n" << D1 << endl;
-		f << "D2:\n" << D2 << endl;
-		f << "R1:\n" << R1 << endl;
-		f << "R2:\n" << R2 << endl;
-		f << "P1:\n" << P1 << endl;
-		f << "P2:\n" << P2 << endl;
-		f << "R:\n" << R << endl;
-		f << "T:\n" << T << endl;
-		f << "E:\n" << E << endl;
-		f << "F:\n" << F << endl;
 		f << "Q:\n" << Q << endl;
 
 		Mat affineTransformationMatrix;
