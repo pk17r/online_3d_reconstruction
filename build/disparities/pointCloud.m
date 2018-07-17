@@ -1,0 +1,47 @@
+focallength = 16.0 / 1000 / (3.75 / 1000000);
+baseline = 600.0 / 1000;
+minDisparity = 64;
+disp_img_src = imread('A.png');
+rgbImg = imread('B.png');
+
+size_img = size(disp_img_src);
+cols = size_img(2);
+rows = size_img(1);
+
+xyzPoints = zeros(cols*rows,6);
+
+for y = 1:rows
+    for x = 1:cols
+        disp_val_src = disp_img_src(y,x);
+        disp_val_src = cast(disp_val_src, 'double');
+        
+        if disp_val_src > minDisparity
+            
+            z_val = focallength * baseline / disp_val_src;
+            x_val = x * baseline / disp_val_src;
+            y_val = y * baseline / disp_val_src;
+            xyzPoints((y-1)*cols+x,:) = [y-1,x-1,disp_val_src,x_val, y_val, -z_val];
+        end
+    end
+end
+
+figure
+scatter3(xyzPoints(:,4),xyzPoints(:,5),xyzPoints(:,6),'.')
+title('matlab')
+
+
+
+%%
+
+A=ones(720,1280);
+A(:,:)=128;
+A(100:200,200:400)=142;
+A=cast(A,'uint8');
+imwrite(A,'A.png');
+
+B=zeros(720,1280,3);
+B(100:200,200:400,1) = 255;
+B(:,:,2) = 255;
+B(100:200,200:400,2) = 0;
+B=cast(B,'uint8');
+imwrite(B,'B.png');
