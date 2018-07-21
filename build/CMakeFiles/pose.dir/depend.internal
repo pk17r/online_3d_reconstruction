@@ -3,6 +3,7 @@
 
 CMakeFiles/pose.dir/pose.cpp.o
  /home/pkr/pkr-work/pose/pose.cpp
+ /home/pkr/pkr-work/pose/pose.h
  /usr/include/eigen3/Eigen/Cholesky
  /usr/include/eigen3/Eigen/Core
  /usr/include/eigen3/Eigen/Dense
