@@ -1,46 +1,3 @@
-/*M///////////////////////////////////////////////////////////////////////////////////////
-//
-//  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
-//
-//  By downloading, copying, installing or using the software you agree to this license.
-//  If you do not agree to this license, do not download, install,
-//  copy or use the software.
-//
-//
-//                          License Agreement
-//                For Open Source Computer Vision Library
-//
-// Copyright (C) 2000-2008, Intel Corporation, all rights reserved.
-// Copyright (C) 2009, Willow Garage Inc., all rights reserved.
-// Third party copyrights are property of their respective owners.
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-//   * Redistribution's of source code must retain the above copyright notice,
-//     this list of conditions and the following disclaimer.
-//
-//   * Redistribution's in binary form must reproduce the above copyright notice,
-//     this list of conditions and the following disclaimer in the documentation
-//     and/or other materials provided with the distribution.
-//
-//   * The name of the copyright holders may not be used to endorse or promote products
-//     derived from this software without specific prior written permission.
-//
-// This software is provided by the copyright holders and contributors "as is" and
-// any express or implied warranties, including, but not limited to, the implied
-// warranties of merchantability and fitness for a particular purpose are disclaimed.
-// In no event shall the Intel Corporation or contributors be liable for any direct,
-// indirect, incidental, special, exemplary, or consequential damages
-// (including, but not limited to, procurement of substitute goods or services;
-// loss of use, data, or profits; or business interruption) however caused
-// and on any theory of liability, whether in contract, strict liability,
-// or tort (including negligence or otherwise) arising in any way out of
-// the use of this software, even if advised of the possibility of such damage.
-//
-//
-//M*/
-
 /* STEPS:
 *
 * 1. extract 2D features
@@ -88,9 +45,9 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/point_types.h>
 
-#define ENABLE_LOG 1
-#define LOG(msg) std::cout << msg
-#define LOGLN(msg) std::cout << msg << std::endl
+//#define ENABLE_LOG 1
+//#define LOG(msg) std::cout << msg
+//#define LOGLN(msg) std::cout << msg << std::endl
 
 using namespace std;
 using namespace cv;
@@ -181,10 +138,9 @@ string type2str(int type) {
 
 // Default command line args
 vector<String> img_names = { "952.png","953.png" };
-//vector<String> disp_names = { "disparities/22m_13_952.png","../input/22m_13_953.png" };
 double minDisparity = 64;
 int boundingBox = 50;
-int rows = 0, cols = 0, cols_start_aft_cutout = 0;;
+int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 
 double reduction_ratio = 1;
 double focallength = 16.0 / 1000 / 3.75 * 1000000;
@@ -196,6 +152,7 @@ Mat R1, R2, P1, P2;
 Mat R, E, F, Q;
 Vec3d T;
 
+bool log_stuff = false;
 bool preview = false;
 bool try_cuda = true;
 double work_megapix = 0;
@@ -208,7 +165,7 @@ string ba_refine_mask = "xxxxx";
 bool do_wave_correct = true;
 WaveCorrectKind wave_correct = detail::WAVE_CORRECT_VERT;
 bool save_graph = true;
-std::string save_graph_to = "output/graph.txt";
+string save_graph_to = "";
 string warp_type = "spherical";
 int expos_comp_type = ExposureCompensator::GAIN_BLOCKS;
 float match_conf = 0.3f;
@@ -235,6 +192,10 @@ static int parseCmdArgs(int argc, char** argv)
 			printUsage();
 			return -1;
 		}
+		else if (string(argv[i]) == "--log")
+		{
+			log_stuff = true;
+		}
 		else if (string(argv[i]) == "--preview")
 		{
 			preview = true;
@@ -255,6 +216,11 @@ static int parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--work_megapix")
 		{
 			work_megapix = atof(argv[i + 1]);
+			i++;
+		}
+		else if (string(argv[i]) == "--boundingBox")
+		{
+			boundingBox = atoi(argv[i + 1]);
 			i++;
 		}
 		else if (string(argv[i]) == "--seam_megapix")
@@ -431,11 +397,8 @@ static int parseCmdArgs(int argc, char** argv)
 
 int main(int argc, char* argv[])
 {
-	cout << "start program!!" << endl;
-#if ENABLE_LOG
-	int64 app_start_time = getTickCount();
-#endif
-
+	cout << "Pose Estimation Program!!" << endl;
+	
 #if 0
 	cv::setBreakOnError(true);
 #endif
@@ -443,40 +406,97 @@ int main(int argc, char* argv[])
 	int retval = parseCmdArgs(argc, argv);
 	std::ifstream infile(calib_file);
 	cv::FileStorage fs(calib_file, cv::FileStorage::READ);
-	//fs["K1"] >> K1;
-	//fs["K2"] >> K2;
-	//fs["D1"] >> D1;
-	//fs["D2"] >> D2;
-    //
-	//fs["R1"] >> R1;
-	//fs["R2"] >> R2;
-	//fs["P1"] >> P1;
-	//fs["P2"] >> P2;
-	//
-	//fs["R"] >> R;
-	//fs["T"] >> T;
-	//fs["E"] >> E;
-	//fs["F"] >> F;
 	fs["Q"] >> Q;
 	fs.release();
 	cout << "read calib file." << endl;
 
 	// Check if have enough images
 	int num_images = static_cast<int>(img_names.size());
-	if (num_images < 2)
+	if (num_images != 2)
 	{
-		LOGLN("Need more images");
+		cout << "There can be only 2 images!" << endl;
 		return -1;
 	}
 
 	double work_scale = 1, seam_scale = 1, compose_scale = 1;
 	bool is_work_scale_set = false, is_seam_scale_set = false, is_compose_scale_set = false;
+	
+	Mat full_img, img;
+	vector<Mat> images(num_images);
+	vector<Mat> full_images(num_images);
+	vector<Mat> disparity_images(num_images);
+	vector<Size> full_img_sizes(num_images);
+	double seam_work_aspect = 1;
+	string imagePrefix = "images/";
+	string disparityPrefix = "disparities/";
+	save_graph_to = "output/graph";
+	
+	//logging stuff
+	ofstream f;
+	if(log_stuff)
+		f.open(save_graph_to.c_str(), ios::out);
+	
+	for (int i = 0; i < num_images; ++i)
+	{
+		cout << img_names[i] << endl;
+		full_img = imread(imagePrefix + img_names[i]);
+		if (i == 0)
+		{
+			work_megapix = 1.0 * full_img.rows * full_img.cols / 1000000;
+			cout << "work_megapix: " << work_megapix << endl;
+			rows = full_img.rows;
+			cols = full_img.cols;
+			cols_start_aft_cutout = (int)(cols/cutout_ratio);
+		}
+		full_images[i] = full_img;
+		full_img_sizes[i] = full_img.size();
+		//read disparity image
+		Mat disp_img(rows,cols, CV_8UC1);
+		disp_img = imread(disparityPrefix + img_names[i],CV_LOAD_IMAGE_GRAYSCALE);
+		disparity_images[i] = disp_img;
+		
+		if (full_img.empty())
+		{
+			cout << "Can't open image " << img_names[i] << endl;
+			return -1;
+		}
+		if (work_megapix < 0)
+		{
+			img = full_img;
+			work_scale = 1;
+			is_work_scale_set = true;
+		}
+		else
+		{
+			if (!is_work_scale_set)
+			{
+				work_scale = min(1.0, sqrt(work_megapix * 1e6 / full_img.size().area()));
+				is_work_scale_set = true;
+			}
+			resize(full_img, img, Size(), work_scale, work_scale);
+		}
+		if (!is_seam_scale_set)
+		{
+			seam_scale = min(1.0, sqrt(seam_megapix * 1e6 / full_img.size().area()));
+			seam_work_aspect = seam_scale / work_scale;
+			cout << "seam_scale: " << seam_scale << "\nseam_work_aspect: " << seam_work_aspect << endl;
+			is_seam_scale_set = true;
+		}
 
-	LOGLN("Finding features...");
-#if ENABLE_LOG
+		resize(full_img, img, Size(), seam_scale, seam_scale);
+		images[i] = img.clone();
+		
+		save_graph_to = save_graph_to + "_" + img_names[i];
+	}
+	
+	full_img.release();
+	img.release();
+	save_graph_to = save_graph_to + ".txt";
+
+	int64 app_start_time = getTickCount();
 	int64 t = getTickCount();
-#endif
-
+	
+	cout << "Finding features..." << endl;
 	Ptr<FeaturesFinder> finder;
 	if (features_type == "surf")
 	{
@@ -502,65 +522,18 @@ int main(int argc, char* argv[])
 	}
 
 	//Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
-
-	Mat full_img, img;
 	vector<ImageFeatures> features(num_images);
-	vector<Mat> images(num_images);
-	vector<Mat> full_images(num_images);
-	vector<Mat> disparity_images(num_images);
-	vector<Size> full_img_sizes(num_images);
-	double seam_work_aspect = 1;
-	string imagePrefix = "images/";
-	string disparityPrefix = "disparities/";
-
+	
 	for (int i = 0; i < num_images; ++i)
 	{
-		full_img = imread(imagePrefix + img_names[i]);
-		if (i == 0)
+		if (work_scale != 1)
 		{
-			work_megapix = 1.0 * full_img.rows * full_img.cols / 1000000;
-			//cout << "work_megapix: " << work_megapix << endl;
-			rows = full_img.rows;
-			cols = full_img.cols;
-			cols_start_aft_cutout = (int)(cols/cutout_ratio);
-		}
-		full_images[i] = full_img;
-		full_img_sizes[i] = full_img.size();
-		//read disparity image
-		Mat disp_img(rows,cols, CV_8UC1);
-		disp_img = imread(disparityPrefix + img_names[i],CV_LOAD_IMAGE_GRAYSCALE);
-		disparity_images[i] = disp_img;
-		
-		//string ty =  type2str( full_img.type() );
-		//printf("full_img: %s %dx%d \n", ty.c_str(), cols, rows );
-		//ty =  type2str( disp_img.type() );
-		//printf("disp_img: %s %dx%d \n", ty.c_str(), cols, rows );
-		
-		if (full_img.empty())
-		{
-			LOGLN("Can't open image " << img_names[i]);
-			return -1;
-		}
-		if (work_megapix < 0)
-		{
-			img = full_img;
-			work_scale = 1;
-			is_work_scale_set = true;
+			full_img = full_images[i];
+			resize(full_img, img, Size(), work_scale, work_scale);
 		}
 		else
 		{
-			if (!is_work_scale_set)
-			{
-				work_scale = min(1.0, sqrt(work_megapix * 1e6 / full_img.size().area()));
-				is_work_scale_set = true;
-			}
-			resize(full_img, img, Size(), work_scale, work_scale);
-		}
-		if (!is_seam_scale_set)
-		{
-			seam_scale = min(1.0, sqrt(seam_megapix * 1e6 / full_img.size().area()));
-			seam_work_aspect = seam_scale / work_scale;
-			is_seam_scale_set = true;
+			img = full_images[i];
 		}
 
 		(*finder)(img, features[i]);
@@ -568,25 +541,20 @@ int main(int argc, char* argv[])
 		//detector->detect(img,keypointsD,Mat());
 		features[i].img_idx = i;
 		//features[i].keypoints = keypointsD;
-		LOGLN("Features in image #" << i + 1 << ": " << features[i].keypoints.size());
-
-		resize(full_img, img, Size(), seam_scale, seam_scale);
-		images[i] = img.clone();
+		cout << "Features in image #" << i + 1 << ": " << features[i].keypoints.size() << endl;
 	}
 
 	finder->collectGarbage();
 	//free(detector);
-	full_img.release();
 	img.release();
 
-	LOGLN("Finding features, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec");
+	cout << "Finding features, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 	
 	reduction_ratio = 1.0 * full_images[0].rows / disparity_images[0].rows;
 	
-	LOG("Pairwise matching");
-#if ENABLE_LOG
+	cout << "Pairwise matching" << endl;
 	t = getTickCount();
-#endif
+	
 	vector<MatchesInfo> pairwise_matches;
 	if (range_width == -1)
 	{
@@ -603,77 +571,78 @@ int main(int argc, char* argv[])
 		matcher.collectGarbage();
 	}
 
-	LOGLN("Pairwise matching, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec");
-
+	cout << "Pairwise matching, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
+	
 	//define 3d points for all keypoints
 	vector<Point3d> keypoints3D_src, keypoints3D_dst;
 	vector<int> keypoints3D_2D_index_src, keypoints3D_2D_index_dst;
 
-	// Check if we should save matches graph
-	if (save_graph)
+	if(log_stuff)
 	{
-		LOGLN("Saving matches graph...");
-		ofstream f(save_graph_to.c_str());
+		cout << "Baseline (in m) " << baseline << " focallength (in pixel) " << focallength << endl;
+		cout << matchesGraphAsString(img_names, pairwise_matches, conf_thresh) << endl;
+		cout << "H between images 0 and 1:" << endl;
+		cout << pairwise_matches[1].H << endl;
+		cout << "H between images 1 and 0:" << endl;
+		cout << pairwise_matches[2].H << endl;
+		
 		f << "Baseline (in m) " << baseline << " focallength (in pixel) " << focallength << endl;
 		f << matchesGraphAsString(img_names, pairwise_matches, conf_thresh) << endl;
 		f << "H between images 0 and 1:" << endl;
 		f << pairwise_matches[1].H << endl;
 		f << "H between images 1 and 0:" << endl;
 		f << pairwise_matches[2].H << endl;
-		
-		MatchesInfo match = pairwise_matches[1];
-		
-		vector<KeyPoint> keypoints_src, keypoints_dst;
-		keypoints_src = features[match.src_img_idx].keypoints;
-		keypoints_dst = features[match.dst_img_idx].keypoints;
-		
-		Mat descriptor_src, descriptor_dst;
-		features[match.src_img_idx].descriptors.copyTo(descriptor_src);
-		features[match.dst_img_idx].descriptors.copyTo(descriptor_dst);
+	}
+	
+	MatchesInfo match = pairwise_matches[1];
+	
+	vector<KeyPoint> keypoints_src, keypoints_dst;
+	keypoints_src = features[match.src_img_idx].keypoints;
+	keypoints_dst = features[match.dst_img_idx].keypoints;
+	
+	Mat descriptor_src, descriptor_dst;
+	features[match.src_img_idx].descriptors.copyTo(descriptor_src);
+	features[match.dst_img_idx].descriptors.copyTo(descriptor_dst);
 
-		Mat disp_img_src = disparity_images[match.src_img_idx];
-		Mat disp_img_dst = disparity_images[match.dst_img_idx];
-		
-		if(reduction_ratio != 1.0)
-		{
-			Mat disp_img2_src, disp_img2_dst;
-			resize(disp_img_src, disp_img2_src, Size(), reduction_ratio, reduction_ratio, INTER_NEAREST);
-			resize(disp_img_dst, disp_img2_dst, Size(), reduction_ratio, reduction_ratio, INTER_NEAREST);
-			disp_img_src = disp_img2_src * reduction_ratio;	//increasing the disparity on enlarging disparity image
-			disp_img_dst = disp_img2_dst * reduction_ratio;
-		}
-		
+	Mat disp_img_src = disparity_images[match.src_img_idx];
+	Mat disp_img_dst = disparity_images[match.dst_img_idx];
+	
+	if(reduction_ratio != 1.0)
+	{
+		Mat disp_img2_src, disp_img2_dst;
+		resize(disp_img_src, disp_img2_src, Size(), reduction_ratio, reduction_ratio, INTER_NEAREST);
+		resize(disp_img_dst, disp_img2_dst, Size(), reduction_ratio, reduction_ratio, INTER_NEAREST);
+		disp_img_src = disp_img2_src * reduction_ratio;	//increasing the disparity on enlarging disparity image
+		disp_img_dst = disp_img2_dst * reduction_ratio;
+	}
+	
+	//view 3D point cloud of first image & disparity map
+	if(preview)
+	{
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		cloud0->width    = 50;
 		cloud0->height   = 30;
 		cloud0->is_dense = false;
 		cloud0->points.resize (cloud0->width * cloud0->height);
 		
-		//cout << "Cloud0 points:" << endl;
-		int accepted_points = 0;
-		
-		//string ty =  type2str( disp_img_src.type() );
-		//printf("disp_img_src: %s %dx%d \n", ty.c_str(), disp_img_src.cols, disp_img_src.rows );
-		
+		int point_clout_pts = 0;
 		cv::Mat_<double> vec_tmp(4,1);
 		
-		//for (int y = 0; y < disp_img_src.rows; ++y)
 		for (int y = boundingBox; y < rows - boundingBox; ++y)
 		{
-			//for (int x = 0; x < disp_img_src.cols; ++x)
 			for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
 			{
 				double disp_val_src = (double)disp_img_src.at<uchar>(y,x);
 				
 				if (disp_val_src > minDisparity)
 				{
-					//https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+					//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
 					
 					vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val_src; vec_tmp(3)=1;
 					vec_tmp = Q*vec_tmp;
 					vec_tmp /= vec_tmp(3);
 					
-					accepted_points++;
+					point_clout_pts++;
 					double Z = 1.0 * focallength * baseline / disp_val_src;
 					double X = 1.0 * x * Z / focallength;
 					double Y = 1.0 * y * Z / focallength;
@@ -703,110 +672,140 @@ int main(int argc, char* argv[])
 		viewer0.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
 		viewer0.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original_cloud");
 		viewer0.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
-		cout << "accepted_points: " << accepted_points << endl;
+		cout << "point_clout_pts: " << point_clout_pts << endl;
+		if(log_stuff)
+			f << "point_clout_pts: " << point_clout_pts << endl;
+		
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
+		
+		//while (!viewer0.wasStopped ()) { // Display the visualiser until 'q' key is pressed
+			viewer0.spinOnce();
+		//}
+	}
+	
+	cout << "Converting 2D matches to 3D matches..." << endl;
+	t = getTickCount();
+	
+	//f << "train is dst and query is src" << endl;
+	if(log_stuff)
+		f << "3D matched points: " << endl;
 
-		while (!viewer0.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-			viewer0.spinOnce ();
-		}
-
-		//f << "train is dst and query is src" << endl;
-
-		for (int i = 0; i < match.inliers_mask.size(); i++)
+	for (int i = 0; i < match.inliers_mask.size(); i++)
+	{
+		if (match.inliers_mask[i] == 1 && match.matches[i].imgIdx == match.src_img_idx)
 		{
-			if (match.inliers_mask[i] == 1 && match.matches[i].imgIdx == match.src_img_idx)
+			int trainIdx = match.matches[i].trainIdx;
+			int queryIdx = match.matches[i].queryIdx;
+			
+			//*3. convert corresponding features to 3D using disparity image information
+			int disp_val_src = (int)disp_img_src.at<char>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
+			int disp_val_dst = (int)disp_img_dst.at<char>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
+			
+			if(log_stuff)
 			{
 				//f << "match_index " << i << " train_imgIdx " << match.matches[i].imgIdx << " src_img_idx " << match.src_img_idx << " dst_img_idx " << match.dst_img_idx;
-				int trainIdx = match.matches[i].trainIdx;
-				int queryIdx = match.matches[i].queryIdx;
 				//f << " trainIdx " << trainIdx << " and queryIdx " << queryIdx << " distance " << match.matches[i].distance << endl;
 				//f << "descript src query " << descriptor_src.row(queryIdx) << endl;
 				//f << "descript dst train " << descriptor_dst.row(trainIdx) << endl;
 				//f << "keypoint src query (" << keypoints_src[queryIdx].pt.x << "," << keypoints_src[queryIdx].pt.y;
 				//f << ") keypoint dst train (" << keypoints_dst[trainIdx].pt.x << "," << keypoints_dst[trainIdx].pt.y << ")" << endl;
-
-				//*3. convert corresponding features to 3D using disparity image information
-				int disp_val_src = (int)disp_img_src.at<char>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
-				int disp_val_dst = (int)disp_img_dst.at<char>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
-
 				//f << "disp_val_src " << disp_val_src << " disp_val_dst " << disp_val_dst << endl;
-
-				cv::Mat_<double> vec_src(4, 1);
-				cv::Mat_<double> vec_dst(4, 1);
-
-				if (disp_val_src > minDisparity && disp_val_dst > minDisparity && keypoints_src[queryIdx].pt.x >= cols_start_aft_cutout && keypoints_dst[trainIdx].pt.x >= cols_start_aft_cutout)
-				{
-					double xs = keypoints_src[queryIdx].pt.x;
-					double ys = keypoints_src[queryIdx].pt.y;
-					
-					vec_src(0) = xs; vec_src(1) = ys; vec_src(2) = disp_val_src; vec_src(3) = 1;
-					vec_src = Q * vec_src;
-					vec_src /= vec_src(3);
-					
-					Point3d src_3D_pt = Point3d(vec_src(0), vec_src(1), vec_src(2));
-
-					double xd = keypoints_dst[trainIdx].pt.x;
-					double yd = keypoints_dst[trainIdx].pt.y;
-
-					vec_dst(0) = xd; vec_dst(1) = yd; vec_dst(2) = disp_val_dst; vec_dst(3) = 1;
-					vec_dst = Q * vec_dst;
-					vec_dst /= vec_dst(3);
-
-					Point3d dst_3D_pt = Point3d(vec_dst(0), vec_dst(1), vec_dst(2));
-					
-					keypoints3D_src.push_back(src_3D_pt);
-					keypoints3D_2D_index_src.push_back(queryIdx);
-
-					keypoints3D_dst.push_back(dst_3D_pt);
-					keypoints3D_2D_index_dst.push_back(trainIdx);
-
-					f << "srcQ3D_point " << src_3D_pt << " dstQ3D_point " << dst_3D_pt << endl;
-				}
-
 			}
-		}
+			
+			cv::Mat_<double> vec_src(4, 1);
+			cv::Mat_<double> vec_dst(4, 1);
 
-		Mat matchedImage, matchedImageInliers;
-		drawMatches(full_images[0], keypoints_src, full_images[1], keypoints_dst, match.matches, matchedImage);
-		vector<char> inliers(match.inliers_mask.size());
-		for (int i = 0; i < match.inliers_mask.size(); i++)
-		{
-			inliers[i] = match.inliers_mask[i];
-		}
-		drawMatches(full_images[0], keypoints_src, full_images[1], keypoints_dst, match.matches, matchedImageInliers, Scalar::all(-1), Scalar::all(-1), inliers, DrawMatchesFlags::DEFAULT);
-		imwrite("output/matchedImage.jpg", matchedImage);
-		imwrite("output/matchedImageInliers.jpg", matchedImageInliers);
+			if (disp_val_src > minDisparity && disp_val_dst > minDisparity && keypoints_src[queryIdx].pt.x >= cols_start_aft_cutout && keypoints_dst[trainIdx].pt.x >= cols_start_aft_cutout)
+			{
+				double xs = keypoints_src[queryIdx].pt.x;
+				double ys = keypoints_src[queryIdx].pt.y;
+				
+				vec_src(0) = xs; vec_src(1) = ys; vec_src(2) = disp_val_src; vec_src(3) = 1;
+				vec_src = Q * vec_src;
+				vec_src /= vec_src(3);
+				
+				Point3d src_3D_pt = Point3d(vec_src(0), vec_src(1), vec_src(2));
 
-		//*4. find transformation between corresponding 3D points using estimateAffine3D: Output 3D affine transformation matrix  3 x 4
+				double xd = keypoints_dst[trainIdx].pt.x;
+				double yd = keypoints_dst[trainIdx].pt.y;
+
+				vec_dst(0) = xd; vec_dst(1) = yd; vec_dst(2) = disp_val_dst; vec_dst(3) = 1;
+				vec_dst = Q * vec_dst;
+				vec_dst /= vec_dst(3);
+
+				Point3d dst_3D_pt = Point3d(vec_dst(0), vec_dst(1), vec_dst(2));
+				
+				keypoints3D_src.push_back(src_3D_pt);
+				keypoints3D_2D_index_src.push_back(queryIdx);
+
+				keypoints3D_dst.push_back(dst_3D_pt);
+				keypoints3D_2D_index_dst.push_back(trainIdx);
+
+				if(log_stuff)
+					f << "srcQ3D_point " << src_3D_pt << " dstQ3D_point " << dst_3D_pt << endl;
+			}
+
+		}
+	}
+
+	cout << "Converting 2D matches to 3D matches, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
+	
+	cout << "Finding 3D transformation and Eular Angles..." << endl;
+	t = getTickCount();
+	
+	//*4. find transformation between corresponding 3D points using estimateAffine3D: Output 3D affine transformation matrix  3 x 4
+	if(log_stuff)
 		f << "Q:\n" << Q << endl;
 
-		Mat affineTransformationMatrix;
-		std::vector<uchar> inliers3D;
-		double ransacThreshold = 3, confidence = 0.99;
-		estimateAffine3D(keypoints3D_src, keypoints3D_dst, affineTransformationMatrix, inliers3D, ransacThreshold, confidence);
+	Mat affineTransformationMatrix;
+	std::vector<uchar> inliers3D;
+	double ransacThreshold = 3, confidence = 0.99;
+	estimateAffine3D(keypoints3D_src, keypoints3D_dst, affineTransformationMatrix, inliers3D, ransacThreshold, confidence);
+	cout << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
+	
+	int inlierCount = 0;
+	for (int i = 0; i < inliers3D.size(); i++)
+	{
+		if (inliers3D[i] == 1)
+			inlierCount++;
+		f << (int)inliers3D[i] << ", ";
+	}
+	cout << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
+	
+	//* 5. use decomposeProjectionMatrix to get rotation or Euler angles
+	Mat cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles;
+	decomposeProjectionMatrix(affineTransformationMatrix, cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles);
+	cout << "EulerAngles :\n" << eulerAngles << endl;
+	
+	cout << "Finding 3D transformation and Eular Angles, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
+	cout << "Finished Pose Estimation, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
+	
+	if(log_stuff)
+	{
 		f << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
-		cout << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
 		f << "ransacThreshold: " << ransacThreshold << " confidence: " << confidence << endl;
 		f << "inliers3D:\n[";
-		int inlierCount = 0;
-		for (int i = 0; i < inliers3D.size(); i++)
-		{
-			if (inliers3D[i] == 1)
-				inlierCount++;
-			f << (int)inliers3D[i] << ", ";
-		}
 		f << "]" << endl;
 		f << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
-		cout << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
-		
-		//* 5. use decomposeProjectionMatrix to get rotation or Euler angles
-		Mat cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles;
-		decomposeProjectionMatrix(affineTransformationMatrix, cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles);
-		f << "cameraMatrix:\n" << cameraMatrix << "\nrotMatrix:\n" << rotMatrix << "\ntransVect :\n" << transVect << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << "\neulerAngles :\n" << eulerAngles << endl;
-		cout << "EulerAngles :\n" << eulerAngles << endl;
-
+		f << "cameraMatrix:\n" << cameraMatrix << "\nrotMatrix:\n" << rotMatrix << "\ntransVect :\n" << transVect << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << "\nEulerAngles :\n" << eulerAngles << endl;
 	}
 	
+	cout << "Drawing and saving feature matches images..." << endl;
+	Mat matchedImage, matchedImageInliers;
+	drawMatches(full_images[0], keypoints_src, full_images[1], keypoints_dst, match.matches, matchedImage);
+	vector<char> inliers(match.inliers_mask.size());
+	for (int i = 0; i < match.inliers_mask.size(); i++)
+	{
+		inliers[i] = match.inliers_mask[i];
+	}
+	drawMatches(full_images[0], keypoints_src, full_images[1], keypoints_dst, match.matches, matchedImageInliers, Scalar::all(-1), Scalar::all(-1), inliers, DrawMatchesFlags::DEFAULT);
+	imwrite("output/matchedImage.jpg", matchedImage);
+	imwrite("output/matchedImageInliers.jpg", matchedImageInliers);
+	
+	do 
+	{
+		cout << '\n' << "Press a key to continue...";
+	} while (cin.get() != '\n');
 
 	// Leave only images we are sure are from the same panorama
 	vector<int> indices = leaveBiggestComponent(features, pairwise_matches, conf_thresh);
@@ -828,7 +827,7 @@ int main(int argc, char* argv[])
 	num_images = static_cast<int>(img_names.size());
 	if (num_images < 2)
 	{
-		LOGLN("Need more images");
+		cout << "Need more images for parnorama..." << endl;
 		return -1;
 	}
 
@@ -845,7 +844,7 @@ int main(int argc, char* argv[])
 		Mat R;
 		cameras[i].R.convertTo(R, CV_32F);
 		cameras[i].R = R;
-		LOGLN("Initial intrinsics #" << indices[i] + 1 << ":\n" << cameras[i].K());
+		cout << "Initial intrinsics #" << indices[i] + 1 << ":\n" << cameras[i].K() << endl;
 	}
 
 	Ptr<detail::BundleAdjusterBase> adjuster;
@@ -875,7 +874,7 @@ int main(int argc, char* argv[])
 	vector<double> focals;
 	for (size_t i = 0; i < cameras.size(); ++i)
 	{
-		LOGLN("Camera #" << indices[i] + 1 << ":\n" << cameras[i].K());
+		cout << "Camera #" << indices[i] + 1 << ":\n" << cameras[i].K() << endl;
 		focals.push_back(cameras[i].focal);
 	}
 
@@ -895,11 +894,10 @@ int main(int argc, char* argv[])
 		for (size_t i = 0; i < cameras.size(); ++i)
 			cameras[i].R = rmats[i];
 	}
-
-	LOGLN("Warping images (auxiliary)... ");
-#if ENABLE_LOG
+	
+	
+	cout << "Warping images (auxiliary)... " << endl;
 	t = getTickCount();
-#endif
 
 	vector<Point> corners(num_images);
 	vector<UMat> masks_warped(num_images);
@@ -988,7 +986,7 @@ int main(int argc, char* argv[])
 	for (int i = 0; i < num_images; ++i)
 		images_warped[i].convertTo(images_warped_f[i], CV_32F);
 
-	LOGLN("Warping images, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec");
+	cout << "Warping images, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 
 	Ptr<ExposureCompensator> compensator = ExposureCompensator::createDefault(expos_comp_type);
 	compensator->feed(corners, images_warped, masks_warped);
@@ -1034,10 +1032,8 @@ int main(int argc, char* argv[])
 	images_warped_f.clear();
 	masks.clear();
 
-	LOGLN("Compositing...");
-#if ENABLE_LOG
+	cout << "Compositing..." << endl;
 	t = getTickCount();
-#endif
 
 	Mat img_warped, img_warped_s;
 	Mat dilated_mask, seam_mask, mask, mask_warped;
@@ -1048,7 +1044,7 @@ int main(int argc, char* argv[])
 
 	for (int img_idx = 0; img_idx < num_images; ++img_idx)
 	{
-		LOGLN("Compositing image #" << indices[img_idx] + 1);
+		cout << "Compositing image #" << indices[img_idx] + 1 << endl;
 
 		// Read image and resize it if necessary
 		full_img = imread(img_names[img_idx]);
@@ -1130,13 +1126,13 @@ int main(int argc, char* argv[])
 			{
 				MultiBandBlender* mb = dynamic_cast<MultiBandBlender*>(blender.get());
 				mb->setNumBands(static_cast<int>(ceil(log(blend_width) / log(2.)) - 1.));
-				LOGLN("Multi-band blender, number of bands: " << mb->numBands());
+				cout << "Multi-band blender, number of bands: " << mb->numBands() << endl;
 			}
 			else if (blend_type == Blender::FEATHER)
 			{
 				FeatherBlender* fb = dynamic_cast<FeatherBlender*>(blender.get());
 				fb->setSharpness(1.f / blend_width);
-				LOGLN("Feather blender, sharpness: " << fb->sharpness());
+				cout << "Feather blender, sharpness: " << fb->sharpness() << endl;
 			}
 			blender->prepare(corners, sizes);
 		}
@@ -1173,12 +1169,12 @@ int main(int argc, char* argv[])
 		Mat result, result_mask;
 		blender->blend(result, result_mask);
 
-		LOGLN("Compositing, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec");
+		cout << "Compositing, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 
 		imwrite(result_name, result);
 	}
 
-	LOGLN("Finished, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec");
+	cout << "Finished, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
 	
 	return 0;
 }
