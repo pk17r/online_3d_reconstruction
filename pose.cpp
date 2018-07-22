@@ -26,7 +26,6 @@ int main(int argc, char* argv[])
 	readCalibFile();
 	declareDependentVariables();
 	readPoseFile();
-	cout << "finding " << 2471 << " and found " << pose_data[binary_search_find_index(pose_sequence,2471)][0] << endl;
 	readImages();
 
 	int64 app_start_time = getTickCount();
@@ -40,6 +39,48 @@ int main(int argc, char* argv[])
 	t = getTickCount();
 	pairWiseMatching();
 	cout << "Pairwise matching, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
+	
+	//view 3D point cloud of first image & disparity map
+	if(preview)
+	{
+		//int img_index = 0;
+		pcl::visualization::PCLVisualizer viewer ("3d reconstruction");
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud0( new pcl::PointCloud<pcl::PointXYZRGB>() );
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud1( new pcl::PointCloud<pcl::PointXYZRGB>() );
+		
+		createPtCloud(0, cloud0, transformed_cloud0);
+		createPtCloud(1, cloud1, transformed_cloud1);
+		
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
+		
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud0, transformed_cloud_color_handler0, "transformed_cloud" + to_string(0));
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud1, transformed_cloud_color_handler1, "transformed_cloud" + to_string(1));
+		
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
+		
+		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
+		
+		viewer.addCoordinateSystem (1.0, 0, 0, 0);
+		viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+		viewer.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
+		
+		while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
+			viewer.spinOnce();
+		}
+	}
+	
+	cout << "Converting 2D matches to 3D matches..." << endl;
+	t = getTickCount();
+	
+	//f << "train is dst and query is src" << endl;
+	if(log_stuff)
+		f << "3D matched points: " << endl;
 	
 	MatchesInfo match = pairwise_matches[1];
 	
@@ -58,80 +99,6 @@ int main(int argc, char* argv[])
 		disp_img_src = disp_img2_src * reduction_ratio;	//increasing the disparity on enlarging disparity image
 		disp_img_dst = disp_img2_dst * reduction_ratio;
 	}
-	
-	//view 3D point cloud of first image & disparity map
-	if(preview)
-	{
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		cloud0->width    = 20;
-		cloud0->height   = 15;
-		cloud0->is_dense = false;
-		cloud0->points.resize (cloud0->width * cloud0->height);
-		
-		int point_clout_pts = 0;
-		cv::Mat_<double> vec_tmp(4,1);
-		
-		for (int y = boundingBox; y < rows - boundingBox; ++y)
-		{
-			for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
-			{
-				double disp_val_src = (double)disp_img_src.at<uchar>(y,x);
-				
-				if (disp_val_src > minDisparity)
-				{
-					//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
-					
-					vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val_src; vec_tmp(3)=1;
-					vec_tmp = Q*vec_tmp;
-					vec_tmp /= vec_tmp(3);
-					
-					point_clout_pts++;
-					double Z = 1.0 * focallength * baseline / disp_val_src;
-					double X = 1.0 * x * Z / focallength;
-					double Y = 1.0 * y * Z / focallength;
-					
-					pcl::PointXYZRGB pt_3d;
-					pt_3d.x = (float)vec_tmp(0);
-					pt_3d.y = (float)vec_tmp(1);
-					pt_3d.z = -(float)vec_tmp(2);
-					Vec3b color = full_images[0].at<Vec3b>(Point(x, y));
-					uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-					pt_3d.rgb = *reinterpret_cast<float*>(&rgb);
-					cloud0->points.push_back(pt_3d);
-					//cout << pt_3d << endl;
-				}
-			}
-		}
-		cout << "point cloud created!" << endl;
-		pcl::visualization::PCLVisualizer viewer0 ("3d image 0");
-		
-		// Define R,G,B colors for the point cloud
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloud0);
-		
-		// We add the point cloud to the viewer and pass the color handler
-		viewer0.addPointCloud<pcl::PointXYZRGB> (cloud0, rgb, "original_cloud");
-		
-		viewer0.addCoordinateSystem (1.0, "cloud", 0);
-		viewer0.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-		viewer0.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original_cloud");
-		viewer0.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
-		cout << "point_clout_pts: " << point_clout_pts << endl;
-		if(log_stuff)
-			f << "point_clout_pts: " << point_clout_pts << endl;
-		
-		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
-		
-		while (!viewer0.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-			viewer0.spinOnce();
-		}
-	}
-	
-	cout << "Converting 2D matches to 3D matches..." << endl;
-	t = getTickCount();
-	
-	//f << "train is dst and query is src" << endl;
-	if(log_stuff)
-		f << "3D matched points: " << endl;
 	
 	//define 3d points for all keypoints
 	vector<Point3d> keypoints3D_src, keypoints3D_dst;
@@ -554,6 +521,7 @@ static int parseCmdArgs(int argc, char** argv)
 				img_numbers.clear();
 			}
 			img_numbers.push_back(atoi(argv[i]));
+			cout << atoi(argv[i]) << endl;
 			++n_imgs;
 		}
 	}
@@ -663,8 +631,6 @@ void readPoseFile()
 	
 	// Otherwise, list some basic information about the file.
 	cout << "Your CSV file contains " << pose_data.size() << " records.\n";
-	cout << pose_sequence[0] << " : ";
-	cout << pose_data[0][0] << "," << pose_data[0][1] << "," << pose_data[0][2] << "," << pose_data[0][3] << "," << pose_data[0][4] << "," << pose_data[0][5] << endl;
 	cout << pose_sequence[2] << " : ";
 	cout << pose_data[2][0] << "," << pose_data[2][1] << "," << pose_data[2][2] << "," << pose_data[2][3] << "," << pose_data[2][4] << "," << pose_data[2][5] << endl;
 	cout << "finding " << 1050 << " and found " << pose_data[binary_search_find_index(pose_sequence,1050)][0] << endl;
@@ -831,5 +797,87 @@ inline void pairWiseMatching()
 		f << "H between images 1 and 0:" << endl;
 		f << pairwise_matches[2].H << endl;
 	}
+	
+}
+
+void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud)
+{
+	cout << "Image index: " << img_index << endl;
+	cloud->width    = 20;
+	cloud->height   = 15;
+	cloud->is_dense = false;
+	cloud->points.resize (cloud->width * cloud->height);
+	
+	int point_clout_pts = 0;
+	cv::Mat_<double> vec_tmp(4,1);
+	
+	Mat disp_img = disparity_images[img_index];
+	
+	for (int y = boundingBox; y < rows - boundingBox; ++y)
+	{
+		for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
+		{
+			double disp_val = (double)disp_img.at<uchar>(y,x);
+			
+			if (disp_val > minDisparity)
+			{
+				//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+				vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
+				vec_tmp = Q*vec_tmp;
+				vec_tmp /= vec_tmp(3);
+				
+				point_clout_pts++;
+				
+				pcl::PointXYZRGB pt_3d;
+				pt_3d.x = (float)vec_tmp(0);
+				pt_3d.y = (float)vec_tmp(1);
+				pt_3d.z = -(float)vec_tmp(2);
+				Vec3b color = full_images[0].at<Vec3b>(Point(x, y));
+				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+				pt_3d.rgb = *reinterpret_cast<float*>(&rgb);
+				
+				cloud->points.push_back(pt_3d);
+				//cout << pt_3d << endl;
+			}
+		}
+	}
+	
+	cout << "pose_seq_to_find " << img_numbers[img_index] << endl;
+	int found_index = binary_search_find_index(pose_sequence, img_numbers[img_index]);
+	cout << "found_index " << found_index << endl;
+	
+	Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
+	// Define a translation of 2.5 meters on the x axis.
+	transform_2.translation() << pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3];
+
+	// The same rotation matrix as before; theta radians around Z axis
+	double theta = 0;
+	transform_2.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+
+	// Print the transformation
+	printf ("Correcting 3D pt cloud using an Affine3f\n");
+	std::cout << transform_2.matrix() << std::endl;
+	
+	// Executing the transformation
+	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::transformPointCloud(*cloud, *transformed_cloud, transform_2);
+	// Define R,G,B colors for the point cloud
+	//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler (transformed_cloud, 230, 20, 20); // Red
+	
+	cout << "point cloud created!" << endl;
+	
+	// Define R,G,B colors for the point cloud
+	//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloud0);
+	
+	// We add the point cloud to the viewer and pass the color handler
+	//viewer.addPointCloud<pcl::PointXYZRGB> (cloud0, rgb, "original_cloud" + to_string(img_index));
+	//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud, transformed_cloud_color_handler, "transformed_cloud" + to_string(img_index));
+	
+	//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original_cloud" + to_string(img_index));
+	//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(img_index));
+	
+	cout << "point_clout_pts: " << point_clout_pts << endl;
+	if(log_stuff)
+		f << "point_clout_pts: " << point_clout_pts << endl;
 	
 }
