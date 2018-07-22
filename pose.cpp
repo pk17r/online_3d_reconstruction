@@ -77,11 +77,13 @@ int main(int argc, char* argv[])
 		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
 		////viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (cloud0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (cloud1);
+		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
+		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
 		
-		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud0, transformed_cloud_color_handler0, "transformed_cloud" + to_string(0));
-		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud1, transformed_cloud_color_handler1, "transformed_cloud" + to_string(1));
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud0, rgb0, "transformed_cloud" + to_string(0));
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud1, rgb1, "transformed_cloud" + to_string(1));
 		
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
@@ -616,6 +618,8 @@ istream& operator >> ( istream& ins, data_t& data )
 
 inline int binary_search_find_index(std::vector<int> v, int data)
 {
+	int difference = -293;
+	data -= difference;
     auto it = std::lower_bound(v.begin(), v.end(), data);
     if (it == v.end() || *it != data) {
         return -1;
@@ -826,9 +830,9 @@ inline void pairWiseMatching()
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud)
 {
 	cout << "Image index: " << img_index << endl;
-	cloud->width    = 20;
-	cloud->height   = 15;
-	cloud->is_dense = false;
+	cloud->width    = 7;
+	cloud->height   = 5;
+	cloud->is_dense = true;
 	cloud->points.resize (cloud->width * cloud->height);
 	
 	int point_clout_pts = 0;
@@ -867,7 +871,7 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
 	
 	cout << "pose_seq_to_find " << img_numbers[img_index] << endl;
 	int found_index = binary_search_find_index(pose_sequence, img_numbers[img_index]);
-	cout << "found_index " << found_index << endl;
+	cout << "found " << pose_data[found_index][0] << endl;
 	
 	Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
 	// Define a translation of 2.5 meters on the x axis.
