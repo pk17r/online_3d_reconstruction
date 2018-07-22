@@ -55,6 +55,28 @@ int main(int argc, char* argv[])
 		createPtCloud(0, cloud0, transformed_cloud0);
 		createPtCloud(1, cloud1, transformed_cloud1);
 		
+		//cout << "pose_seq_to_find " << img_numbers[0] << endl;
+		//int found_index = binary_search_find_index(pose_sequence, img_numbers[0]);
+		//cout << "found_index " << found_index << endl;
+		//cout << "pose_data[found_index] " << pose_data[found_index][0] << "," << pose_data[found_index][1] << "," << pose_data[found_index][2] << "," << pose_data[found_index][3] << "," << pose_data[found_index][4] << "," << pose_data[found_index][5] << "," << pose_data[found_index][6] << "," << pose_data[found_index][7] << endl;	
+		//
+		//Eigen::Vector4f sensor_origin = Eigen::Vector4f(pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3], 0);
+		//// Print the transformation
+		//printf ("sensor_origin\n");
+		//std::cout << sensor_origin << std::endl;
+		//		
+		//Eigen::Quaternion<float> sensor_quaternion = Eigen::Quaternion<float> (pose_data[found_index][4], pose_data[found_index][5], pose_data[found_index][6], pose_data[found_index][7]);
+		//
+		//// Define R,G,B colors for the point cloud
+		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (cloud0);
+		////pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (cloud1);
+	    //
+		//viewer.addPointCloud<pcl::PointXYZRGB> (cloud0, rgb0, &sensor_origin, &sensor_quaternion, "cloud" + to_string(0), 0);
+		////viewer.addPointCloud<pcl::PointXYZRGB> (cloud1, rgb1, "cloud" + to_string(1));
+		//
+		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
+		////viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
+		
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
 		
@@ -63,6 +85,7 @@ int main(int argc, char* argv[])
 		
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
+		
 		
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		
