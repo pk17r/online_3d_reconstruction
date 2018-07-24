@@ -24,6 +24,8 @@
 #include <pcl/common/transforms.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+
 
 //#define ENABLE_LOG 1
 //#define LOG(msg) std::cout << msg
@@ -80,6 +82,7 @@ float blend_strength = 5;
 string result_name = "output/result.jpg";
 bool timelapse = false;
 int range_width = -1;
+bool use_segment_labels = false;
 
 double work_scale = 1, seam_scale = 1, compose_scale = 1;
 bool is_work_scale_set = false, is_seam_scale_set = false, is_compose_scale_set = false;
@@ -88,9 +91,12 @@ Mat full_img, img;
 vector<Mat> images;
 vector<Mat> full_images;
 vector<Mat> disparity_images;
+vector<Mat> segment_maps;
+vector<Mat> double_disparity_images;
 vector<Size> full_img_sizes;
 string imagePrefix = "images/";
 string disparityPrefix = "disparities/";
+string segmentlblPrefix = "segmentlabels/";
 ofstream f;	//logging stuff
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
@@ -104,7 +110,6 @@ istream& operator >> ( istream& ins, record_t& record );
 istream& operator >> ( istream& ins, data_t& data );
 inline int binary_search_find_index(std::vector<int> v, int data);
 inline void readPoseFile();
-inline void declareDependentVariables();
 inline void readImages();
 inline void findFeatures();
 inline void pairWiseMatching();

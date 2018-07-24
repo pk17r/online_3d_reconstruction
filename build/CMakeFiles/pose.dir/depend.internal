@@ -213,26 +213,39 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/include/pcl-1.8/pcl/cloud_iterator.h
  /usr/include/pcl-1.8/pcl/common/centroid.h
  /usr/include/pcl-1.8/pcl/common/colors.h
+ /usr/include/pcl-1.8/pcl/common/common.h
  /usr/include/pcl-1.8/pcl/common/concatenate.h
  /usr/include/pcl-1.8/pcl/common/copy_point.h
  /usr/include/pcl-1.8/pcl/common/eigen.h
  /usr/include/pcl-1.8/pcl/common/impl/accumulators.hpp
  /usr/include/pcl-1.8/pcl/common/impl/centroid.hpp
+ /usr/include/pcl-1.8/pcl/common/impl/common.hpp
  /usr/include/pcl-1.8/pcl/common/impl/copy_point.hpp
  /usr/include/pcl-1.8/pcl/common/impl/eigen.hpp
  /usr/include/pcl-1.8/pcl/common/impl/io.hpp
+ /usr/include/pcl-1.8/pcl/common/impl/projection_matrix.hpp
  /usr/include/pcl-1.8/pcl/common/impl/transforms.hpp
  /usr/include/pcl-1.8/pcl/common/io.h
  /usr/include/pcl-1.8/pcl/common/point_tests.h
+ /usr/include/pcl-1.8/pcl/common/projection_matrix.h
+ /usr/include/pcl-1.8/pcl/common/time.h
  /usr/include/pcl-1.8/pcl/common/transforms.h
  /usr/include/pcl-1.8/pcl/console/parse.h
  /usr/include/pcl-1.8/pcl/console/print.h
  /usr/include/pcl-1.8/pcl/conversions.h
  /usr/include/pcl-1.8/pcl/correspondence.h
  /usr/include/pcl-1.8/pcl/exceptions.h
+ /usr/include/pcl-1.8/pcl/filters/boost.h
+ /usr/include/pcl-1.8/pcl/filters/filter.h
+ /usr/include/pcl-1.8/pcl/filters/filter_indices.h
+ /usr/include/pcl-1.8/pcl/filters/impl/filter.hpp
+ /usr/include/pcl-1.8/pcl/filters/impl/filter_indices.hpp
+ /usr/include/pcl-1.8/pcl/filters/impl/statistical_outlier_removal.hpp
+ /usr/include/pcl-1.8/pcl/filters/statistical_outlier_removal.h
  /usr/include/pcl-1.8/pcl/for_each_type.h
  /usr/include/pcl-1.8/pcl/geometry/planar_polygon.h
  /usr/include/pcl-1.8/pcl/impl/cloud_iterator.hpp
+ /usr/include/pcl-1.8/pcl/impl/instantiate.hpp
  /usr/include/pcl-1.8/pcl/impl/pcl_base.hpp
  /usr/include/pcl-1.8/pcl/impl/point_types.hpp
  /usr/include/pcl-1.8/pcl/io/boost.h
@@ -245,14 +258,38 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/include/pcl-1.8/pcl/io/ply/ply.h
  /usr/include/pcl-1.8/pcl/io/ply/ply_parser.h
  /usr/include/pcl-1.8/pcl/io/ply_io.h
+ /usr/include/pcl-1.8/pcl/kdtree/flann.h
+ /usr/include/pcl-1.8/pcl/kdtree/impl/kdtree_flann.hpp
+ /usr/include/pcl-1.8/pcl/kdtree/kdtree.h
+ /usr/include/pcl-1.8/pcl/kdtree/kdtree_flann.h
+ /usr/include/pcl-1.8/pcl/octree/impl/octree_base.hpp
+ /usr/include/pcl-1.8/pcl/octree/impl/octree_iterator.hpp
+ /usr/include/pcl-1.8/pcl/octree/impl/octree_pointcloud.hpp
+ /usr/include/pcl-1.8/pcl/octree/impl/octree_search.hpp
+ /usr/include/pcl-1.8/pcl/octree/octree_base.h
+ /usr/include/pcl-1.8/pcl/octree/octree_container.h
+ /usr/include/pcl-1.8/pcl/octree/octree_iterator.h
+ /usr/include/pcl-1.8/pcl/octree/octree_key.h
+ /usr/include/pcl-1.8/pcl/octree/octree_nodes.h
+ /usr/include/pcl-1.8/pcl/octree/octree_pointcloud.h
+ /usr/include/pcl-1.8/pcl/octree/octree_search.h
  /usr/include/pcl-1.8/pcl/pcl_base.h
  /usr/include/pcl-1.8/pcl/pcl_config.h
  /usr/include/pcl-1.8/pcl/pcl_exports.h
  /usr/include/pcl-1.8/pcl/pcl_macros.h
  /usr/include/pcl-1.8/pcl/point_cloud.h
+ /usr/include/pcl-1.8/pcl/point_representation.h
  /usr/include/pcl-1.8/pcl/point_traits.h
  /usr/include/pcl-1.8/pcl/point_types.h
  /usr/include/pcl-1.8/pcl/register_point_struct.h
+ /usr/include/pcl-1.8/pcl/search/impl/kdtree.hpp
+ /usr/include/pcl-1.8/pcl/search/impl/organized.hpp
+ /usr/include/pcl-1.8/pcl/search/impl/search.hpp
+ /usr/include/pcl-1.8/pcl/search/kdtree.h
+ /usr/include/pcl-1.8/pcl/search/octree.h
+ /usr/include/pcl-1.8/pcl/search/organized.h
+ /usr/include/pcl-1.8/pcl/search/pcl_search.h
+ /usr/include/pcl-1.8/pcl/search/search.h
  /usr/include/pcl-1.8/pcl/visualization/area_picking_event.h
  /usr/include/pcl-1.8/pcl/visualization/boost.h
  /usr/include/pcl-1.8/pcl/visualization/common/actor_map.h
@@ -724,6 +761,7 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/detail/bitmask.hpp
  /usr/local/boost_1_61_0/boost/detail/call_traits.hpp
  /usr/local/boost_1_61_0/boost/detail/container_fwd.hpp
+ /usr/local/boost_1_61_0/boost/detail/dynamic_bitset.hpp
  /usr/local/boost_1_61_0/boost/detail/endian.hpp
  /usr/local/boost_1_61_0/boost/detail/fenv.hpp
  /usr/local/boost_1_61_0/boost/detail/indirect_traits.hpp
@@ -752,6 +790,10 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/detail/winapi/time.hpp
  /usr/local/boost_1_61_0/boost/detail/winapi/timers.hpp
  /usr/local/boost_1_61_0/boost/detail/workaround.hpp
+ /usr/local/boost_1_61_0/boost/dynamic_bitset.hpp
+ /usr/local/boost_1_61_0/boost/dynamic_bitset/config.hpp
+ /usr/local/boost_1_61_0/boost/dynamic_bitset/dynamic_bitset.hpp
+ /usr/local/boost_1_61_0/boost/dynamic_bitset_fwd.hpp
  /usr/local/boost_1_61_0/boost/enable_shared_from_this.hpp
  /usr/local/boost_1_61_0/boost/exception/current_exception_cast.hpp
  /usr/local/boost_1_61_0/boost/exception/detail/clone_current_exception.hpp
@@ -1000,6 +1042,7 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/fusion/mpl/push_front.hpp
  /usr/local/boost_1_61_0/boost/fusion/mpl/size.hpp
  /usr/local/boost_1_61_0/boost/fusion/sequence/convert.hpp
+ /usr/local/boost_1_61_0/boost/fusion/sequence/intrinsic/at_key.hpp
  /usr/local/boost_1_61_0/boost/fusion/sequence/intrinsic/begin.hpp
  /usr/local/boost_1_61_0/boost/fusion/sequence/intrinsic/detail/segmented_begin.hpp
  /usr/local/boost_1_61_0/boost/fusion/sequence/intrinsic/detail/segmented_begin_impl.hpp
@@ -1073,6 +1116,8 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/get_pointer.hpp
  /usr/local/boost_1_61_0/boost/integer.hpp
  /usr/local/boost_1_61_0/boost/integer/common_factor_rt.hpp
+ /usr/local/boost_1_61_0/boost/integer/integer_log2.hpp
+ /usr/local/boost_1_61_0/boost/integer/integer_mask.hpp
  /usr/local/boost_1_61_0/boost/integer/static_log2.hpp
  /usr/local/boost_1_61_0/boost/integer_fwd.hpp
  /usr/local/boost_1_61_0/boost/integer_traits.hpp
@@ -1175,6 +1220,7 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/lexical_cast/detail/widest_char.hpp
  /usr/local/boost_1_61_0/boost/lexical_cast/try_lexical_convert.hpp
  /usr/local/boost_1_61_0/boost/limits.hpp
+ /usr/local/boost_1_61_0/boost/make_shared.hpp
  /usr/local/boost_1_61_0/boost/math/common_factor_ct.hpp
  /usr/local/boost_1_61_0/boost/math/policies/policy.hpp
  /usr/local/boost_1_61_0/boost/math/special_functions/detail/fp_traits.hpp
@@ -1574,6 +1620,8 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/parameter/parameters.hpp
  /usr/local/boost_1_61_0/boost/parameter/preprocessor.hpp
  /usr/local/boost_1_61_0/boost/parameter/value_type.hpp
+ /usr/local/boost_1_61_0/boost/pending/integer_log2.hpp
+ /usr/local/boost_1_61_0/boost/pending/lowest_bit.hpp
  /usr/local/boost_1_61_0/boost/pointer_to_other.hpp
  /usr/local/boost_1_61_0/boost/predef.h
  /usr/local/boost_1_61_0/boost/predef/architecture.h
@@ -1746,6 +1794,7 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/preprocessor/enum_params.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/enum_params_with_a_default.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/enum_shifted_params.hpp
+ /usr/local/boost_1_61_0/boost/preprocessor/expand.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/expr_if.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/facilities/detail/is_empty.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/facilities/empty.hpp
@@ -1821,6 +1870,7 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/preprocessor/seq/seq.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/seq/size.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/seq/subseq.hpp
+ /usr/local/boost_1_61_0/boost/preprocessor/seq/to_tuple.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/seq/transform.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/slot/detail/def.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/slot/slot.hpp
@@ -1833,6 +1883,72 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/local/boost_1_61_0/boost/preprocessor/tuple/to_list.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/variadic/elem.hpp
  /usr/local/boost_1_61_0/boost/preprocessor/variadic/size.hpp
+ /usr/local/boost_1_61_0/boost/random.hpp
+ /usr/local/boost_1_61_0/boost/random/additive_combine.hpp
+ /usr/local/boost_1_61_0/boost/random/bernoulli_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/beta_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/binomial_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/cauchy_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/chi_squared_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/config.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/const_mod.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/disable_warnings.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/enable_warnings.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/generator_bits.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/generator_seed_seq.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/integer_log2.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/large_arithmetic.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/operators.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/polynomial.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/ptr_helper.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/seed.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/seed_impl.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/signed_unsigned_tools.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/uniform_int_float.hpp
+ /usr/local/boost_1_61_0/boost/random/detail/vector_io.hpp
+ /usr/local/boost_1_61_0/boost/random/discard_block.hpp
+ /usr/local/boost_1_61_0/boost/random/discrete_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/exponential_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/extreme_value_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/fisher_f_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/gamma_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/generate_canonical.hpp
+ /usr/local/boost_1_61_0/boost/random/geometric_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/hyperexponential_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/independent_bits.hpp
+ /usr/local/boost_1_61_0/boost/random/inversive_congruential.hpp
+ /usr/local/boost_1_61_0/boost/random/lagged_fibonacci.hpp
+ /usr/local/boost_1_61_0/boost/random/laplace_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/linear_congruential.hpp
+ /usr/local/boost_1_61_0/boost/random/linear_feedback_shift.hpp
+ /usr/local/boost_1_61_0/boost/random/lognormal_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/mersenne_twister.hpp
+ /usr/local/boost_1_61_0/boost/random/negative_binomial_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/non_central_chi_squared_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/normal_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/piecewise_constant_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/piecewise_linear_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/poisson_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/random_number_generator.hpp
+ /usr/local/boost_1_61_0/boost/random/ranlux.hpp
+ /usr/local/boost_1_61_0/boost/random/seed_seq.hpp
+ /usr/local/boost_1_61_0/boost/random/shuffle_order.hpp
+ /usr/local/boost_1_61_0/boost/random/shuffle_output.hpp
+ /usr/local/boost_1_61_0/boost/random/student_t_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/subtract_with_carry.hpp
+ /usr/local/boost_1_61_0/boost/random/taus88.hpp
+ /usr/local/boost_1_61_0/boost/random/traits.hpp
+ /usr/local/boost_1_61_0/boost/random/triangle_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/uniform_01.hpp
+ /usr/local/boost_1_61_0/boost/random/uniform_int.hpp
+ /usr/local/boost_1_61_0/boost/random/uniform_int_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/uniform_on_sphere.hpp
+ /usr/local/boost_1_61_0/boost/random/uniform_real.hpp
+ /usr/local/boost_1_61_0/boost/random/uniform_real_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/uniform_smallint.hpp
+ /usr/local/boost_1_61_0/boost/random/variate_generator.hpp
+ /usr/local/boost_1_61_0/boost/random/weibull_distribution.hpp
+ /usr/local/boost_1_61_0/boost/random/xor_combine.hpp
  /usr/local/boost_1_61_0/boost/range/algorithm/equal.hpp
  /usr/local/boost_1_61_0/boost/range/as_literal.hpp
  /usr/local/boost_1_61_0/boost/range/begin.hpp

@@ -24,7 +24,6 @@ int main(int argc, char* argv[])
 	if (retVal == -1) return -1;
 	
 	readCalibFile();
-	declareDependentVariables();
 	readPoseFile();
 	readImages();
 
@@ -40,6 +39,74 @@ int main(int argc, char* argv[])
 	pairWiseMatching();
 	cout << "Pairwise matching, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 	
+	/*if(use_segment_labels)
+	{
+		cout << "Use_segment_labels to improve disparity images..." << endl;
+		for (int i = 0; i < segment_maps.size(); i++)
+		{
+			cout << "a0";
+			Mat segment_img = segment_maps[i];
+			Mat disp_img = disparity_images[i];
+			cout << "a1";
+			Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
+			cout << "a2";
+			for (int label = 1; label < 10; label++)
+			{
+				cout << "a";
+				//find pixels in this segment
+				vector<int> Xc, Yc;
+				for (int l = 0; l < segment_img.rows; l++)
+				{
+					for (int k = 0; k < segment_img.cols; k++)
+					{
+						if(segment_img.at<uchar>(l,k) == label)
+						{
+							Xc.push_back(k);
+							Yc.push_back(l);
+						}
+					}
+				}
+				if(Xc.size() == 0)		//all labels covered!
+					break;
+				cout << "b";
+				vector<double> Zp, Xp, Yp;
+				for (int p = 0; p < Xc.size(); p++)
+				{
+					if (Xc[p] > cols_start_aft_cutout && Xc[p] < segment_img.cols - boundingBox && Yc[p] > boundingBox && Yc[p] < segment_img.rows - boundingBox)
+					{
+						Zp.push_back((double)disp_img.at<uchar>(Yc[p],Xc[p]));
+						Xp.push_back((double)Xc[p]);
+						Yp.push_back((double)Yc[p]);
+					}
+				}
+				cout << "c";
+				//define A matrix
+				Mat A = Mat::zeros(Xp.size(),3, CV_64F);
+				Mat Z = Mat::zeros(Xp.size(),1, CV_64F);
+				for (int p = 0; p < Xp.size(); p++)
+				{
+					A.at<double>(p,0) = Xp[p];
+					A.at<double>(p,1) = Yp[p];
+					A.at<double>(p,2) = 1;
+					Z.at<double>(p,0) = Zp[p];
+				}
+				cout << "d";
+				Mat Ainv;
+				invert(A, Ainv, DECOMP_SVD);
+				Mat B = Ainv * Z;
+				
+				for (int p = 0; p < Xc.size(); p++)
+				{
+					new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * B.at<double>(0,1) * Xc[p] + 1.0 * B.at<double>(0,2) * Yc[p] + 1.0 * B.at<double>(0,3);
+				}
+			}
+			
+			double_disparity_images.push_back(new_disp_img);
+		}
+
+	}
+	*/
+	
 	//view 3D point cloud of first image & disparity map
 	if(preview)
 	{
@@ -53,8 +120,8 @@ int main(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud1( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		
 		createPtCloud(0, cloud0, transformed_cloud0);
-		createPtCloud(1, cloud1, transformed_cloud1);
-		
+		//createPtCloud(1, cloud1, transformed_cloud1);
+				
 		//cout << "pose_seq_to_find " << img_numbers[0] << endl;
 		//int found_index = binary_search_find_index(pose_sequence, img_numbers[0]);
 		//cout << "found_index " << found_index << endl;
@@ -77,16 +144,16 @@ int main(int argc, char* argv[])
 		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
 		////viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (cloud0);
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (cloud1);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (transformed_cloud0);
+		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (transformed_cloud1);
 		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
 		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
 		
 		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud0, rgb0, "transformed_cloud" + to_string(0));
-		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud1, rgb1, "transformed_cloud" + to_string(1));
+		//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud1, rgb1, "transformed_cloud" + to_string(1));
 		
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
-		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
+		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
 		
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
@@ -355,11 +422,17 @@ static int parseCmdArgs(int argc, char** argv)
 		}
 		else if (string(argv[i]) == "--log")
 		{
+			cout << "log" << endl;
 			log_stuff = true;
 		}
 		else if (string(argv[i]) == "--preview")
 		{
 			preview = true;
+		}
+		else if (string(argv[i]) == "--use_segment_labels")
+		{
+			cout << "use_segment_labels" << endl;
+			use_segment_labels = true;
 		}
 		else if (string(argv[i]) == "--try_cuda")
 		{
@@ -663,21 +736,22 @@ void readPoseFile()
 	cout << "finding " << 1050 << " and found " << pose_data[binary_search_find_index(pose_sequence,1050)][0] << endl;
 }
 
-inline void declareDependentVariables()
+inline void readImages()
 {
 	images = vector<Mat>(img_numbers.size());
 	full_images = vector<Mat>(img_numbers.size());
 	disparity_images = vector<Mat>(img_numbers.size());
 	full_img_sizes = vector<Size>(img_numbers.size());
+	if(use_segment_labels)
+	{
+		segment_maps = vector<Mat>(img_numbers.size());
+		double_disparity_images = vector<Mat>(img_numbers.size());
+	}
 	save_graph_to = "output/graph";
 	//logging stuff
 	if(log_stuff)
 		f.open(save_graph_to.c_str(), ios::out);
-
-}
-
-inline void readImages()
-{
+	
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
 		cout << img_numbers[i] << endl;
@@ -692,10 +766,22 @@ inline void readImages()
 		}
 		full_images[i] = full_img;
 		full_img_sizes[i] = full_img.size();
-		//read disparity image
-		Mat disp_img(rows,cols, CV_8UC1);
-		disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-		disparity_images[i] = disp_img;
+		
+		//read labelled segment maps
+		if(use_segment_labels)
+		{
+			Mat segment_img(rows,cols, CV_16UC1);
+			segment_img = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_ANYDEPTH);
+			double_disparity_images[i] = segment_img;
+		}
+		else
+		{
+			//read disparity image
+			Mat disp_img(rows,cols, CV_8UC1);
+			disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+			disparity_images[i] = disp_img;
+		}
+		
 		
 		if (full_img.empty())
 		{
@@ -832,19 +918,27 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
 	cout << "Image index: " << img_index << endl;
 	cloud->width    = 7;
 	cloud->height   = 5;
-	cloud->is_dense = true;
+	cloud->is_dense = false;
 	cloud->points.resize (cloud->width * cloud->height);
 	
 	int point_clout_pts = 0;
 	cv::Mat_<double> vec_tmp(4,1);
 	
-	Mat disp_img = disparity_images[img_index];
+	Mat disp_img;
+	if(use_segment_labels)
+		disp_img = double_disparity_images[img_index];
+	else
+		disp_img = disparity_images[img_index];
 	
 	for (int y = boundingBox; y < rows - boundingBox; ++y)
 	{
 		for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
 		{
-			double disp_val = (double)disp_img.at<uchar>(y,x);
+			double disp_val = 0;
+			if(use_segment_labels)
+				disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+			else
+				disp_val = (double)disp_img.at<uchar>(y,x);
 			
 			if (disp_val > minDisparity)
 			{
@@ -858,7 +952,7 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
 				pcl::PointXYZRGB pt_3d;
 				pt_3d.x = (float)vec_tmp(0);
 				pt_3d.y = (float)vec_tmp(1);
-				pt_3d.z = -(float)vec_tmp(2);
+				pt_3d.z = (float)vec_tmp(2);
 				Vec3b color = full_images[0].at<Vec3b>(Point(x, y));
 				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 				pt_3d.rgb = *reinterpret_cast<float*>(&rgb);
