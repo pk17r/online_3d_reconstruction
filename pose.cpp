@@ -39,20 +39,18 @@ int main(int argc, char* argv[])
 	pairWiseMatching();
 	cout << "Pairwise matching, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 	
-	/*if(use_segment_labels)
+	if(use_segment_labels)
 	{
 		cout << "Use_segment_labels to improve disparity images..." << endl;
 		for (int i = 0; i < segment_maps.size(); i++)
 		{
-			cout << "a0";
 			Mat segment_img = segment_maps[i];
 			Mat disp_img = disparity_images[i];
-			cout << "a1";
+			
 			Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
-			cout << "a2";
+			
 			for (int label = 1; label < 10; label++)
 			{
-				cout << "a";
 				//find pixels in this segment
 				vector<int> Xc, Yc;
 				for (int l = 0; l < segment_img.rows; l++)
@@ -68,44 +66,45 @@ int main(int argc, char* argv[])
 				}
 				if(Xc.size() == 0)		//all labels covered!
 					break;
-				cout << "b";
+				
 				vector<double> Zp, Xp, Yp;
 				for (int p = 0; p < Xc.size(); p++)
 				{
 					if (Xc[p] > cols_start_aft_cutout && Xc[p] < segment_img.cols - boundingBox && Yc[p] > boundingBox && Yc[p] < segment_img.rows - boundingBox)
 					{
+						//cout << "disp_img.at<uchar>(Yc[p],Xc[p]): " << disp_img.at<uchar>(Yc[p],Xc[p]) << endl;
 						Zp.push_back((double)disp_img.at<uchar>(Yc[p],Xc[p]));
 						Xp.push_back((double)Xc[p]);
 						Yp.push_back((double)Yc[p]);
 					}
 				}
-				cout << "c";
+			
 				//define A matrix
 				Mat A = Mat::zeros(Xp.size(),3, CV_64F);
-				Mat Z = Mat::zeros(Xp.size(),1, CV_64F);
+				Mat At = A.t();
+				Mat AtA = At * A;
+				Mat AtAinv;
+				invert(AtA, AtAinv, DECOMP_SVD);
+				Mat b = Mat::zeros(Xp.size(),1, CV_64F);
 				for (int p = 0; p < Xp.size(); p++)
 				{
 					A.at<double>(p,0) = Xp[p];
 					A.at<double>(p,1) = Yp[p];
 					A.at<double>(p,2) = 1;
-					Z.at<double>(p,0) = Zp[p];
+					b.at<double>(p,0) = Zp[p];
 				}
-				cout << "d";
-				Mat Ainv;
-				invert(A, Ainv, DECOMP_SVD);
-				Mat B = Ainv * Z;
+			
+				Mat x = AtAinv * At * b;
 				
 				for (int p = 0; p < Xc.size(); p++)
 				{
-					new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * B.at<double>(0,1) * Xc[p] + 1.0 * B.at<double>(0,2) * Yc[p] + 1.0 * B.at<double>(0,3);
+					new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,1) * Xc[p] + 1.0 * x.at<double>(0,2) * Yc[p] + 1.0 * x.at<double>(0,3);
 				}
 			}
-			
 			double_disparity_images.push_back(new_disp_img);
 		}
 
 	}
-	*/
 	
 	//view 3D point cloud of first image & disparity map
 	if(preview)
@@ -745,7 +744,7 @@ inline void readImages()
 	if(use_segment_labels)
 	{
 		segment_maps = vector<Mat>(img_numbers.size());
-		double_disparity_images = vector<Mat>(img_numbers.size());
+		//double_disparity_images = vector<Mat>(img_numbers.size());
 	}
 	save_graph_to = "output/graph";
 	//logging stuff
@@ -770,9 +769,19 @@ inline void readImages()
 		//read labelled segment maps
 		if(use_segment_labels)
 		{
-			Mat segment_img(rows,cols, CV_16UC1);
-			segment_img = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_ANYDEPTH);
-			double_disparity_images[i] = segment_img;
+			//Mat segment_img(rows,cols, CV_16UC1);
+			//segment_img = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_ANYDEPTH);
+			//segment_maps[i] = segment_img;
+			
+			//read segmentation map
+			Mat segment_img(rows,cols, CV_8UC1);
+			segment_img = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+			segment_maps[i] = segment_img;
+			
+			//read disparity image
+			Mat disp_img(rows,cols, CV_8UC1);
+			disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+			disparity_images[i] = disp_img;
 		}
 		else
 		{
@@ -929,14 +938,14 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
 		disp_img = double_disparity_images[img_index];
 	else
 		disp_img = disparity_images[img_index];
-	
+	cout << "disp_img.type(): " << type2str(disp_img.type()) << endl;;
 	for (int y = boundingBox; y < rows - boundingBox; ++y)
 	{
 		for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
 		{
 			double disp_val = 0;
 			if(use_segment_labels)
-				disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+				disp_val = (double)disp_img.at<uchar>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
 			else
 				disp_val = (double)disp_img.at<uchar>(y,x);
 			
