@@ -44,6 +44,7 @@ int main(int argc, char* argv[])
 		cout << "Use_segment_labels to improve disparity images..." << endl;
 		for (int i = 0; i < segment_maps.size(); i++)
 		{
+			cout << "Image" << i << endl;
 			Mat segment_img = segment_maps[i];
 			Mat disp_img = disparity_images[i];
 			
@@ -81,10 +82,6 @@ int main(int argc, char* argv[])
 			
 				//define A matrix
 				Mat A = Mat::zeros(Xp.size(),3, CV_64F);
-				Mat At = A.t();
-				Mat AtA = At * A;
-				Mat AtAinv;
-				invert(AtA, AtAinv, DECOMP_SVD);
 				Mat b = Mat::zeros(Xp.size(),1, CV_64F);
 				for (int p = 0; p < Xp.size(); p++)
 				{
@@ -93,15 +90,36 @@ int main(int argc, char* argv[])
 					A.at<double>(p,2) = 1;
 					b.at<double>(p,0) = Zp[p];
 				}
+				
+				// Pseudo Inverse in Solution of Over-determined Linear System of Equations
+				// https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+				
+				Mat At = A.t();
+				Mat AtA = At * A;
+				Mat AtAinv;
+				invert(AtA, AtAinv, DECOMP_SVD);
+				//cout << "AtAinv:\n" << AtAinv << endl;
 			
 				Mat x = AtAinv * At * b;
+				cout << "x:\n" << x << endl;
 				
 				for (int p = 0; p < Xc.size(); p++)
 				{
-					new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,1) * Xc[p] + 1.0 * x.at<double>(0,2) * Yc[p] + 1.0 * x.at<double>(0,3);
+					new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,0) * Xc[p] + 1.0 * x.at<double>(0,1) * Yc[p] + 1.0 * x.at<double>(0,2);
 				}
 			}
 			double_disparity_images.push_back(new_disp_img);
+			
+			f << "\nnew_disp_img_" << i << endl;
+			for (int l = 4.0/9*new_disp_img.rows; l < 5.0/9*new_disp_img.rows; l++)
+			{
+				for (int k = 4.0/9*new_disp_img.cols; k < 5.0/9*segment_img.cols; k++)
+				{
+					f << new_disp_img.at<double>(l,k) << " ";
+				}
+				f << endl;
+			}
+			f << endl;
 		}
 
 	}
@@ -945,7 +963,7 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
 		{
 			double disp_val = 0;
 			if(use_segment_labels)
-				disp_val = (double)disp_img.at<uchar>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
 			else
 				disp_val = (double)disp_img.at<uchar>(y,x);
 			
