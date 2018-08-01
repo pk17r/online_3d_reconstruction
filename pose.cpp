@@ -42,15 +42,18 @@ int main(int argc, char* argv[])
 	if(use_segment_labels)
 	{
 		cout << "Use_segment_labels to improve disparity images..." << endl;
+		cout << "boundingBox " << boundingBox << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
 		for (int i = 0; i < segment_maps.size(); i++)
 		{
 			cout << "Image" << i << endl;
 			Mat segment_img = segment_maps[i];
+			cout << "segment_img.rows " << segment_img.rows << " segment_img.cols " << segment_img.cols << endl;
+			
 			Mat disp_img = disparity_images[i];
 			
 			Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
 			
-			for (int label = 1; label < 10; label++)
+			for (int cluster = 1; cluster < 256; cluster++)
 			{
 				//find pixels in this segment
 				vector<int> Xc, Yc;
@@ -58,15 +61,17 @@ int main(int argc, char* argv[])
 				{
 					for (int k = 0; k < segment_img.cols; k++)
 					{
-						if(segment_img.at<uchar>(l,k) == label)
+						if(segment_img.at<uchar>(l,k) == cluster)
 						{
 							Xc.push_back(k);
 							Yc.push_back(l);
 						}
 					}
 				}
+				cout << "cluster" << cluster << " size:" << Xc.size() << endl;
 				if(Xc.size() == 0)		//all labels covered!
 					break;
+				
 				
 				vector<double> Zp, Xp, Yp;
 				for (int p = 0; p < Xc.size(); p++)
@@ -79,7 +84,11 @@ int main(int argc, char* argv[])
 						Yp.push_back((double)Yc[p]);
 					}
 				}
-			
+				//cout << "read all cluster disparities..." << endl;
+				cout << "Xp.size() " << Xp.size() << endl;
+				if(Xp.size() == 0)		//all labels covered!
+					continue;
+				
 				//define A matrix
 				Mat A = Mat::zeros(Xp.size(),3, CV_64F);
 				Mat b = Mat::zeros(Xp.size(),1, CV_64F);
@@ -90,12 +99,15 @@ int main(int argc, char* argv[])
 					A.at<double>(p,2) = 1;
 					b.at<double>(p,0) = Zp[p];
 				}
+				//cout << "A.size() " << A.size() << endl;
 				
 				// Pseudo Inverse in Solution of Over-determined Linear System of Equations
 				// https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
 				
 				Mat At = A.t();
+				//cout << "At.size() " << At.size() << endl;
 				Mat AtA = At * A;
+				//cout << "AtA " << AtA << endl;
 				Mat AtAinv;
 				invert(AtA, AtAinv, DECOMP_SVD);
 				//cout << "AtAinv:\n" << AtAinv << endl;
@@ -108,18 +120,7 @@ int main(int argc, char* argv[])
 					new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,0) * Xc[p] + 1.0 * x.at<double>(0,1) * Yc[p] + 1.0 * x.at<double>(0,2);
 				}
 			}
-			double_disparity_images.push_back(new_disp_img);
-			
-			f << "\nnew_disp_img_" << i << endl;
-			for (int l = 4.0/9*new_disp_img.rows; l < 5.0/9*new_disp_img.rows; l++)
-			{
-				for (int k = 4.0/9*new_disp_img.cols; k < 5.0/9*segment_img.cols; k++)
-				{
-					f << new_disp_img.at<double>(l,k) << " ";
-				}
-				f << endl;
-			}
-			f << endl;
+			double_disparity_images.push_back(new_disp_img);		
 		}
 
 	}
