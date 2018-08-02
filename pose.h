@@ -114,3 +114,4 @@ inline void readImages();
 inline void findFeatures();
 inline void pairWiseMatching();
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud);
+void createPlaneFittedDisparityImages();
