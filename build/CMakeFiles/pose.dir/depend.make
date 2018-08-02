@@ -200,6 +200,10 @@ CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/Eigen/src/plugins/CommonCwis
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/Eigen/src/plugins/CommonCwiseUnaryOps.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/Eigen/src/plugins/MatrixCwiseBinaryOps.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/Eigen/src/plugins/MatrixCwiseUnaryOps.h
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/unsupported/Eigen/Polynomials
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/unsupported/Eigen/src/Polynomials/Companion.h
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/unsupported/Eigen/src/Polynomials/PolynomialSolver.h
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/eigen3/unsupported/Eigen/src/Polynomials/PolynomialUtils.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/ModelCoefficients.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/PCLHeader.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/PCLImage.h
@@ -281,6 +285,12 @@ CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/point_representation.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/point_traits.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/point_types.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/register_point_struct.h
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/registration/correspondence_types.h
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/registration/eigen.h
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/registration/impl/correspondence_types.hpp
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/registration/impl/transformation_estimation_svd.hpp
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/registration/transformation_estimation.h
+CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/registration/transformation_estimation_svd.h
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/search/impl/kdtree.hpp
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/search/impl/organized.hpp
 CMakeFiles/pose.dir/pose.cpp.o: /usr/include/pcl-1.8/pcl/search/impl/search.hpp

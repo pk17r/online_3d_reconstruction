@@ -51,14 +51,27 @@ int main(int argc, char* argv[])
 		//int img_index = 0;
 		pcl::visualization::PCLVisualizer viewer ("3d reconstruction");
 		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud0( new pcl::PointCloud<pcl::PointXYZRGB>() );
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud1( new pcl::PointCloud<pcl::PointXYZRGB>() );
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz0 (new pcl::PointCloud<pcl::PointXYZ> ());
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz1 (new pcl::PointCloud<pcl::PointXYZ> ());
 		
-		createPtCloud(0, cloud0, transformed_cloud0);
-		//createPtCloud(1, cloud1, transformed_cloud1);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb0( new pcl::PointCloud<pcl::PointXYZRGB>() );
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1( new pcl::PointCloud<pcl::PointXYZRGB>() );
+		
+		createPtCloud(0, cloudrgb0, cloudxyz0, transformed_cloudrgb0);
+		createPtCloud(1, cloudrgb1, cloudxyz1, transformed_cloudrgb1);
+		
+		pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te;
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD;
+		//Eigen::Matrix4f T_SVD;
+		te.estimateRigidTransformation(*cloudrgb0, *cloudrgb1, T_SVD);
+		cout << "computed point cloud transformation is\n" << T_SVD << endl;
+		const Eigen::Quaternionf   R_SVD (T_SVD.topLeftCorner  <3, 3> ());
+		const Eigen::Translation3f t_SVD (T_SVD.topRightCorner <3, 1> ());
+		cout << "R_SVD: x " << R_SVD.x() << " y " << R_SVD.y() << " z " << R_SVD.z() << " w " << R_SVD.w() << endl;
+		cout << "t_SVD: x " << t_SVD.x() << " y " << t_SVD.y() << " z " << t_SVD.z() << endl;
 				
 		//cout << "pose_seq_to_find " << img_numbers[0] << endl;
 		//int found_index = binary_search_find_index(pose_sequence, img_numbers[0]);
@@ -82,16 +95,16 @@ int main(int argc, char* argv[])
 		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
 		////viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (transformed_cloud0);
-		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (transformed_cloud1);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (transformed_cloudrgb0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (transformed_cloudrgb1);
 		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
 		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
 		
-		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud0, rgb0, "transformed_cloud" + to_string(0));
-		//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud1, rgb1, "transformed_cloud" + to_string(1));
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb0, rgb0, "transformed_cloud" + to_string(0));
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb1, rgb1, "transformed_cloud" + to_string(1));
 		
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
-		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
 		
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
@@ -945,13 +958,18 @@ void createPlaneFittedDisparityImages()
 	}
 }
 
-void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud)
+void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb)
 {
 	cout << "Image index: " << img_index << endl;
-	cloud->width    = 7;
-	cloud->height   = 5;
-	cloud->is_dense = false;
-	cloud->points.resize (cloud->width * cloud->height);
+	cloudrgb->width    = 7;
+	cloudrgb->height   = 5;
+	cloudrgb->is_dense = false;
+	cloudrgb->points.resize (cloudrgb->width * cloudrgb->height);
+	
+	cloudxyz->width    = cloudrgb->width;
+	cloudxyz->height   = cloudrgb->height;
+	cloudxyz->is_dense = cloudrgb->is_dense;
+	cloudxyz->points.resize (cloudxyz->width * cloudxyz->height);
 	
 	int point_clout_pts = 0;
 	cv::Mat_<double> vec_tmp(4,1);
@@ -981,15 +999,21 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
 				
 				point_clout_pts++;
 				
-				pcl::PointXYZRGB pt_3d;
+				pcl::PointXYZ pt_3d;
 				pt_3d.x = (float)vec_tmp(0);
 				pt_3d.y = (float)vec_tmp(1);
 				pt_3d.z = (float)vec_tmp(2);
-				Vec3b color = full_images[0].at<Vec3b>(Point(x, y));
-				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-				pt_3d.rgb = *reinterpret_cast<float*>(&rgb);
 				
-				cloud->points.push_back(pt_3d);
+				pcl::PointXYZRGB pt_3drgb;
+				pt_3drgb.x = pt_3d.x;
+				pt_3drgb.y = pt_3d.y;
+				pt_3drgb.z = pt_3d.z;
+				Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
+				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
+				
+				cloudrgb->points.push_back(pt_3drgb);
+				cloudxyz->points.push_back(pt_3d);
 				//cout << pt_3d << endl;
 			}
 		}
@@ -1013,7 +1037,7 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
 	
 	// Executing the transformation
 	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	pcl::transformPointCloud(*cloud, *transformed_cloud, transform_2);
+	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform_2);
 	// Define R,G,B colors for the point cloud
 	//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler (transformed_cloud, 230, 20, 20); // Red
 	

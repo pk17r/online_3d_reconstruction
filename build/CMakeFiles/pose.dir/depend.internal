@@ -201,6 +201,10 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/include/eigen3/Eigen/src/plugins/CommonCwiseUnaryOps.h
  /usr/include/eigen3/Eigen/src/plugins/MatrixCwiseBinaryOps.h
  /usr/include/eigen3/Eigen/src/plugins/MatrixCwiseUnaryOps.h
+ /usr/include/eigen3/unsupported/Eigen/Polynomials
+ /usr/include/eigen3/unsupported/Eigen/src/Polynomials/Companion.h
+ /usr/include/eigen3/unsupported/Eigen/src/Polynomials/PolynomialSolver.h
+ /usr/include/eigen3/unsupported/Eigen/src/Polynomials/PolynomialUtils.h
  /usr/include/pcl-1.8/pcl/ModelCoefficients.h
  /usr/include/pcl-1.8/pcl/PCLHeader.h
  /usr/include/pcl-1.8/pcl/PCLImage.h
@@ -282,6 +286,12 @@ CMakeFiles/pose.dir/pose.cpp.o
  /usr/include/pcl-1.8/pcl/point_traits.h
  /usr/include/pcl-1.8/pcl/point_types.h
  /usr/include/pcl-1.8/pcl/register_point_struct.h
+ /usr/include/pcl-1.8/pcl/registration/correspondence_types.h
+ /usr/include/pcl-1.8/pcl/registration/eigen.h
+ /usr/include/pcl-1.8/pcl/registration/impl/correspondence_types.hpp
+ /usr/include/pcl-1.8/pcl/registration/impl/transformation_estimation_svd.hpp
+ /usr/include/pcl-1.8/pcl/registration/transformation_estimation.h
+ /usr/include/pcl-1.8/pcl/registration/transformation_estimation_svd.h
  /usr/include/pcl-1.8/pcl/search/impl/kdtree.hpp
  /usr/include/pcl-1.8/pcl/search/impl/organized.hpp
  /usr/include/pcl-1.8/pcl/search/impl/search.hpp

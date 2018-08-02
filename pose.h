@@ -25,6 +25,8 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/registration/transformation_estimation.h>
+#include <pcl/registration/transformation_estimation_svd.h>
 
 
 //#define ENABLE_LOG 1
@@ -113,5 +115,5 @@ inline void readPoseFile();
 inline void readImages();
 inline void findFeatures();
 inline void pairWiseMatching();
-void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud);
+void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb);
 void createPlaneFittedDisparityImages();
