@@ -208,11 +208,50 @@ int main(int argc, char* argv[])
 
 		}
 	}
+	
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud0 (new pcl::PointCloud<pcl::PointXYZ> ());
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZ> ());
+
+	cloud0->width    = 7;
+	cloud0->height   = 5;
+	cloud0->is_dense = false;
+	cloud0->points.resize (cloud0->width * cloud0->height);
+	
+	cloud1->width    = 7;
+	cloud1->height   = 5;
+	cloud1->is_dense = false;
+	cloud1->points.resize (cloud1->width * cloud1->height);
+	
+	for (int i = 0; i < keypoints3D_src.size(); ++i)
+	{
+		pcl::PointXYZ pt_3d_src, pt_3d_dst;
+		
+		pt_3d_src.x = keypoints3D_src[i].x;
+		pt_3d_src.y = keypoints3D_src[i].y;
+		pt_3d_src.z = keypoints3D_src[i].z;
+		
+		pt_3d_dst.x = keypoints3D_dst[i].x;
+		pt_3d_dst.y = keypoints3D_dst[i].y;
+		pt_3d_dst.z = keypoints3D_dst[i].z;
+		
+		cloud0->points.push_back(pt_3d_src);
+		cloud1->points.push_back(pt_3d_dst);
+	}
 
 	cout << "Converting 2D matches to 3D matches, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 	
 	cout << "Finding 3D transformation and Eular Angles..." << endl;
 	t = getTickCount();
+	
+	pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ> te2;
+	pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 T_SVD2;
+	//Eigen::Matrix4f T_SVD;
+	te2.estimateRigidTransformation(*cloud0, *cloud1, T_SVD2);
+	cout << "computed point cloud transformation is\n" << T_SVD2 << endl;
+	const Eigen::Quaternionf   R_SVD2 (T_SVD2.topLeftCorner  <3, 3> ());
+	const Eigen::Translation3f t_SVD2 (T_SVD2.topRightCorner <3, 1> ());
+	cout << "R_SVD2: x " << R_SVD2.x() << " y " << R_SVD2.y() << " z " << R_SVD2.z() << " w " << R_SVD2.w() << endl;
+	cout << "t_SVD2: x " << t_SVD2.x() << " y " << t_SVD2.y() << " z " << t_SVD2.z() << endl;
 	
 	//*4. find transformation between corresponding 3D points using estimateAffine3D: Output 3D affine transformation matrix  3 x 4
 	if(log_stuff)
