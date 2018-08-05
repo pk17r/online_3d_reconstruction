@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 	}
 	
 	//view 3D point cloud of first image & disparity map
-	if(preview)
+	/*if(preview)
 	{
 		//int img_index = 0;
 		pcl::visualization::PCLVisualizer viewer ("3d reconstruction");
@@ -60,8 +60,45 @@ int main(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb0( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		
-		createPtCloud(0, cloudrgb0, cloudxyz0, transformed_cloudrgb0);
-		createPtCloud(1, cloudrgb1, cloudxyz1, transformed_cloudrgb1);
+		int img_index = 0;
+		cout << "pose_seq_to_find " << img_numbers[img_index] << endl;
+		int found_index = binary_search_find_index(pose_sequence, img_numbers[img_index]);
+		cout << "found " << pose_data[found_index][0] << endl;
+		
+		Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
+		// Define a translation of 2.5 meters on the x axis.
+		transform_2.translation() << pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3];
+
+		// The same rotation matrix as before; theta radians around Z axis
+		double theta = 0;
+		transform_2.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+		
+		// Print the transformation
+		printf ("Correcting 3D pt cloud using an Affine3f\n");
+		std::cout << transform_2.matrix() << std::endl;
+		
+		createPtCloud(0, cloudrgb0, cloudxyz0);
+		transformPtCloud(cloudrgb0, transformed_cloudrgb0, transform_2);
+		
+		img_index = 1;
+		cout << "pose_seq_to_find " << img_numbers[img_index] << endl;
+		found_index = binary_search_find_index(pose_sequence, img_numbers[img_index]);
+		cout << "found " << pose_data[found_index][0] << endl;
+		
+		transform_2 = Eigen::Affine3f::Identity();
+		// Define a translation of 2.5 meters on the x axis.
+		transform_2.translation() << pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3];
+
+		// The same rotation matrix as before; theta radians around Z axis
+		theta = 0;
+		transform_2.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+		
+		// Print the transformation
+		printf ("Correcting 3D pt cloud using an Affine3f\n");
+		std::cout << transform_2.matrix() << std::endl;
+		
+		createPtCloud(1, cloudrgb1, cloudxyz1);
+		transformPtCloud(cloudrgb1, transformed_cloudrgb1, transform_2);
 		
 		pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te;
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD;
@@ -106,7 +143,6 @@ int main(int argc, char* argv[])
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
-		
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		
 		viewer.addCoordinateSystem (1.0, 0, 0, 0);
@@ -118,6 +154,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	
+	*/
 	cout << "Converting 2D matches to 3D matches..." << endl;
 	t = getTickCount();
 	
@@ -253,42 +290,138 @@ int main(int argc, char* argv[])
 	cout << "R_SVD2: x " << R_SVD2.x() << " y " << R_SVD2.y() << " z " << R_SVD2.z() << " w " << R_SVD2.w() << endl;
 	cout << "t_SVD2: x " << t_SVD2.x() << " y " << t_SVD2.y() << " z " << t_SVD2.z() << endl;
 	
+	//Mat rotations = T_SVD2.topLeftCorner  <3, 3> ();
+	Mat rotations = Mat::zeros(cv::Size(3, 3), CV_64FC1);
+	rotations.at<double>(0,0) = T_SVD2(0,0);
+	rotations.at<double>(0,1) = T_SVD2(0,1);
+	rotations.at<double>(0,2) = T_SVD2(0,2);
+	rotations.at<double>(1,0) = T_SVD2(1,0);
+	rotations.at<double>(1,1) = T_SVD2(1,1);
+	rotations.at<double>(1,2) = T_SVD2(1,2);
+	rotations.at<double>(2,0) = T_SVD2(2,0);
+	rotations.at<double>(2,1) = T_SVD2(2,1);
+	rotations.at<double>(2,2) = T_SVD2(2,2);
+	Mat mtxR, mtxQ, transVect, rotMatrixX, rotMatrixY, rotMatrixZ;
+	//decomposeProjectionMatrix(affineTransformationMatrix, cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles);
+	RQDecomp3x3(rotations, mtxR, mtxQ, rotMatrixX, rotMatrixY, rotMatrixZ);
+	
+	//view 3D point cloud of first image & disparity map
+	if(preview)
+	{
+		//int img_index = 0;
+		pcl::visualization::PCLVisualizer viewer ("3d reconstruction");
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz0 (new pcl::PointCloud<pcl::PointXYZ> ());
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz1 (new pcl::PointCloud<pcl::PointXYZ> ());
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb0( new pcl::PointCloud<pcl::PointXYZRGB>() );
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1( new pcl::PointCloud<pcl::PointXYZRGB>() );
+		
+		createPtCloud(0, cloudrgb0, cloudxyz0);
+		createPtCloud(1, cloudrgb1, cloudxyz1);
+		transformPtCloud2(cloudrgb0, transformed_cloudrgb0, T_SVD2);
+		
+		pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te;
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD;
+		//Eigen::Matrix4f T_SVD;
+		te.estimateRigidTransformation(*cloudrgb0, *cloudrgb1, T_SVD);
+		cout << "computed point cloud transformation is\n" << T_SVD << endl;
+		const Eigen::Quaternionf   R_SVD (T_SVD.topLeftCorner  <3, 3> ());
+		const Eigen::Translation3f t_SVD (T_SVD.topRightCorner <3, 1> ());
+		cout << "R_SVD: x " << R_SVD.x() << " y " << R_SVD.y() << " z " << R_SVD.z() << " w " << R_SVD.w() << endl;
+		cout << "t_SVD: x " << t_SVD.x() << " y " << t_SVD.y() << " z " << t_SVD.z() << endl;
+				
+		//cout << "pose_seq_to_find " << img_numbers[0] << endl;
+		//int found_index = binary_search_find_index(pose_sequence, img_numbers[0]);
+		//cout << "found_index " << found_index << endl;
+		//cout << "pose_data[found_index] " << pose_data[found_index][0] << "," << pose_data[found_index][1] << "," << pose_data[found_index][2] << "," << pose_data[found_index][3] << "," << pose_data[found_index][4] << "," << pose_data[found_index][5] << "," << pose_data[found_index][6] << "," << pose_data[found_index][7] << endl;	
+		//
+		//Eigen::Vector4f sensor_origin = Eigen::Vector4f(pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3], 0);
+		//// Print the transformation
+		//printf ("sensor_origin\n");
+		//std::cout << sensor_origin << std::endl;
+		//		
+		//Eigen::Quaternion<float> sensor_quaternion = Eigen::Quaternion<float> (pose_data[found_index][4], pose_data[found_index][5], pose_data[found_index][6], pose_data[found_index][7]);
+		//
+		//// Define R,G,B colors for the point cloud
+		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (cloud0);
+		////pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (cloud1);
+	    //
+		//viewer.addPointCloud<pcl::PointXYZRGB> (cloud0, rgb0, &sensor_origin, &sensor_quaternion, "cloud" + to_string(0), 0);
+		////viewer.addPointCloud<pcl::PointXYZRGB> (cloud1, rgb1, "cloud" + to_string(1));
+		//
+		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
+		////viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
+		
+		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (cloudrgb0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (cloudrgb1);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> trans_rgb0 (transformed_cloudrgb0);
+		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloudrgb0, 230, 20, 20); // Red
+		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
+		
+		//viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb0, rgb0, "cloud" + to_string(0));
+		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb1, rgb1, "cloud" + to_string(1));
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb0, trans_rgb0, "transformed_cloud" + to_string(0));
+		
+		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud" + to_string(0));
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud" + to_string(1));
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
+		
+		
+		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
+		
+		viewer.addCoordinateSystem (1.0, 0, 0, 0);
+		viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+		viewer.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
+		
+		while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
+			viewer.spinOnce();
+		}
+	}
+	
 	//*4. find transformation between corresponding 3D points using estimateAffine3D: Output 3D affine transformation matrix  3 x 4
 	if(log_stuff)
 		f << "Q:\n" << Q << endl;
 
-	Mat affineTransformationMatrix;
-	std::vector<uchar> inliers3D;
-	double ransacThreshold = 3, confidence = 0.99;
-	estimateAffine3D(keypoints3D_src, keypoints3D_dst, affineTransformationMatrix, inliers3D, ransacThreshold, confidence);
-	cout << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
-	
-	int inlierCount = 0;
-	for (int i = 0; i < inliers3D.size(); i++)
-	{
-		if (inliers3D[i] == 1)
-			inlierCount++;
-		f << (int)inliers3D[i] << ", ";
-	}
-	cout << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
+	//Mat affineTransformationMatrix;
+	//std::vector<uchar> inliers3D;
+	//double ransacThreshold = 3, confidence = 0.99;
+	//estimateAffine3D(keypoints3D_src, keypoints3D_dst, affineTransformationMatrix, inliers3D, ransacThreshold, confidence);
+	//cout << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
+	//
+	//int inlierCount = 0;
+	//for (int i = 0; i < inliers3D.size(); i++)
+	//{
+	//	if (inliers3D[i] == 1)
+	//		inlierCount++;
+	//	f << (int)inliers3D[i] << ", ";
+	//}
+	//cout << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
 	
 	//* 5. use decomposeProjectionMatrix to get rotation or Euler angles
-	Mat cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles;
-	decomposeProjectionMatrix(affineTransformationMatrix, cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles);
-	cout << "EulerAngles :\n" << eulerAngles << endl;
+	//Mat cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles;
+	//decomposeProjectionMatrix(affineTransformationMatrix, cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles);
+	//cout << "EulerAngles :\n" << eulerAngles << endl;
 	
 	cout << "Finding 3D transformation and Eular Angles, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 	cout << "Finished Pose Estimation, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
 	
 	if(log_stuff)
 	{
-		f << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
-		f << "ransacThreshold: " << ransacThreshold << " confidence: " << confidence << endl;
-		f << "inliers3D:\n[";
-		f << "]" << endl;
-		f << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
-		f << "cameraMatrix:\n" << cameraMatrix << "\nrotMatrix:\n" << rotMatrix << "\ntransVect :\n" << transVect << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << "\nEulerAngles :\n" << eulerAngles << endl;
+		//f << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
+		//f << "ransacThreshold: " << ransacThreshold << " confidence: " << confidence << endl;
+		//f << "inliers3D:\n[";
+		//f << "]" << endl;
+		//f << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
+		//f << "cameraMatrix:\n" << cameraMatrix << "\nrotMatrix:\n" << rotMatrix << "\ntransVect :\n" << transVect << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << "\nEulerAngles :\n" << eulerAngles << endl;
+		f << "computed point cloud transformation is\n" << T_SVD2 << endl;
+		f << "Decomposition:\nrotations:\n" << rotations << "\nmtxR:\n" << mtxR << "\nmtxQ :\n" << mtxQ << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << endl;
 	}
+	
+	cout << "Decomposition:\nrotations:\n" << rotations << "\nmtxR:\n" << mtxR << "\nmtxQ :\n" << mtxQ << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << endl;
 	
 	cout << "Drawing and saving feature matches images..." << endl;
 	Mat matchedImage, matchedImageInliers;
@@ -997,7 +1130,7 @@ void createPlaneFittedDisparityImages()
 	}
 }
 
-void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb)
+void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz)
 {
 	cout << "Image index: " << img_index << endl;
 	cloudrgb->width    = 7;
@@ -1057,43 +1190,19 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrg
 			}
 		}
 	}
-	
-	cout << "pose_seq_to_find " << img_numbers[img_index] << endl;
-	int found_index = binary_search_find_index(pose_sequence, img_numbers[img_index]);
-	cout << "found " << pose_data[found_index][0] << endl;
-	
-	Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
-	// Define a translation of 2.5 meters on the x axis.
-	transform_2.translation() << pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3];
-
-	// The same rotation matrix as before; theta radians around Z axis
-	double theta = 0;
-	transform_2.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
-
-	// Print the transformation
-	printf ("Correcting 3D pt cloud using an Affine3f\n");
-	std::cout << transform_2.matrix() << std::endl;
-	
-	// Executing the transformation
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform_2);
-	// Define R,G,B colors for the point cloud
-	//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler (transformed_cloud, 230, 20, 20); // Red
-	
-	cout << "point cloud created!" << endl;
-	
-	// Define R,G,B colors for the point cloud
-	//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloud0);
-	
-	// We add the point cloud to the viewer and pass the color handler
-	//viewer.addPointCloud<pcl::PointXYZRGB> (cloud0, rgb, "original_cloud" + to_string(img_index));
-	//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloud, transformed_cloud_color_handler, "transformed_cloud" + to_string(img_index));
-	
-	//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original_cloud" + to_string(img_index));
-	//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(img_index));
-	
 	cout << "point_clout_pts: " << point_clout_pts << endl;
 	if(log_stuff)
 		f << "point_clout_pts: " << point_clout_pts << endl;
-	
+}
+
+void transformPtCloud2(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform)
+{
+	// Executing the transformation
+	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform);
+}
+
+void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, Eigen::Affine3f transform_2)
+{
+	// Executing the transformation
+	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform_2);
 }
