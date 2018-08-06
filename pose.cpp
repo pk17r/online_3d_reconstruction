@@ -284,7 +284,7 @@ int main(int argc, char* argv[])
 	pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 T_SVD2;
 	//Eigen::Matrix4f T_SVD;
 	te2.estimateRigidTransformation(*cloud0, *cloud1, T_SVD2);
-	cout << "computed point cloud transformation is\n" << T_SVD2 << endl;
+	cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD2 << endl;
 	const Eigen::Quaternionf   R_SVD2 (T_SVD2.topLeftCorner  <3, 3> ());
 	const Eigen::Translation3f t_SVD2 (T_SVD2.topRightCorner <3, 1> ());
 	cout << "R_SVD2: x " << R_SVD2.x() << " y " << R_SVD2.y() << " z " << R_SVD2.z() << " w " << R_SVD2.w() << endl;
@@ -328,17 +328,32 @@ int main(int argc, char* argv[])
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD;
 		//Eigen::Matrix4f T_SVD;
 		te.estimateRigidTransformation(*cloudrgb0, *cloudrgb1, T_SVD);
-		cout << "computed point cloud transformation is\n" << T_SVD << endl;
+		cout << "computed transformation between COMPLETE POINT CLOUDS T_SVD is\n" << T_SVD << endl;
 		const Eigen::Quaternionf   R_SVD (T_SVD.topLeftCorner  <3, 3> ());
 		const Eigen::Translation3f t_SVD (T_SVD.topRightCorner <3, 1> ());
 		cout << "R_SVD: x " << R_SVD.x() << " y " << R_SVD.y() << " z " << R_SVD.z() << " w " << R_SVD.w() << endl;
 		cout << "t_SVD: x " << t_SVD.x() << " y " << t_SVD.y() << " z " << t_SVD.z() << endl;
-				
+		
 		//cout << "pose_seq_to_find " << img_numbers[0] << endl;
-		//int found_index = binary_search_find_index(pose_sequence, img_numbers[0]);
-		//cout << "found_index " << found_index << endl;
-		//cout << "pose_data[found_index] " << pose_data[found_index][0] << "," << pose_data[found_index][1] << "," << pose_data[found_index][2] << "," << pose_data[found_index][3] << "," << pose_data[found_index][4] << "," << pose_data[found_index][5] << "," << pose_data[found_index][6] << "," << pose_data[found_index][7] << endl;	
-		//
+		int found_index0 = binary_search_find_index(pose_sequence, img_numbers[0]);
+		//cout << "found_index0 " << found_index0 << endl;
+		cout << "pose_data of image " << img_numbers[0] << " is " << pose_data[found_index0][0] << " pos_x " << pose_data[found_index0][1] << " pos_y " << pose_data[found_index0][2] << " pos_z " << pose_data[found_index0][3] << " quat_x " << pose_data[found_index0][4] << " quat_y " << pose_data[found_index0][5] << " quat_z " << pose_data[found_index0][6] << " quat_w " << pose_data[found_index0][7] << endl;
+		cout << "sq sum of quaternion " << sqrt(pose_data[found_index0][4]*pose_data[found_index0][4] + pose_data[found_index0][5]*pose_data[found_index0][5] + pose_data[found_index0][6]*pose_data[found_index0][6] + pose_data[found_index0][7]*pose_data[found_index0][7]) << endl;
+		
+		//cout << "pose_seq_to_find " << img_numbers[1] << endl;
+		int found_index1 = binary_search_find_index(pose_sequence, img_numbers[1]);
+		//cout << "found_index1 " << found_index1 << endl;
+		cout << "pose_data of image " << img_numbers[1] << " is " << pose_data[found_index1][0] << " pos_x " << pose_data[found_index1][1] << " pos_y " << pose_data[found_index1][2] << " pos_z " << pose_data[found_index1][3] << " quat_x " << pose_data[found_index1][4] << " quat_y " << pose_data[found_index1][5] << " quat_z " << pose_data[found_index1][6] << " quat_w " << pose_data[found_index1][7] << endl;
+		cout << "sq sum of quaternion " << sqrt(pose_data[found_index1][4]*pose_data[found_index1][4] + pose_data[found_index1][5]*pose_data[found_index1][5] + pose_data[found_index1][6]*pose_data[found_index1][6] + pose_data[found_index1][7]*pose_data[found_index1][7]) << endl;
+		
+		double trans_x = pose_data[found_index1][1] - pose_data[found_index0][1];
+		double trans_y = pose_data[found_index1][2] - pose_data[found_index0][2];
+		double trans_z = pose_data[found_index1][3] - pose_data[found_index0][3];
+		
+		cout << "recorded translation between images is   trans_x " << trans_x <<    " trans_y " << trans_y <<    " trans_z " << trans_z << endl;
+		cout << "calculated translation between images is t_SVD2x " << t_SVD2.x() << " t_SVD2y " << t_SVD2.y() << " t_SVD2z " << t_SVD2.z() << endl;
+		cout << "difference between recorded and calculated translation between images is x " << trans_x - t_SVD2.x() << " y " << trans_y - t_SVD2.y() << " z " << trans_z - t_SVD2.z	() << endl;
+		
 		//Eigen::Vector4f sensor_origin = Eigen::Vector4f(pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3], 0);
 		//// Print the transformation
 		//printf ("sensor_origin\n");
@@ -1193,6 +1208,63 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrg
 	cout << "point_clout_pts: " << point_clout_pts << endl;
 	if(log_stuff)
 		f << "point_clout_pts: " << point_clout_pts << endl;
+}
+
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose)
+{
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat;
+	
+	double tx = pose[1];
+	double ty = pose[2];
+	double tz = pose[3];
+	double qx = pose[4];
+	double qy = pose[5];
+	double qz = pose[6];
+	double qw = pose[7];
+	
+	double sqw = qw*qw;
+	double sqx = qx*qx;
+	double sqy = qy*qy;
+	double sqz = qz*qz;
+	
+	Mat rot = Mat::zeros(cv::Size(3, 3), CV_64FC1);
+	
+	rot.at<double>(0,0) = sqx - sqy - sqz + sqw; // since sqw + sqx + sqy + sqz =1
+	rot.at<double>(1,1) = -sqx + sqy - sqz + sqw;
+	rot.at<double>(2,2) = -sqx - sqy + sqz + sqw;
+
+	double tmp1 = qx*qy;
+	double tmp2 = qz*qw;
+	rot.at<double>(0,1) = 2.0 * (tmp1 + tmp2);
+	rot.at<double>(1,0) = 2.0 * (tmp1 - tmp2);
+
+	tmp1 = qx*qz;
+	tmp2 = qy*qw;
+	rot.at<double>(0,2) = 2.0 * (tmp1 - tmp2);
+	rot.at<double>(2,0) = 2.0 * (tmp1 + tmp2);
+
+	tmp1 = qy*qz;
+	tmp2 = qx*qw;
+	rot.at<double>(1,2) = 2.0 * (tmp1 + tmp2);
+	rot.at<double>(2,1) = 2.0 * (tmp1 - tmp2);
+	
+	t_mat(0,0) = rot.at<double>(0,0);
+	t_mat(0,1) = rot.at<double>(0,1);
+	t_mat(0,2) = rot.at<double>(0,2);
+	t_mat(1,0) = rot.at<double>(1,0);
+	t_mat(1,1) = rot.at<double>(1,1);
+	t_mat(1,2) = rot.at<double>(1,2);
+	t_mat(2,0) = rot.at<double>(2,0);
+	t_mat(2,1) = rot.at<double>(2,1);
+	t_mat(2,2) = rot.at<double>(2,2);
+	
+	t_mat(0,3) = tx - tx * t_mat(0,0) - ty * t_mat(0,1) - tz * t_mat(0,2);
+	t_mat(1,3) = ty - tx * t_mat(1,0) - ty * t_mat(1,1) - tz * t_mat(1,2);
+	t_mat(2,3) = tz - tx * t_mat(2,0) - ty * t_mat(2,1) - tz * t_mat(2,2);
+	t_mat(3,0) = t_mat(3,1) = t_mat(3,2) = 0.0;
+	t_mat(3,3) = 1.0;
+	
+	return t_mat;
 }
 
 void transformPtCloud2(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform)

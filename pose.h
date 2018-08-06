@@ -96,8 +96,8 @@ vector<Mat> disparity_images;
 vector<Mat> segment_maps;
 vector<Mat> double_disparity_images;
 vector<Size> full_img_sizes;
-string imagePrefix = "images/";
-string disparityPrefix = "disparities/";
+string imagePrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/left_rect/";
+string disparityPrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/disparities/";
 string segmentlblPrefix = "segmentlabels/";
 ofstream f;	//logging stuff
 vector<ImageFeatures> features;
@@ -119,3 +119,4 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrg
 void transformPtCloud2(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform);
 void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, Eigen::Affine3f transform_2);
 void createPlaneFittedDisparityImages();
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose);
