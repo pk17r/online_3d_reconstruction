@@ -320,39 +320,41 @@ int main(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb0( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		
+		int found_index0 = binary_search_find_index(pose_sequence, img_numbers[0]);
+		//cout << "found_index0 " << found_index0 << endl;
+		cout << "pose_data of image " << img_numbers[0] << " is " << pose_data[found_index0][0] << " pos_x " << pose_data[found_index0][1] << " pos_y " << pose_data[found_index0][2] << " pos_z " << pose_data[found_index0][3] << " quat_x " << pose_data[found_index0][4] << " quat_y " << pose_data[found_index0][5] << " quat_z " << pose_data[found_index0][6] << " quat_w " << pose_data[found_index0][7] << endl;
+		cout << "sq sum of quaternion " << sqrt(pose_data[found_index0][4]*pose_data[found_index0][4] + pose_data[found_index0][5]*pose_data[found_index0][5] + pose_data[found_index0][6]*pose_data[found_index0][6] + pose_data[found_index0][7]*pose_data[found_index0][7]) << endl;
+		
 		createPtCloud(0, cloudrgb0, cloudxyz0);
-		createPtCloud(1, cloudrgb1, cloudxyz1);
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD0 = generateTmat(pose_data[found_index0]);
 		transformPtCloud2(cloudrgb0, transformed_cloudrgb0, T_SVD2);
+		
+		int found_index1 = binary_search_find_index(pose_sequence, img_numbers[1]);
+		//cout << "found_index1 " << found_index1 << endl;
+		cout << "pose_data of image " << img_numbers[1] << " is " << pose_data[found_index1][0] << " pos_x " << pose_data[found_index1][1] << " pos_y " << pose_data[found_index1][2] << " pos_z " << pose_data[found_index1][3] << " quat_x " << pose_data[found_index1][4] << " quat_y " << pose_data[found_index1][5] << " quat_z " << pose_data[found_index1][6] << " quat_w " << pose_data[found_index1][7] << endl;
+		cout << "sq sum of quaternion " << sqrt(pose_data[found_index1][4]*pose_data[found_index1][4] + pose_data[found_index1][5]*pose_data[found_index1][5] + pose_data[found_index1][6]*pose_data[found_index1][6] + pose_data[found_index1][7]*pose_data[found_index1][7]) << endl;
+		
+		createPtCloud(1, cloudrgb1, cloudxyz1);
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD1 = generateTmat(pose_data[found_index1]);
+		transformPtCloud2(cloudrgb1, transformed_cloudrgb1, T_SVD1);
 		
 		pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te;
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD;
 		//Eigen::Matrix4f T_SVD;
-		te.estimateRigidTransformation(*cloudrgb0, *cloudrgb1, T_SVD);
+		te.estimateRigidTransformation(*transformed_cloudrgb0, *transformed_cloudrgb1, T_SVD);
 		cout << "computed transformation between COMPLETE POINT CLOUDS T_SVD is\n" << T_SVD << endl;
 		const Eigen::Quaternionf   R_SVD (T_SVD.topLeftCorner  <3, 3> ());
 		const Eigen::Translation3f t_SVD (T_SVD.topRightCorner <3, 1> ());
 		cout << "R_SVD: x " << R_SVD.x() << " y " << R_SVD.y() << " z " << R_SVD.z() << " w " << R_SVD.w() << endl;
 		cout << "t_SVD: x " << t_SVD.x() << " y " << t_SVD.y() << " z " << t_SVD.z() << endl;
 		
-		//cout << "pose_seq_to_find " << img_numbers[0] << endl;
-		int found_index0 = binary_search_find_index(pose_sequence, img_numbers[0]);
-		//cout << "found_index0 " << found_index0 << endl;
-		cout << "pose_data of image " << img_numbers[0] << " is " << pose_data[found_index0][0] << " pos_x " << pose_data[found_index0][1] << " pos_y " << pose_data[found_index0][2] << " pos_z " << pose_data[found_index0][3] << " quat_x " << pose_data[found_index0][4] << " quat_y " << pose_data[found_index0][5] << " quat_z " << pose_data[found_index0][6] << " quat_w " << pose_data[found_index0][7] << endl;
-		cout << "sq sum of quaternion " << sqrt(pose_data[found_index0][4]*pose_data[found_index0][4] + pose_data[found_index0][5]*pose_data[found_index0][5] + pose_data[found_index0][6]*pose_data[found_index0][6] + pose_data[found_index0][7]*pose_data[found_index0][7]) << endl;
-		
-		//cout << "pose_seq_to_find " << img_numbers[1] << endl;
-		int found_index1 = binary_search_find_index(pose_sequence, img_numbers[1]);
-		//cout << "found_index1 " << found_index1 << endl;
-		cout << "pose_data of image " << img_numbers[1] << " is " << pose_data[found_index1][0] << " pos_x " << pose_data[found_index1][1] << " pos_y " << pose_data[found_index1][2] << " pos_z " << pose_data[found_index1][3] << " quat_x " << pose_data[found_index1][4] << " quat_y " << pose_data[found_index1][5] << " quat_z " << pose_data[found_index1][6] << " quat_w " << pose_data[found_index1][7] << endl;
-		cout << "sq sum of quaternion " << sqrt(pose_data[found_index1][4]*pose_data[found_index1][4] + pose_data[found_index1][5]*pose_data[found_index1][5] + pose_data[found_index1][6]*pose_data[found_index1][6] + pose_data[found_index1][7]*pose_data[found_index1][7]) << endl;
-		
 		double trans_x = pose_data[found_index1][1] - pose_data[found_index0][1];
 		double trans_y = pose_data[found_index1][2] - pose_data[found_index0][2];
 		double trans_z = pose_data[found_index1][3] - pose_data[found_index0][3];
 		
 		cout << "recorded translation between images is   trans_x " << trans_x <<    " trans_y " << trans_y <<    " trans_z " << trans_z << endl;
-		cout << "calculated translation between images is t_SVD2x " << t_SVD2.x() << " t_SVD2y " << t_SVD2.y() << " t_SVD2z " << t_SVD2.z() << endl;
-		cout << "difference between recorded and calculated translation between images is x " << trans_x - t_SVD2.x() << " y " << trans_y - t_SVD2.y() << " z " << trans_z - t_SVD2.z	() << endl;
+		cout << "calculated translation between images is t_SVDx " << t_SVD.x() << " t_SVD2y " << t_SVD.y() << " t_SVD2z " << t_SVD.z() << endl;
+		cout << "difference between recorded and calculated translation between images is x " << trans_x - t_SVD.x() << " y " << trans_y - t_SVD.y() << " z " << trans_z - t_SVD.z	() << endl;
 		
 		//Eigen::Vector4f sensor_origin = Eigen::Vector4f(pose_data[found_index][1], pose_data[found_index][2], pose_data[found_index][3], 0);
 		//// Print the transformation
@@ -372,18 +374,21 @@ int main(int argc, char* argv[])
 		////viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
 		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (cloudrgb0);
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (cloudrgb1);
+		//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (cloudrgb1);
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> trans_rgb0 (transformed_cloudrgb0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> trans_rgb1 (transformed_cloudrgb1);
 		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloudrgb0, 230, 20, 20); // Red
 		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
 		
 		//viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb0, rgb0, "cloud" + to_string(0));
-		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb1, rgb1, "cloud" + to_string(1));
+		//viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb1, rgb1, "cloud" + to_string(1));
 		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb0, trans_rgb0, "transformed_cloud" + to_string(0));
+		viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb1, trans_rgb1, "transformed_cloud" + to_string(1));
 		
 		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud" + to_string(0));
-		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud" + to_string(1));
+		//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud" + to_string(1));
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 		
 		
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
@@ -1247,6 +1252,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	tmp2 = qx*qw;
 	rot.at<double>(1,2) = 2.0 * (tmp1 + tmp2);
 	rot.at<double>(2,1) = 2.0 * (tmp1 - tmp2);
+	
+	rot = rot.t();
 	
 	t_mat(0,0) = rot.at<double>(0,0);
 	t_mat(0,1) = rot.at<double>(0,1);
