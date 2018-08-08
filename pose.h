@@ -52,13 +52,25 @@ Mat K1, K2, D1, D2;
 Mat R1, R2, P1, P2;
 Mat R, E, F, Q;
 Vec3d T;
+string dataFilesPrefix = "data_files/";
 string pose_file = "pose.txt";
+string images_times_file = "images.txt";
+string heading_data_file = "hdg.txt";
+string imagePrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/left_rect/";
+string disparityPrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/disparities/";
+string segmentlblPrefix = "segmentlabels/";
 
 typedef vector <double> record_t;
 typedef vector <record_t> data_t;
 
-vector<int> pose_sequence;
-data_t pose_data;		//header.seq,position.x,position.y,position.z,orientation.x,orientation.y,orientation.z,orientation.w
+//PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
+data_t pose_data;		//header.seq,secs,NSECS,position.x,position.y,position.z,orientation.x,orientation.y,orientation.z,orientation.w
+data_t heading_data;	//header.seq,secs,NSECS,rostime,heading_in_degs
+data_t images_times_data;	//header.seq,secs,NSECS
+//vectors to store trigger times for easier searching
+vector<double> images_times_seq;
+vector<double> pose_times_seq;
+vector<double> heading_times_seq;
 
 bool log_stuff = false;
 bool preview = false;
@@ -96,12 +108,10 @@ vector<Mat> disparity_images;
 vector<Mat> segment_maps;
 vector<Mat> double_disparity_images;
 vector<Size> full_img_sizes;
-string imagePrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/left_rect/";
-string disparityPrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/disparities/";
-string segmentlblPrefix = "segmentlabels/";
 ofstream f;	//logging stuff
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
+const double PI  =3.141592653589793238463;
 
 //declaring functions
 void readCalibFile();
@@ -110,7 +120,6 @@ string type2str(int type);
 static int parseCmdArgs(int argc, char** argv);
 istream& operator >> ( istream& ins, record_t& record );
 istream& operator >> ( istream& ins, data_t& data );
-inline int binary_search_find_index(std::vector<int> v, int data);
 inline void readPoseFile();
 inline void readImages();
 inline void findFeatures();
@@ -120,3 +129,6 @@ void transformPtCloud2(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::Poi
 void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, Eigen::Affine3f transform_2);
 void createPlaneFittedDisparityImages();
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose);
+int binarySearch(vector<double> seq, int l, int r, double x);
+int binarySearchImageTime(int l, int r, double x);
+int* data_index_finder(int image_number);

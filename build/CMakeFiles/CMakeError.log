@@ -1,24 +1,24 @@
 Determining if the pthread_create exist failed with the following output:
-Change Dir: /home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp
+Change Dir: /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_2b75f/fast"
-/usr/bin/make -f CMakeFiles/cmTC_2b75f.dir/build.make CMakeFiles/cmTC_2b75f.dir/build
-make[1]: Entering directory '/home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_2b75f.dir/CheckSymbolExists.c.o
-/usr/bin/cc    -fPIC    -o CMakeFiles/cmTC_2b75f.dir/CheckSymbolExists.c.o   -c /home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
-Linking C executable cmTC_2b75f
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2b75f.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC     CMakeFiles/cmTC_2b75f.dir/CheckSymbolExists.c.o  -o cmTC_2b75f -rdynamic 
-CMakeFiles/cmTC_2b75f.dir/CheckSymbolExists.c.o: In function `main':
+Run Build Command:"/usr/bin/make" "cmTC_c3c55/fast"
+/usr/bin/make -f CMakeFiles/cmTC_c3c55.dir/build.make CMakeFiles/cmTC_c3c55.dir/build
+make[1]: Entering directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c3c55.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -fPIC    -o CMakeFiles/cmTC_c3c55.dir/CheckSymbolExists.c.o   -c /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_c3c55
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c3c55.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC     CMakeFiles/cmTC_c3c55.dir/CheckSymbolExists.c.o  -o cmTC_c3c55 -rdynamic 
+CMakeFiles/cmTC_c3c55.dir/CheckSymbolExists.c.o: In function `main':
 CheckSymbolExists.c:(.text+0x1b): undefined reference to `pthread_create'
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_2b75f.dir/build.make:97: recipe for target 'cmTC_2b75f' failed
-make[1]: *** [cmTC_2b75f] Error 1
-make[1]: Leaving directory '/home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_2b75f/fast' failed
-make: *** [cmTC_2b75f/fast] Error 2
+CMakeFiles/cmTC_c3c55.dir/build.make:97: recipe for target 'cmTC_c3c55' failed
+make[1]: *** [cmTC_c3c55] Error 1
+make[1]: Leaving directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_c3c55/fast' failed
+make: *** [cmTC_c3c55/fast] Error 2
 
-File /home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+File /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
 /* */
 #include <pthread.h>
 
@@ -34,22 +34,22 @@ int main(int argc, char** argv)
 }
 
 Determining if the function pthread_create exists in the pthreads failed with the following output:
-Change Dir: /home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp
+Change Dir: /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_9daa6/fast"
-/usr/bin/make -f CMakeFiles/cmTC_9daa6.dir/build.make CMakeFiles/cmTC_9daa6.dir/build
-make[1]: Entering directory '/home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_9daa6.dir/CheckFunctionExists.c.o
-/usr/bin/cc    -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_9daa6.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
-Linking C executable cmTC_9daa6
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9daa6.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_9daa6.dir/CheckFunctionExists.c.o  -o cmTC_9daa6 -rdynamic -lpthreads 
+Run Build Command:"/usr/bin/make" "cmTC_01402/fast"
+/usr/bin/make -f CMakeFiles/cmTC_01402.dir/build.make CMakeFiles/cmTC_01402.dir/build
+make[1]: Entering directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_01402.dir/CheckFunctionExists.c.o
+/usr/bin/cc    -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_01402.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
+Linking C executable cmTC_01402
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_01402.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_01402.dir/CheckFunctionExists.c.o  -o cmTC_01402 -rdynamic -lpthreads 
 /usr/bin/ld: cannot find -lpthreads
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_9daa6.dir/build.make:97: recipe for target 'cmTC_9daa6' failed
-make[1]: *** [cmTC_9daa6] Error 1
-make[1]: Leaving directory '/home/pkr/pkr-work/pose/build/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_9daa6/fast' failed
-make: *** [cmTC_9daa6/fast] Error 2
+CMakeFiles/cmTC_01402.dir/build.make:97: recipe for target 'cmTC_01402' failed
+make[1]: *** [cmTC_01402] Error 1
+make[1]: Leaving directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_01402/fast' failed
+make: *** [cmTC_01402/fast] Error 2
 
 
