@@ -1285,8 +1285,6 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrg
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose)
 {
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_wh;
-	
 	double tx = pose[tx_ind];
 	double ty = pose[ty_ind];
 	double tz = pose[tz_ind];
@@ -1324,60 +1322,78 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	rot.at<double>(1,2) = 2.0 * (tmp1 + tmp2);
 	rot.at<double>(2,1) = 2.0 * (tmp1 - tmp2);
 	
-	//rot = rot.t();
+	rot = rot.t();
 	
-	t_wh(0,0) = rot.at<double>(0,0);
-	t_wh(0,1) = rot.at<double>(0,1);
-	t_wh(0,2) = rot.at<double>(0,2);
-	t_wh(1,0) = rot.at<double>(1,0);
-	t_wh(1,1) = rot.at<double>(1,1);
-	t_wh(1,2) = rot.at<double>(1,2);
-	t_wh(2,0) = rot.at<double>(2,0);
-	t_wh(2,1) = rot.at<double>(2,1);
-	t_wh(2,2) = rot.at<double>(2,2);
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_wh;
 	
-	t_wh(0,3) = tx - tx * t_wh(0,0) - ty * t_wh(0,1) - tz * t_wh(0,2);
-	t_wh(1,3) = ty - tx * t_wh(1,0) - ty * t_wh(1,1) - tz * t_wh(1,2);
-	t_wh(2,3) = tz - tx * t_wh(2,0) - ty * t_wh(2,1) - tz * t_wh(2,2);
-	t_wh(3,0) = t_wh(3,1) = t_wh(3,2) = 0.0;
+	for (int i = 0; i < 3; i++)
+		for (int j = 0; j < 3; j++)
+			r_wh(i,j) = rot.at<double>(i,j);
+	r_wh(3,0) = r_wh(3,1) = r_wh(3,2) = r_wh(0,3) = r_wh(1,3) = r_wh(2,3) = 0.0;
+	r_wh(3,3) = 1.0;
+	//t_wh(0,3) = tx - tx * t_wh(0,0) - ty * t_wh(0,1) - tz * t_wh(0,2);
+	//t_wh(1,3) = ty - tx * t_wh(1,0) - ty * t_wh(1,1) - tz * t_wh(1,2);
+	//t_wh(2,3) = tz - tx * t_wh(2,0) - ty * t_wh(2,1) - tz * t_wh(2,2);
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_wh;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			t_wh(i,j) = 0;
+	t_wh(0,0) = t_wh(1,1) = t_wh(2,2) = 1.0;
+	t_wh(0,3) = tx;
+	t_wh(1,3) = ty;
+	t_wh(2,3) = tz;
 	t_wh(3,3) = 1.0;
 	
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_hi;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			t_hi(i,j) = 0;
 	t_hi(0,0) = t_hi(1,1) = t_hi(2,2) = 1.0;
-	t_hi(0,1) = t_hi(0,2) = t_hi(1,0) = t_hi(1,2) = t_hi(2,0) = t_hi(2,1) = 0.0;
-	t_hi(3,0) = t_hi(3,1) = t_hi(3,2) = 0.0;
 	t_hi(0,3) = trans_x_hi;
 	t_hi(1,3) = trans_y_hi;
 	t_hi(2,3) = trans_z_hi;
 	t_hi(3,3) = 1.0;
 	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_xhi;
-	r_xhi(0,0) = r_xhi(1,1) = r_xhi(2,2) = 1.0;
-	r_xhi(0,1) = r_xhi(0,2) = r_xhi(1,0) = r_xhi(1,2) = r_xhi(2,0) = r_xhi(2,1) = 0.0;
-	r_xhi(3,0) = r_xhi(3,1) = r_xhi(3,2) = 0.0;
-	r_xhi(0,3) = r_xhi(1,3) = r_xhi(2,3) = 0.0;
-	r_xhi(3,3) = 1.0;
-	r_xhi(1,1) = cos(theta_x_hi);
-	r_xhi(1,2) = -sin(theta_x_hi);
-	r_xhi(2,1) = sin(theta_x_hi);
-	r_xhi(2,2) = cos(theta_x_hi);
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_i;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_invert_i(i,j) = 0;
+	r_invert_i(3,3) = 1.0;
+	//invert z
+	r_invert_i(0,0) = 1.0;		//x
+	r_invert_i(1,1) = -1.0;	//y
+	r_invert_i(2,2) = -1.0;	//z
 	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_yhi;
-	r_yhi(0,0) = r_yhi(1,1) = r_yhi(2,2) = 1.0;
-	r_yhi(0,1) = r_yhi(0,2) = r_yhi(1,0) = r_yhi(1,2) = r_yhi(2,0) = r_yhi(2,1) = 0.0;
-	r_yhi(3,0) = r_yhi(3,1) = r_yhi(3,2) = 0.0;
-	r_yhi(0,3) = r_yhi(1,3) = r_yhi(2,3) = 0.0;
-	r_yhi(3,3) = 1.0;
-	r_yhi(0,0) = cos(theta_y_hi);
-	r_yhi(0,2) = sin(theta_y_hi);
-	r_yhi(2,0) = -sin(theta_y_hi);
-	r_yhi(2,2) = cos(theta_y_hi);
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_xi;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_xi(i,j) = 0;
+	r_xi(0,0) = r_xi(1,1) = r_xi(2,2) = 1.0;
+	r_xi(3,3) = 1.0;
+	r_xi(1,1) = cos(-theta_xi);
+	r_xi(1,2) = -sin(-theta_xi);
+	r_xi(2,1) = sin(-theta_xi);
+	r_xi(2,2) = cos(-theta_xi);
 	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_yhi * r_xhi * t_hi;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_yi;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_yi(i,j) = 0;
+	r_yi(0,0) = r_yi(1,1) = r_yi(2,2) = 1.0;
+	r_yi(3,3) = 1.0;
+	r_yi(0,0) = cos(-theta_yi);
+	r_yi(0,2) = sin(-theta_yi);
+	r_yi(2,0) = -sin(-theta_yi);
+	r_yi(2,2) = cos(-theta_yi);
 	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_wh * t_hi * r_yi * r_xi * r_invert_i;
+	
+	cout << "r_invert_i:\n" << r_invert_i << endl;
+	cout << "r_xi:\n" << r_xi << endl;
+	cout << "r_yi:\n" << r_yi << endl;
 	cout << "t_hi:\n" << t_hi << endl;
-	cout << "r_xhi:\n" << r_xhi << endl;
-	cout << "r_yhi:\n" << r_yhi << endl;
+	cout << "r_wh:\n" << r_wh << endl;
 	cout << "t_wh:\n" << t_wh << endl;
 	cout << "t_mat:\n" << t_mat << endl;
 	
