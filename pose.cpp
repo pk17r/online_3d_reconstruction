@@ -53,63 +53,62 @@ int main(int argc, char* argv[])
 			//int img_index = 0;
 			pcl::visualization::PCLVisualizer viewer ("3d reconstruction");
 			
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+			vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> cloudrgbVec;
+			vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudxyzVec;
+			vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> transformed_cloudrgbVec;
 			
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz0 (new pcl::PointCloud<pcl::PointXYZ> ());
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz1 (new pcl::PointCloud<pcl::PointXYZ> ());
+			for (int i = 0; i < img_numbers.size(); i++)
+			{
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb(new pcl::PointCloud<pcl::PointXYZRGB> ());
+				pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz(new pcl::PointCloud<pcl::PointXYZ> ());
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb( new pcl::PointCloud<pcl::PointXYZRGB>() );
+				
+				createPtCloud(i, cloudrgb, cloudxyz);
+				cout << "Created point cloud " << i << endl;
+				
+				//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
+				int* data_index_arr = data_index_finder(img_numbers[i]);
+				int pose_index = data_index_arr[0];
+				int heading_index = data_index_arr[1];
+				
+				Eigen::Affine3f transform_MAVLink = Eigen::Affine3f::Identity();
+				// Define a translation on x, y and z axis.
+				transform_MAVLink.translation() << pose_data[pose_index][tx_ind], pose_data[pose_index][ty_ind], pose_data[pose_index][tz_ind];
+				
+				// The same rotation matrix as before; theta radians around Z axis
+				double theta = heading_data[heading_index][hdg_ind] * PI / 180;
+				transform_MAVLink.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+				
+				//Eigen::Quaternion<float> uav_quaternion = Eigen::Quaternion<float> (pose_data[pose_index][qx_ind], pose_data[pose_index][qy_ind], pose_data[pose_index][qz_ind], pose_data[pose_index][qw_ind]);
+				pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
+				
+				// Print the transformation
+				printf ("Correcting 3D pt cloud using transform_MAVLink\n");
+				std::cout << transform_MAVLink.matrix() << std::endl;
+				
+				//transformPtCloud(cloudrgb, transformed_cloudrgb, transform_MAVLink);
+				transformPtCloud2(cloudrgb, transformed_cloudrgb, t_mat);
+				cout << "Transformed point cloud " << i << endl;
+				
+				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (transformed_cloudrgb);
+				viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb, rgb, "transformed_cloud" + to_string(i));
+				viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(i));
+				
+				cloudrgbVec.push_back(cloudrgb);
+				cloudxyzVec.push_back(cloudxyz);
+				transformed_cloudrgbVec.push_back(transformed_cloudrgb);
+				
+			}
 			
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb0( new pcl::PointCloud<pcl::PointXYZRGB>() );
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1( new pcl::PointCloud<pcl::PointXYZRGB>() );
-			
-			//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
-			int img_index = 0;
-			int* data_index_arr = data_index_finder(img_numbers[img_index]);
-			int pose_index = data_index_arr[0];
-			int heading_index = data_index_arr[1];
-			
-			Eigen::Affine3f transform_0 = Eigen::Affine3f::Identity();
-			// Define a translation on x, y and z axis.
-			transform_0.translation() << pose_data[pose_index][3], pose_data[pose_index][4], pose_data[pose_index][5];
-			// The same rotation matrix as before; theta radians around Z axis
-			double theta = heading_data[heading_index][3] * PI / 180;
-			transform_0.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
-			
-			// Print the transformation
-			printf ("Correcting 3D pt cloud using transform_0\n");
-			std::cout << transform_0.matrix() << std::endl;
-			
-			createPtCloud(0, cloudrgb0, cloudxyz0);
-			transformPtCloud(cloudrgb0, transformed_cloudrgb0, transform_0);
-			
-			img_index = 1;
-			data_index_arr = data_index_finder(img_numbers[img_index]);
-			pose_index = data_index_arr[0];
-			heading_index = data_index_arr[1];
-			
-			Eigen::Affine3f transform_1 = Eigen::Affine3f::Identity();
-			// Define a translation on x, y and z axis.
-			transform_1.translation() << pose_data[pose_index][3], pose_data[pose_index][4], pose_data[pose_index][5];
-			// The same rotation matrix as before; theta radians around Z axis
-			theta = heading_data[heading_index][3] * PI / 180;
-			transform_1.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
-			
-			// Print the transformation
-			printf ("Correcting 3D pt cloud using transform_1:\n");
-			std::cout << transform_1.matrix() << std::endl;
-			
-			createPtCloud(1, cloudrgb1, cloudxyz1);
-			transformPtCloud(cloudrgb1, transformed_cloudrgb1, transform_1);
-			
-			pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te;
-			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD;
-			//Eigen::Matrix4f T_SVD;
-			te.estimateRigidTransformation(*transformed_cloudrgb0, *transformed_cloudrgb1, T_SVD);
-			cout << "computed point cloud transformation is\n" << T_SVD << endl;
-			const Eigen::Quaternionf   R_SVD (T_SVD.topLeftCorner  <3, 3> ());
-			const Eigen::Translation3f t_SVD (T_SVD.topRightCorner <3, 1> ());
-			cout << "R_SVD: x " << R_SVD.x() << " y " << R_SVD.y() << " z " << R_SVD.z() << " w " << R_SVD.w() << endl;
-			cout << "t_SVD: x " << t_SVD.x() << " y " << t_SVD.y() << " z " << t_SVD.z() << endl;
+			//pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te;
+			//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD;
+			////Eigen::Matrix4f T_SVD;
+			//te.estimateRigidTransformation(*transformed_cloudrgb0, *transformed_cloudrgb1, T_SVD);
+			//cout << "computed point cloud transformation is\n" << T_SVD << endl;
+			//const Eigen::Quaternionf   R_SVD (T_SVD.topLeftCorner  <3, 3> ());
+			//const Eigen::Translation3f t_SVD (T_SVD.topRightCorner <3, 1> ());
+			//cout << "R_SVD: x " << R_SVD.x() << " y " << R_SVD.y() << " z " << R_SVD.z() << " w " << R_SVD.w() << endl;
+			//cout << "t_SVD: x " << t_SVD.x() << " y " << t_SVD.y() << " z " << t_SVD.z() << endl;
 					
 			//cout << "pose_seq_to_find " << img_numbers[0] << endl;
 			//int found_index = binary_search_find_index(pose_sequence, img_numbers[0]);
@@ -133,16 +132,16 @@ int main(int argc, char* argv[])
 			//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
 			////viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 			
-			pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (transformed_cloudrgb0);
-			pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (transformed_cloudrgb1);
-			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
-			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
-			
-			viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb0, rgb0, "transformed_cloud" + to_string(0));
-			viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb1, rgb1, "transformed_cloud" + to_string(1));
-			
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
+			//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (transformed_cloudrgb0);
+			//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1 (transformed_cloudrgb1);
+			////pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler0 (transformed_cloud0, 230, 20, 20); // Red
+			////pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> transformed_cloud_color_handler1 (transformed_cloud1, 20, 230, 20); // Green
+			//
+			//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb0, rgb0, "transformed_cloud" + to_string(0));
+			//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb1, rgb1, "transformed_cloud" + to_string(1));
+			//
+			//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(0));
+			//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(1));
 			
 			cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 			
@@ -406,37 +405,11 @@ int main(int argc, char* argv[])
 		if(log_stuff)
 			f << "Q:\n" << Q << endl;
 
-		//Mat affineTransformationMatrix;
-		//std::vector<uchar> inliers3D;
-		//double ransacThreshold = 3, confidence = 0.99;
-		//estimateAffine3D(keypoints3D_src, keypoints3D_dst, affineTransformationMatrix, inliers3D, ransacThreshold, confidence);
-		//cout << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
-		//
-		//int inlierCount = 0;
-		//for (int i = 0; i < inliers3D.size(); i++)
-		//{
-		//	if (inliers3D[i] == 1)
-		//		inlierCount++;
-		//	f << (int)inliers3D[i] << ", ";
-		//}
-		//cout << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
-		
-		//* 5. use decomposeProjectionMatrix to get rotation or Euler angles
-		//Mat cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles;
-		//decomposeProjectionMatrix(affineTransformationMatrix, cameraMatrix, rotMatrix, transVect, rotMatrixX, rotMatrixY, rotMatrixZ, eulerAngles);
-		//cout << "EulerAngles :\n" << eulerAngles << endl;
-		
-		cout << "Finding 3D transformation and Eular Angles, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
+		cout << "Finding 3D transformation, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 		cout << "Finished Pose Estimation, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
 		
 		if(log_stuff)
 		{
-			//f << "affineTransformationMatrix:\n" << affineTransformationMatrix << endl;
-			//f << "ransacThreshold: " << ransacThreshold << " confidence: " << confidence << endl;
-			//f << "inliers3D:\n[";
-			//f << "]" << endl;
-			//f << "inlierCount: " << inlierCount << "/" << inliers3D.size() << endl;
-			//f << "cameraMatrix:\n" << cameraMatrix << "\nrotMatrix:\n" << rotMatrix << "\ntransVect :\n" << transVect << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << "\nEulerAngles :\n" << eulerAngles << endl;
 			f << "computed point cloud transformation is\n" << T_SVD2 << endl;
 			f << "Decomposition:\nrotations:\n" << rotations << "\nmtxR:\n" << mtxR << "\nmtxQ :\n" << mtxQ << "\nrotMatrixX :\n" << rotMatrixX << "\nrotMatrixY :\n" << rotMatrixY << "\nrotMatrixZ :\n" << rotMatrixZ << endl;
 		}
@@ -817,7 +790,7 @@ int binarySearchImageTime(int l, int r, double x)
 	if (r >= l)
 	{
         int mid = l + (r - l)/2;
-        cout << "mid " << mid << " images_times_data[mid][0] " << images_times_data[mid][0] << " x-images_times_data[mid][0] " << x - images_times_data[mid][0] << endl;
+        //cout << "mid " << mid << " images_times_data[mid][0] " << images_times_data[mid][0] << " x-images_times_data[mid][0] " << x - images_times_data[mid][0] << endl;
  
         // If the element is present at the middle 
         // itself
@@ -848,7 +821,7 @@ int binarySearch(vector<double> seq, int l, int r, double x)
 	if (r >= l)
 	{
         int mid = l + (r - l)/2;
-        cout << "mid " << mid << " seq[mid] " << seq[mid] << " x-seq[mid] " << x - seq[mid] << endl;
+        //cout << "mid " << mid << " seq[mid] " << seq[mid] << " x-seq[mid] " << x - seq[mid] << endl;
  
         // If the element is present at the middle 
         // itself
@@ -1159,12 +1132,10 @@ inline void pairWiseMatching()
 
 void createPlaneFittedDisparityImages()
 {
-	cout << "boundingBox " << boundingBox << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
 	for (int i = 0; i < segment_maps.size(); i++)
 	{
-		cout << "Image" << i << endl;
+		//cout << "Image" << i << endl;
 		Mat segment_img = segment_maps[i];
-		cout << "segment_img.rows " << segment_img.rows << " segment_img.cols " << segment_img.cols << endl;
 		
 		Mat disp_img = disparity_images[i];
 		
@@ -1185,7 +1156,7 @@ void createPlaneFittedDisparityImages()
 					}
 				}
 			}
-			cout << "cluster" << cluster << " size:" << Xc.size();
+			//cout << "cluster" << cluster << " size:" << Xc.size();
 			if(Xc.size() == 0)		//all labels covered!
 				break;
 			
@@ -1202,7 +1173,7 @@ void createPlaneFittedDisparityImages()
 				}
 			}
 			//cout << "read all cluster disparities..." << endl;
-			cout << " Accepted points: " << Xp.size() << endl;
+			//cout << " Accepted points: " << Xp.size() << endl;
 			if(Xp.size() == 0)		//all labels covered!
 				continue;
 			
@@ -1314,20 +1285,23 @@ void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrg
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose)
 {
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_wh;
 	
-	double tx = pose[1];
-	double ty = pose[2];
-	double tz = pose[3];
-	double qx = pose[4];
-	double qy = pose[5];
-	double qz = pose[6];
-	double qw = pose[7];
+	double tx = pose[tx_ind];
+	double ty = pose[ty_ind];
+	double tz = pose[tz_ind];
+	double qx = pose[qx_ind];
+	double qy = pose[qy_ind];
+	double qz = pose[qz_ind];
+	double qw = pose[qw_ind];
 	
 	double sqw = qw*qw;
 	double sqx = qx*qx;
 	double sqy = qy*qy;
 	double sqz = qz*qz;
+	
+	if(sqw + sqx + sqy + sqz < 0.99 || sqw + sqx + sqy + sqz > 1.01)
+		throw "Exception: Sum of squares of quaternion values should be 1! i.e., quaternion should be homogeneous!";
 	
 	Mat rot = Mat::zeros(cv::Size(3, 3), CV_64FC1);
 	
@@ -1350,23 +1324,62 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	rot.at<double>(1,2) = 2.0 * (tmp1 + tmp2);
 	rot.at<double>(2,1) = 2.0 * (tmp1 - tmp2);
 	
-	rot = rot.t();
+	//rot = rot.t();
 	
-	t_mat(0,0) = rot.at<double>(0,0);
-	t_mat(0,1) = rot.at<double>(0,1);
-	t_mat(0,2) = rot.at<double>(0,2);
-	t_mat(1,0) = rot.at<double>(1,0);
-	t_mat(1,1) = rot.at<double>(1,1);
-	t_mat(1,2) = rot.at<double>(1,2);
-	t_mat(2,0) = rot.at<double>(2,0);
-	t_mat(2,1) = rot.at<double>(2,1);
-	t_mat(2,2) = rot.at<double>(2,2);
+	t_wh(0,0) = rot.at<double>(0,0);
+	t_wh(0,1) = rot.at<double>(0,1);
+	t_wh(0,2) = rot.at<double>(0,2);
+	t_wh(1,0) = rot.at<double>(1,0);
+	t_wh(1,1) = rot.at<double>(1,1);
+	t_wh(1,2) = rot.at<double>(1,2);
+	t_wh(2,0) = rot.at<double>(2,0);
+	t_wh(2,1) = rot.at<double>(2,1);
+	t_wh(2,2) = rot.at<double>(2,2);
 	
-	t_mat(0,3) = tx - tx * t_mat(0,0) - ty * t_mat(0,1) - tz * t_mat(0,2);
-	t_mat(1,3) = ty - tx * t_mat(1,0) - ty * t_mat(1,1) - tz * t_mat(1,2);
-	t_mat(2,3) = tz - tx * t_mat(2,0) - ty * t_mat(2,1) - tz * t_mat(2,2);
-	t_mat(3,0) = t_mat(3,1) = t_mat(3,2) = 0.0;
-	t_mat(3,3) = 1.0;
+	t_wh(0,3) = tx - tx * t_wh(0,0) - ty * t_wh(0,1) - tz * t_wh(0,2);
+	t_wh(1,3) = ty - tx * t_wh(1,0) - ty * t_wh(1,1) - tz * t_wh(1,2);
+	t_wh(2,3) = tz - tx * t_wh(2,0) - ty * t_wh(2,1) - tz * t_wh(2,2);
+	t_wh(3,0) = t_wh(3,1) = t_wh(3,2) = 0.0;
+	t_wh(3,3) = 1.0;
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_hi;
+	t_hi(0,0) = t_hi(1,1) = t_hi(2,2) = 1.0;
+	t_hi(0,1) = t_hi(0,2) = t_hi(1,0) = t_hi(1,2) = t_hi(2,0) = t_hi(2,1) = 0.0;
+	t_hi(3,0) = t_hi(3,1) = t_hi(3,2) = 0.0;
+	t_hi(0,3) = trans_x_hi;
+	t_hi(1,3) = trans_y_hi;
+	t_hi(2,3) = trans_z_hi;
+	t_hi(3,3) = 1.0;
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_xhi;
+	r_xhi(0,0) = r_xhi(1,1) = r_xhi(2,2) = 1.0;
+	r_xhi(0,1) = r_xhi(0,2) = r_xhi(1,0) = r_xhi(1,2) = r_xhi(2,0) = r_xhi(2,1) = 0.0;
+	r_xhi(3,0) = r_xhi(3,1) = r_xhi(3,2) = 0.0;
+	r_xhi(0,3) = r_xhi(1,3) = r_xhi(2,3) = 0.0;
+	r_xhi(3,3) = 1.0;
+	r_xhi(1,1) = cos(theta_x_hi);
+	r_xhi(1,2) = -sin(theta_x_hi);
+	r_xhi(2,1) = sin(theta_x_hi);
+	r_xhi(2,2) = cos(theta_x_hi);
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_yhi;
+	r_yhi(0,0) = r_yhi(1,1) = r_yhi(2,2) = 1.0;
+	r_yhi(0,1) = r_yhi(0,2) = r_yhi(1,0) = r_yhi(1,2) = r_yhi(2,0) = r_yhi(2,1) = 0.0;
+	r_yhi(3,0) = r_yhi(3,1) = r_yhi(3,2) = 0.0;
+	r_yhi(0,3) = r_yhi(1,3) = r_yhi(2,3) = 0.0;
+	r_yhi(3,3) = 1.0;
+	r_yhi(0,0) = cos(theta_y_hi);
+	r_yhi(0,2) = sin(theta_y_hi);
+	r_yhi(2,0) = -sin(theta_y_hi);
+	r_yhi(2,2) = cos(theta_y_hi);
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_yhi * r_xhi * t_hi;
+	
+	cout << "t_hi:\n" << t_hi << endl;
+	cout << "r_xhi:\n" << r_xhi << endl;
+	cout << "r_yhi:\n" << r_yhi << endl;
+	cout << "t_wh:\n" << t_wh << endl;
+	cout << "t_mat:\n" << t_mat << endl;
 	
 	return t_mat;
 }

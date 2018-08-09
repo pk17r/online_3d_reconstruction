@@ -62,6 +62,14 @@ string segmentlblPrefix = "segmentlabels/";
 
 typedef vector <double> record_t;
 typedef vector <record_t> data_t;
+const int tx_ind=3,ty_ind=4,tz_ind=5,qx_ind=6,qy_ind=7,qz_ind=8,qw_ind=9,hdg_ind=3;
+//translation and rotation between image and head of hexacopter
+const double trans_x_hi = -0.3;
+const double trans_y_hi = 0;
+const double trans_z_hi = -0.25;
+const double PI  =3.141592653589793238463;
+const double theta_x_hi = -10 * PI / 180;
+const double theta_y_hi = 0 * PI / 180;
 
 //PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
 data_t pose_data;		//header.seq,secs,NSECS,position.x,position.y,position.z,orientation.x,orientation.y,orientation.z,orientation.w
@@ -111,7 +119,6 @@ vector<Size> full_img_sizes;
 ofstream f;	//logging stuff
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
-const double PI  =3.141592653589793238463;
 
 //declaring functions
 void readCalibFile();
