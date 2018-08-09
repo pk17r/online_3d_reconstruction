@@ -1376,6 +1376,26 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	r_xi(2,1) = sin(-theta_xi);
 	r_xi(2,2) = cos(-theta_xi);
 	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_flip_xy;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_flip_xy(i,j) = 0;
+	r_flip_xy(3,3) = 1.0;
+	//flip x and y
+	r_flip_xy(1,0) = 1.0;	//x
+	r_flip_xy(0,1) = 1.0;	//y
+	r_flip_xy(2,2) = 1.0;	//z
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_y;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_invert_y(i,j) = 0;
+	r_invert_y(3,3) = 1.0;
+	//invert y
+	r_invert_y(0,0) = 1.0;	//x
+	r_invert_y(1,1) = -1.0;	//y
+	r_invert_y(2,2) = 1.0;	//z
+	
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_yi;
 	for (int i = 0; i < 4; i++)
 		for (int j = 0; j < 4; j++)
@@ -1387,7 +1407,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	r_yi(2,0) = -sin(-theta_yi);
 	r_yi(2,2) = cos(-theta_yi);
 	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_wh * t_hi * r_yi * r_xi * r_invert_i;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_wh * r_invert_y * r_flip_xy * t_hi * r_yi * r_xi * r_invert_i;
 	
 	cout << "r_invert_i:\n" << r_invert_i << endl;
 	cout << "r_xi:\n" << r_xi << endl;

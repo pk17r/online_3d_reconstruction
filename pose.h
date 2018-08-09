@@ -68,7 +68,7 @@ const double trans_x_hi = -0.3;
 const double trans_y_hi = 0;
 const double trans_z_hi = -0.25;
 const double PI = 3.141592653589793238463;
-const double theta_xi = -10 * PI / 180;
+const double theta_xi = 10 * PI / 180;
 const double theta_yi = 0 * PI / 180;
 
 //PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
