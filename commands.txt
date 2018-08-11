@@ -1,4 +1,5 @@
 ./pose 1248 1251 1255 1258 1260 1261 1264 1266 1268 1370 1373 1377 1380 1383 1387 1390 --preview --use_segment_labels --log
+./pose 1248 1251 1255 1258 1260 1261 1264 1266 1268 1390 1387 1383 1380 1377 1373 1370 --preview --use_segment_labels --log
 
 ./pose 1248 1251 1255 1258 1260 --preview --use_segment_labels --log
 

@@ -1,0 +1,45 @@
+
+point clouds 1 and 0
+keypoints3D_src.size() 357
+
+point clouds 2 and 1
+keypoints3D_src.size() 61
+
+point clouds 3 and 2
+keypoints3D_src.size() 153
+
+point clouds 4 and 3
+keypoints3D_src.size() 287
+
+point clouds 5 and 4
+keypoints3D_src.size() 545
+
+point clouds 6 and 5
+keypoints3D_src.size() 195
+
+point clouds 7 and 6
+keypoints3D_src.size() 333
+
+point clouds 8 and 7
+keypoints3D_src.size() 246
+
+point clouds 9 and 8
+keypoints3D_src.size() 3
+
+point clouds 10 and 9
+keypoints3D_src.size() 191
+
+point clouds 11 and 10
+keypoints3D_src.size() 97
+
+point clouds 12 and 11
+keypoints3D_src.size() 310
+
+point clouds 13 and 12
+keypoints3D_src.size() 290
+
+point clouds 14 and 13
+keypoints3D_src.size() 146
+
+point clouds 15 and 14
+keypoints3D_src.size() 186

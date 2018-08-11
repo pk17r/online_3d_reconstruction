@@ -1005,13 +1005,3 @@ void Pose::transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl
 	// Executing the transformation
 	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform_2);
 }
-
-
-void Pose::printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num)
-{
-	op_fl << "\npoint cloud " << num << endl;
-	for (int i = 1000; i < 1010; i++)
-	{
-		op_fl << cloud->points[i].x << " " << cloud->points[i].y << " " << cloud->points[i].z << endl;
-	}
-}
