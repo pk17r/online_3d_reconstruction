@@ -148,8 +148,8 @@ int binarySearchImageTime(int l, int r, double x);
 int* data_index_finder(int image_number);
 void printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 estimateRigidBodyTransformBetweenMatchedPoints(int img0_index, int img1_index,
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_matVec,
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4> &T_SVD_matched_pts_Vec);
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat0,
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat1);
 
 
 };

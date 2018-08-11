@@ -24,22 +24,25 @@ point clouds 8 and 7
 keypoints3D_src.size() 246
 
 point clouds 9 and 8
-keypoints3D_src.size() 3
+keypoints3D_src.size() 62
 
 point clouds 10 and 9
-keypoints3D_src.size() 191
+keypoints3D_src.size() 128
 
 point clouds 11 and 10
-keypoints3D_src.size() 97
+keypoints3D_src.size() 182
 
 point clouds 12 and 11
-keypoints3D_src.size() 310
+keypoints3D_src.size() 129
 
 point clouds 13 and 12
-keypoints3D_src.size() 290
+keypoints3D_src.size() 284
 
 point clouds 14 and 13
-keypoints3D_src.size() 146
+keypoints3D_src.size() 310
 
 point clouds 15 and 14
-keypoints3D_src.size() 186
+keypoints3D_src.size() 103
+
+point clouds 16 and 15
+keypoints3D_src.size() 203

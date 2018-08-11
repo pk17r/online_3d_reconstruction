@@ -67,24 +67,23 @@ Pose::Pose(int argc, char* argv[])
 			//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
 			int* data_index_arr = data_index_finder(img_numbers[i]);
 			int pose_index = data_index_arr[0];
-			int heading_index = data_index_arr[1];
-			
-			Eigen::Affine3f transform_MAVLink = Eigen::Affine3f::Identity();
-			// Define a translation on x, y and z axis.
-			transform_MAVLink.translation() << pose_data[pose_index][tx_ind], pose_data[pose_index][ty_ind], pose_data[pose_index][tz_ind];
-			
-			// The same rotation matrix as before; theta radians around Z axis
-			double theta = heading_data[heading_index][hdg_ind] * PI / 180;
-			transform_MAVLink.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+			//int heading_index = data_index_arr[1];
+			//
+			//Eigen::Affine3f transform_MAVLink = Eigen::Affine3f::Identity();
+			//// Define a translation on x, y and z axis.
+			//transform_MAVLink.translation() << pose_data[pose_index][tx_ind], pose_data[pose_index][ty_ind], pose_data[pose_index][tz_ind];
+			//
+			//// The same rotation matrix as before; theta radians around Z axis
+			//double theta = heading_data[heading_index][hdg_ind] * PI / 180;
+			//transform_MAVLink.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
 			
 			//Eigen::Quaternion<float> uav_quaternion = Eigen::Quaternion<float> (pose_data[pose_index][qx_ind], pose_data[pose_index][qy_ind], pose_data[pose_index][qz_ind], pose_data[pose_index][qw_ind]);
 			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
-			
 			t_matVec.push_back(t_mat);
 			
 			// Print the transformation
-			printf ("Correcting 3D pt cloud using transform_MAVLink\n");
-			std::cout << transform_MAVLink.matrix() << std::endl;
+			//printf ("Correcting 3D pt cloud using transform_MAVLink\n");
+			//std::cout << transform_MAVLink.matrix() << std::endl;
 			
 			//transformPtCloud(cloudrgb, transformed_cloudrgb, transform_MAVLink);
 			transformPtCloud2(cloudrgb, transformed_cloudrgb, t_mat);
@@ -115,6 +114,8 @@ Pose::Pose(int argc, char* argv[])
 		pcl::visualization::PCLVisualizer viewer1 ("3d reconstruction Feature Matching");
 		
 		vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> transformedFeatureMatch_cloudrgbVec;
+		vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec;
+		
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb = transformed_cloudrgbVec[0];
 		
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (transformed_cloudrgb);
@@ -122,15 +123,15 @@ Pose::Pose(int argc, char* argv[])
 		viewer1.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformedFM_cloud" + to_string(0));
 		
 		transformedFeatureMatch_cloudrgbVec.push_back(transformed_cloudrgb);
+		t_FMVec.push_back(t_matVec[0]);
 		
 		//printPoints(transformed_cloudrgb, 100 + 0);
-		vector<pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4> T_SVD_matched_pts_Vec;
 		
 		for (int i = 1; i < img_numbers.size(); i++)
 		{
 			//estimate rigid body transform between matched points
-			pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 T_SVD_matched_pts = estimateRigidBodyTransformBetweenMatchedPoints(i, i-1, t_matVec, T_SVD_matched_pts_Vec);
-			T_SVD_matched_pts_Vec.push_back(T_SVD_matched_pts);
+			pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 T_SVD_matched_pts = estimateRigidBodyTransformBetweenMatchedPoints(i, i-1, t_matVec[i], t_FMVec[i-1]);
+			t_FMVec.push_back(T_SVD_matched_pts * t_matVec[i]);
 			
 			//working with 3D point clouds
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb0 = transformedFeatureMatch_cloudrgbVec[i-1];
@@ -201,8 +202,8 @@ void Pose::printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num)
 
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::estimateRigidBodyTransformBetweenMatchedPoints(int img0_index, int img1_index,
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_matVec,
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4> &T_SVD_matched_pts_Vec)
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat0,
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat1)
 {
 	//using sequential matched points to estimate the rigid body transformation between matched 3D points
 	MatchesInfo match;
@@ -346,85 +347,35 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 		//op_fl << pt_3d_src.x << ">" << pt_3d_dst.x << "  " << pt_3d_src.y << ">" << pt_3d_dst.y << "  " << pt_3d_src.z << ">" << pt_3d_dst.z << "  " << endl;
 	}
 	
-	cout << "t_mat0 computations" << endl;
-	pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 t_mat0 = t_matVec[img0_index];
-	cout << "t_matVec[" << img0_index << "]\n" << t_matVec[img0_index] << endl;
-	int i = 0;
-	while (i < img0_index-1)
-	{
-		cout << "T_SVD_matched_pts_Vec[" << i << "]\n" << T_SVD_matched_pts_Vec[i] << endl;
-		t_mat0 = T_SVD_matched_pts_Vec[i] * t_mat0;
-		++i;
-	}
-	cout << "t_mat0\n" << t_mat0 << endl;
-	cout << "t_mat1 computations" << endl;
-	pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 t_mat1 = t_matVec[img1_index];
-	cout << "t_matVec[" << img1_index << "]\n" << t_matVec[img1_index] << endl;
-	i = 0;
-	while (i < img1_index-1)
-	{
-		cout << "T_SVD_matched_pts_Vec[" << i << "]\n" << T_SVD_matched_pts_Vec[i] << endl;
-		t_mat1 = T_SVD_matched_pts_Vec[i] * t_mat1;
-		++i;
-	}
-	cout << "t_mat1\n" << t_mat1 << endl;
+	//cout << "t_mat0 computations" << endl;
+	//pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 t_mat0 = t_matVec[img0_index];
+	//cout << "t_matVec[" << img0_index << "]\n" << t_matVec[img0_index] << endl;
+	//int i = 0;
+	//while (i < img0_index-1)
+	//{
+	//	cout << "T_SVD_matched_pts_Vec[" << i << "]\n" << T_SVD_matched_pts_Vec[i] << endl;
+	//	t_mat0 = T_SVD_matched_pts_Vec[i] * t_mat0;
+	//	++i;
+	//}
+	//cout << "t_mat0\n" << t_mat0 << endl;
+	//cout << "t_mat1 computations" << endl;
+	//pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 t_mat1 = t_matVec[img1_index];
+	//cout << "t_matVec[" << img1_index << "]\n" << t_matVec[img1_index] << endl;
+	//i = 0;
+	//while (i < img1_index-1)
+	//{
+	//	cout << "T_SVD_matched_pts_Vec[" << i << "]\n" << T_SVD_matched_pts_Vec[i] << endl;
+	//	t_mat1 = T_SVD_matched_pts_Vec[i] * t_mat1;
+	//	++i;
+	//}
+	//cout << "t_mat1\n" << t_mat1 << endl;
 	pcl::transformPointCloud(*cloud0, *cloud_t0, t_mat0);
 	pcl::transformPointCloud(*cloud1, *cloud_t1, t_mat1);
 	cout << "transformations done " << endl;
 	cout << "cloud_t0->size() " << cloud_t0->size() << endl;
 	cout << "cloud_t1->size() " << cloud_t1->size() << endl;
 	
-	//pcl::transformPointCloud(*cloud0, *cloud_t0, t_matVec[img0_index]);
-	//pcl::transformPointCloud(*cloud1, *cloud_t1, t_matVec[img1_index]);
-	//cloud0->clear();
-	//cloud1->clear();
-	//cout << "cloud0->size() " << cloud0->size() << endl;
-	//cout << "cloud1->size() " << cloud1->size() << endl;
-	//cout << "cloud_t0->size() " << cloud_t0->size() << endl;
-	//cout << "cloud_t1->size() " << cloud_t1->size() << endl;
-	//copyPointCloud(*cloud_t0, *cloud0);
-	//copyPointCloud(*cloud_t1, *cloud1);
-	//cout << "cloud0->size() " << cloud0->size() << endl;
-	//cout << "cloud1->size() " << cloud1->size() << endl;
-	//
-	//cout << "created and transformed pt clouds to world coordinates" << endl;
-	//cout << "T_SVD_matched_pts_Vec.size() " << T_SVD_matched_pts_Vec.size() << endl;
-	//if (T_SVD_matched_pts_Vec.size() > 0)
-	//{
-	//	cout << "inside " << endl;
-	//	for (int i = 0; i < img0_index-1; i++)
-	//	{
-	//		cloud_t0->clear();
-	//		cout << "cloud0->size() " << cloud0->size() << endl;
-	//		cout << "cloud_t0->size() " << cloud_t0->size() << endl;
-	//		cout << "T_SVD_matched_pts_Vec["<<i<<"]\n" << T_SVD_matched_pts_Vec[i] << endl;
-	//		pcl::transformPointCloud(*cloud0, *cloud_t0, T_SVD_matched_pts_Vec[i]);
-	//		cout << " " << i << endl;
-	//		cloud0->clear();
-	//		cout << "cloud0->size() " << cloud0->size() << endl;
-	//		cout << "cloud_t0->size() " << cloud_t0->size() << endl;
-	//		copyPointCloud(*cloud_t0, *cloud0);
-	//		cout << "cloud0->size() " << cloud0->size() << endl;
-	//	}
-	//	cout << "img0 done" << endl;
-	//	for (int i = 0; i < img1_index-1; i++)
-	//	{
-	//		cloud_t1->clear();
-	//		cout << "cloud1->size() " << cloud1->size() << endl;
-	//		cout << "cloud_t1->size() " << cloud_t1->size() << endl;
-	//		cout << "T_SVD_matched_pts_Vec["<<i<<"]\n" << T_SVD_matched_pts_Vec[i] << endl;
-	//		pcl::transformPointCloud(*cloud1, *cloud_t1, T_SVD_matched_pts_Vec[i]);
-	//		cout << " " << i << endl;
-	//		cloud1->clear();
-	//		cout << "cloud1->size() " << cloud1->size() << endl;
-	//		cout << "cloud_t1->size() " << cloud_t1->size() << endl;
-	//		copyPointCloud(*cloud_t1, *cloud1);
-	//		cout << "cloud1->size() " << cloud1->size() << endl;
-	//	}
-	//	cout << "img1 done" << endl;
-	//}
-	
-	cout << "Finding 3D transformation and Eular Angles..." << endl;
+	cout << "Finding Rigid Body Transformation..." << endl;
 	
 	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD2;
