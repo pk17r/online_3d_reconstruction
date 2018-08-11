@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/pkr/pkr-work/pose_estimation/pose.cpp
+/home/pkr/pkr-work/pose_estimation/main.cpp
 pose.h
 /home/pkr/pkr-work/pose_estimation/pose.h
 

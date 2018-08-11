@@ -1,0 +1,2 @@
+/usr/bin/ar qc libpose_functions.a  CMakeFiles/pose_functions.dir/pose_functions.cpp.o
+/usr/bin/ranlib libpose_functions.a

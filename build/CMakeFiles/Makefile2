@@ -60,10 +60,85 @@ CMAKE_SOURCE_DIR = /home/pkr/pkr-work/pose_estimation
 CMAKE_BINARY_DIR = /home/pkr/pkr-work/pose_estimation/build
 
 #=============================================================================
+# Target rules for target CMakeFiles/pose_functions.dir
+
+# All Build rule for target.
+CMakeFiles/pose_functions.dir/all:
+	$(MAKE) -f CMakeFiles/pose_functions.dir/build.make CMakeFiles/pose_functions.dir/depend
+	$(MAKE) -f CMakeFiles/pose_functions.dir/build.make CMakeFiles/pose_functions.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/pkr/pkr-work/pose_estimation/build/CMakeFiles --progress-num=3,4 "Built target pose_functions"
+.PHONY : CMakeFiles/pose_functions.dir/all
+
+# Include target in all.
+all: CMakeFiles/pose_functions.dir/all
+
+.PHONY : all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/pose_functions.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/pkr/pkr-work/pose_estimation/build/CMakeFiles 2
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/pose_functions.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/pkr/pkr-work/pose_estimation/build/CMakeFiles 0
+.PHONY : CMakeFiles/pose_functions.dir/rule
+
+# Convenience name for target.
+pose_functions: CMakeFiles/pose_functions.dir/rule
+
+.PHONY : pose_functions
+
+# clean rule for target.
+CMakeFiles/pose_functions.dir/clean:
+	$(MAKE) -f CMakeFiles/pose_functions.dir/build.make CMakeFiles/pose_functions.dir/clean
+.PHONY : CMakeFiles/pose_functions.dir/clean
+
+# clean rule for target.
+clean: CMakeFiles/pose_functions.dir/clean
+
+.PHONY : clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/pose_main.dir
+
+# All Build rule for target.
+CMakeFiles/pose_main.dir/all:
+	$(MAKE) -f CMakeFiles/pose_main.dir/build.make CMakeFiles/pose_main.dir/depend
+	$(MAKE) -f CMakeFiles/pose_main.dir/build.make CMakeFiles/pose_main.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/pkr/pkr-work/pose_estimation/build/CMakeFiles --progress-num=5,6 "Built target pose_main"
+.PHONY : CMakeFiles/pose_main.dir/all
+
+# Include target in all.
+all: CMakeFiles/pose_main.dir/all
+
+.PHONY : all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/pose_main.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/pkr/pkr-work/pose_estimation/build/CMakeFiles 2
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/pose_main.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/pkr/pkr-work/pose_estimation/build/CMakeFiles 0
+.PHONY : CMakeFiles/pose_main.dir/rule
+
+# Convenience name for target.
+pose_main: CMakeFiles/pose_main.dir/rule
+
+.PHONY : pose_main
+
+# clean rule for target.
+CMakeFiles/pose_main.dir/clean:
+	$(MAKE) -f CMakeFiles/pose_main.dir/build.make CMakeFiles/pose_main.dir/clean
+.PHONY : CMakeFiles/pose_main.dir/clean
+
+# clean rule for target.
+clean: CMakeFiles/pose_main.dir/clean
+
+.PHONY : clean
+
+#=============================================================================
 # Target rules for target CMakeFiles/pose.dir
 
 # All Build rule for target.
-CMakeFiles/pose.dir/all:
+CMakeFiles/pose.dir/all: CMakeFiles/pose_functions.dir/all
+CMakeFiles/pose.dir/all: CMakeFiles/pose_main.dir/all
 	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/depend
 	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/pkr/pkr-work/pose_estimation/build/CMakeFiles --progress-num=1,2 "Built target pose"
@@ -76,7 +151,7 @@ all: CMakeFiles/pose.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/pose.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/pkr/pkr-work/pose_estimation/build/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/pkr/pkr-work/pose_estimation/build/CMakeFiles 6
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/pose.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/pkr/pkr-work/pose_estimation/build/CMakeFiles 0
 .PHONY : CMakeFiles/pose.dir/rule

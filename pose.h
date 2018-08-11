@@ -37,6 +37,13 @@ using namespace std;
 using namespace cv;
 using namespace cv::detail;
 
+typedef vector <double> record_t;
+typedef vector <record_t> data_t;
+
+class Pose {
+
+public:
+Pose(int argc, char* argv[]);
 // Default command line args
 vector<int> img_numbers = { 952, 953 };
 double minDisparity = 64;
@@ -60,8 +67,6 @@ string imagePrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/left_rect/"
 string disparityPrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/disparities/";
 string segmentlblPrefix = "segmentlabels/";
 
-typedef vector <double> record_t;
-typedef vector <record_t> data_t;
 const int tx_ind=3,ty_ind=4,tz_ind=5,qx_ind=6,qy_ind=7,qz_ind=8,qw_ind=9,hdg_ind=3;
 //translation and rotation between image and head of hexacopter
 const double trans_x_hi = -0.300;
@@ -120,17 +125,19 @@ ofstream f;	//logging stuff
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
 
+ofstream op_fl;
+
 //declaring functions
 void readCalibFile();
-static void printUsage();
+void printUsage();
 string type2str(int type);
-static int parseCmdArgs(int argc, char** argv);
-istream& operator >> ( istream& ins, record_t& record );
-istream& operator >> ( istream& ins, data_t& data );
-inline void readPoseFile();
-inline void readImages();
-inline void findFeatures();
-inline void pairWiseMatching();
+int parseCmdArgs(int argc, char** argv);
+//istream& operator >> ( istream& ins, record_t& record );
+//istream& operator >> ( istream& ins, data_t& data );
+void readPoseFile();
+void readImages();
+void findFeatures();
+void pairWiseMatching();
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz);
 void transformPtCloud2(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform);
 void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, Eigen::Affine3f transform_2);
@@ -139,3 +146,6 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 int binarySearch(vector<double> seq, int l, int r, double x);
 int binarySearchImageTime(int l, int r, double x);
 int* data_index_finder(int image_number);
+void printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num);
+
+};

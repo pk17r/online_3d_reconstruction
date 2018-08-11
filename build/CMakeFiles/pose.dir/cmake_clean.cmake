@@ -1,5 +1,5 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/pose.dir/pose.cpp.o"
+  "CMakeFiles/pose.dir/main.cpp.o"
   "pose.pdb"
   "pose"
 )
