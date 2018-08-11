@@ -335,10 +335,6 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		}
 		else
 		{
-			if (n_imgs == 0)
-			{
-				img_numbers.clear();
-			}
 			img_numbers.push_back(atoi(argv[i]));
 			cout << atoi(argv[i]) << endl;
 			++n_imgs;
@@ -347,6 +343,28 @@ int Pose::parseCmdArgs(int argc, char** argv)
 	if (preview)
 	{
 		compose_megapix = 0.6;
+	}
+	if (n_imgs == 0)
+	{
+		ifstream images_file;
+		images_file.open("images/images.txt");
+		if(images_file.is_open())
+		{
+			string line;
+			while (getline( images_file, line ))
+			{
+				stringstream fs( line );
+				int img_num = 0;  // (default value is 0.0)
+				fs >> img_num;
+				img_numbers.push_back(img_num);
+				++n_imgs;
+				cout << img_num << " ";
+			}
+			images_file.close();
+			cout << "\nRead " << n_imgs << " image numbers from images_file!" << endl;
+		}
+		else
+			throw "Exception: Unable to open images_file!";
 	}
 	if (img_numbers.size() < 2)
 		throw "Exception: Number of images needs to be greater than two!";
@@ -528,7 +546,7 @@ void Pose::readImages()
 	
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
-		cout << img_numbers[i] << endl;
+		//cout << img_numbers[i] << endl;
 		full_img = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
 		if(full_img.empty())
 			throw "Exception: cannot read full_img!";

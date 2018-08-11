@@ -45,7 +45,7 @@ class Pose {
 public:
 Pose(int argc, char* argv[]);
 // Default command line args
-vector<int> img_numbers = { 952, 953 };
+vector<int> img_numbers;
 double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
