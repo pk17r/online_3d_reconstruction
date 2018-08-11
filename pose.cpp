@@ -14,6 +14,9 @@
 
 Pose::Pose(int argc, char* argv[])
 {
+	currentDateTimeStr = currentDateTime();
+	cout << "currentDateTime=" << currentDateTimeStr << endl;
+
 #if 0
 	cv::setBreakOnError(true);
 #endif
@@ -48,13 +51,21 @@ Pose::Pose(int argc, char* argv[])
 	//view 3D point cloud of first image & disparity map
 	if(preview)
 	{
-		pcl::visualization::PCLVisualizer viewer ("3d reconstruction");
-		
 		vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> cloudrgbVec;
-		vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudxyzVec;
 		vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> transformed_cloudrgbVec;
 		vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_matVec;
 		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink(new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched(new pcl::PointCloud<pcl::PointXYZRGB> ());
+		//cloudrgb_MAVLink->width    = cols * sqrt(img_numbers.size());
+		//cloudrgb_MAVLink->height   = rows * sqrt(img_numbers.size());
+		cloudrgb_MAVLink->is_dense = true;
+		//cloudrgb_MAVLink->points.resize (cloudrgb_MAVLink->width * cloudrgb_MAVLink->height);
+		//cloudrgb_FeatureMatched->width    = cols * sqrt(img_numbers.size());
+		//cloudrgb_FeatureMatched->height   = rows * sqrt(img_numbers.size());
+		cloudrgb_FeatureMatched->is_dense = true;
+		//cloudrgb_FeatureMatched->points.resize (cloudrgb_FeatureMatched->width * cloudrgb_FeatureMatched->height);
+
 		for (int i = 0; i < img_numbers.size(); i++)
 		{
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb(new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -89,15 +100,31 @@ Pose::Pose(int argc, char* argv[])
 			transformPtCloud2(cloudrgb, transformed_cloudrgb, t_mat);
 			cout << "Transformed point cloud " << i << endl;
 			
-			pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (transformed_cloudrgb);
-			viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb, rgb, "transformed_cloud" + to_string(i));
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(i));
+			//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (transformed_cloudrgb);
+			//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb, rgb, "transformed_cloud" + to_string(i));
+			//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(i));
 			
 			cloudrgbVec.push_back(cloudrgb);
-			cloudxyzVec.push_back(cloudxyz);
 			transformed_cloudrgbVec.push_back(transformed_cloudrgb);
 			
+			//generating the bigger point cloud
+			cloudrgb_MAVLink->insert(cloudrgb_MAVLink->end(),transformed_cloudrgb->begin(),transformed_cloudrgb->end());
+			//copyPointCloud(*transformed_cloudrgb,*cloudrgb_MAVLink);
+			cout << "inserted to cloudrgb_MAVLink" << endl;
 		}
+		
+		cout << "cloudrgb_MAVLink->points.size () " << cloudrgb_MAVLink->points.size () << endl;
+		cout << "cloudrgb_MAVLink->height " << cloudrgb_MAVLink->height << endl;
+		cout << "cloudrgb_MAVLink->width " << cloudrgb_MAVLink->width << endl;
+		
+		string writePath = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
+		pcl::io::savePLYFileBinary(writePath, *cloudrgb_MAVLink);
+		std::cerr << "Saved " << cloudrgb_MAVLink->points.size () << " data points to " << writePath << endl;
+		
+		pcl::visualization::PCLVisualizer viewer ("3d reconstruction cloudrgb_MAVLink");
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb_MAVLink);
+		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb_MAVLink, rgb, "cloudrgb_MAVLink");
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloudrgb_MAVLink");
 
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		
@@ -124,6 +151,9 @@ Pose::Pose(int argc, char* argv[])
 		
 		transformedFeatureMatch_cloudrgbVec.push_back(transformed_cloudrgb);
 		t_FMVec.push_back(t_matVec[0]);
+		
+		//generating the bigger point cloud
+		copyPointCloud(*transformed_cloudrgb,*cloudrgb_FeatureMatched);
 		
 		//printPoints(transformed_cloudrgb, 100 + 0);
 		
@@ -153,9 +183,14 @@ Pose::Pose(int argc, char* argv[])
 			
 			transformedFeatureMatch_cloudrgbVec.push_back(transformedFM_cloudrgb2);
 			
-			//printPoints(transformedFM_cloudrgb1, i);
-			//printPoints(transformedFM_cloudrgb2, 100 + i);
+			//generating the bigger point cloud
+			//copyPointCloud(*transformedFM_cloudrgb2,*cloudrgb_FeatureMatched);
+			cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformedFM_cloudrgb2->begin(),transformedFM_cloudrgb2->end());
 		}
+		
+		writePath = "cloudrgb_FeatureMatched_" + currentDateTimeStr + ".ply";
+		pcl::io::savePLYFileBinary(writePath, *cloudrgb_FeatureMatched);
+		std::cerr << "Saved " << cloudrgb_FeatureMatched->points.size () << " data points to " << writePath << endl;
 		
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		
@@ -313,15 +348,15 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_t0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_t1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	
-	cloud0->width    = 7;
-	cloud0->height   = 5;
-	cloud0->is_dense = false;
-	cloud0->points.resize (cloud0->width * cloud0->height);
-	
-	cloud1->width    = 7;
-	cloud1->height   = 5;
-	cloud1->is_dense = false;
-	cloud1->points.resize (cloud1->width * cloud1->height);
+	//cloud0->width    = cols;
+	//cloud0->height   = rows;
+	cloud0->is_dense = true;
+	//cloud0->points.resize (cloud0->width * cloud0->height);
+	//
+	//cloud1->width    = cols;
+	//cloud1->height   = rows;
+	cloud1->is_dense = true;
+	//cloud1->points.resize (cloud1->width * cloud1->height);
 	
 	op_fl << "\npoint clouds " << img0_index << " and " << img1_index << endl;
 	

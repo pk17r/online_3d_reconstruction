@@ -27,7 +27,7 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/registration/transformation_estimation.h>
 #include <pcl/registration/transformation_estimation_svd.h>
-
+#include <time.h>
 
 //#define ENABLE_LOG 1
 //#define LOG(msg) std::cout << msg
@@ -50,6 +50,7 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 
+string currentDateTimeStr;
 double reduction_ratio = 1;
 double focallength = 16.0 / 1000 / 3.75 * 1000000;
 double baseline = 600.0 / 1000;
@@ -150,6 +151,6 @@ void printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 estimateRigidBodyTransformBetweenMatchedPoints(int img0_index, int img1_index,
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat0,
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat1);
-
+const string currentDateTime();
 
 };

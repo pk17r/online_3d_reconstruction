@@ -8,6 +8,19 @@
 
 #include "pose.h"
 
+// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
+const string Pose::currentDateTime()
+{
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+    // for more information about date/time format
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+    return buf;
+}
 
 //http://www.cplusplus.com/forum/general/17771/
 //-----------------------------------------------------------------------------
@@ -805,15 +818,15 @@ void Pose::createPlaneFittedDisparityImages()
 void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz)
 {
 	cout << "Image index: " << img_index << endl;
-	cloudrgb->width    = 7;
-	cloudrgb->height   = 5;
-	cloudrgb->is_dense = false;
-	cloudrgb->points.resize (cloudrgb->width * cloudrgb->height);
+	//cloudrgb->width    = cols;
+	//cloudrgb->height   = rows;
+	cloudrgb->is_dense = true;
+	//cloudrgb->points.resize (cloudrgb->width * cloudrgb->height);
 	
-	cloudxyz->width    = cloudrgb->width;
-	cloudxyz->height   = cloudrgb->height;
-	cloudxyz->is_dense = cloudrgb->is_dense;
-	cloudxyz->points.resize (cloudxyz->width * cloudxyz->height);
+	//cloudxyz->width    = cloudrgb->width;
+	//cloudxyz->height   = cloudrgb->height;
+	cloudxyz->is_dense = true;
+	//cloudxyz->points.resize (cloudxyz->width * cloudxyz->height);
 	
 	int point_clout_pts = 0;
 	cv::Mat_<double> vec_tmp(4,1);
