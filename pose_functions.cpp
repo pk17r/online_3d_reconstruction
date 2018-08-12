@@ -998,14 +998,14 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_wh * r_invert_y * r_flip_xy * t_hi * r_invert_i * r_yi * r_xi;
 	
-	cout << "r_xi:\n" << r_xi << endl;
-	cout << "r_yi:\n" << r_yi << endl;
-	cout << "r_invert_i:\n" << r_invert_i << endl;
-	cout << "t_hi:\n" << t_hi << endl;
-	cout << "r_flip_xy:\n" << r_flip_xy << endl;
-	cout << "r_invert_y:\n" << r_invert_y << endl;
-	cout << "r_wh:\n" << r_wh << endl;
-	cout << "t_wh:\n" << t_wh << endl;
+	//cout << "r_xi:\n" << r_xi << endl;
+	//cout << "r_yi:\n" << r_yi << endl;
+	//cout << "r_invert_i:\n" << r_invert_i << endl;
+	//cout << "t_hi:\n" << t_hi << endl;
+	//cout << "r_flip_xy:\n" << r_flip_xy << endl;
+	//cout << "r_invert_y:\n" << r_invert_y << endl;
+	//cout << "r_wh:\n" << r_wh << endl;
+	//cout << "t_wh:\n" << t_wh << endl;
 	cout << "t_mat:\n" << t_mat << endl;
 	
 	return t_mat;

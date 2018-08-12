@@ -258,11 +258,11 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	
 	cout << "Converting 2D matches to 3D matches..." << endl;
 	cout << "match.inliers_mask.size() " << match.inliers_mask.size() << endl;
-	f << "\nfinding transformation between images " << img0_index << " and " << img1_index << endl;
-	f << "match.inliers_mask[i] match.matches[i].imgIdx queryIdx trainIdx" << endl;
+	//f << "\nfinding transformation between images " << img0_index << " and " << img1_index << endl;
+	//f << "match.inliers_mask[i] match.matches[i].imgIdx queryIdx trainIdx" << endl;
 	for (int i = 0; i < match.inliers_mask.size(); i++)
 	{
-		f << match.inliers_mask[i] << " " << match.matches[i].imgIdx << " " << match.matches[i].queryIdx << " " << match.matches[i].trainIdx << endl;
+		//f << match.inliers_mask[i] << " " << match.matches[i].imgIdx << " " << match.matches[i].queryIdx << " " << match.matches[i].trainIdx << endl;
 		
 		//if (match.inliers_mask[i] == 1 && match.matches[i].imgIdx == match.src_img_idx)
 		if (match.inliers_mask[i] == 1 && match.matches[i].imgIdx != -1)
@@ -314,8 +314,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 				keypoints3D_dst.push_back(dst_3D_pt);
 				keypoints3D_2D_index_dst.push_back(trainIdx);
 
-				if(log_stuff)
-					f << "srcQ3D_point " << src_3D_pt << " dstQ3D_point " << dst_3D_pt << endl;
+				//if(log_stuff)
+				//	f << "srcQ3D_point " << src_3D_pt << " dstQ3D_point " << dst_3D_pt << endl;
 			}
 
 		}
@@ -329,9 +329,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	cloud0->is_dense = true;
 	cloud1->is_dense = true;
 	
-	op_fl << "\npoint clouds " << img0_index << " and " << img1_index << endl;
-	
-	op_fl << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
+	//op_fl << "\npoint clouds " << img0_index << " and " << img1_index << endl;
+	//op_fl << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
 	f << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
 	cout << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
 	
