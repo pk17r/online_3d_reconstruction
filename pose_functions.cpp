@@ -175,6 +175,13 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			printUsage();
 			return -1;
 		}
+		else if (string(argv[i]) == "--visualize")
+		{
+			visualize = true;
+			visualize_file = string(argv[i + 1]);
+			cout << "Visualize " << visualize_file << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--log")
 		{
 			cout << "log" << endl;
@@ -357,7 +364,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 	{
 		compose_megapix = 0.6;
 	}
-	if (n_imgs == 0)
+	if (n_imgs == 0 && !visualize)
 	{
 		ifstream images_file;
 		images_file.open("images/images.txt");
@@ -379,7 +386,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else
 			throw "Exception: Unable to open images_file!";
 	}
-	if (img_numbers.size() < 2)
+	if (img_numbers.size() < 2 && !visualize)
 		throw "Exception: Number of images needs to be greater than two!";
 	
 	return 0;
@@ -812,8 +819,60 @@ void Pose::createPlaneFittedDisparityImages()
 			}
 		}
 		double_disparity_images.push_back(new_disp_img);
+		cout << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
+		f << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
 	}
 }
+
+double Pose::getMean(Mat disp_img, bool planeFitted)
+{
+	double sum = 0.0;
+	for (int y = boundingBox; y < rows - boundingBox; ++y)
+	{
+		for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
+		{
+			double disp_val = 0;
+			if(planeFitted)
+				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+			else
+				disp_val = (double)disp_img.at<uchar>(y,x);
+			//cout << "disp_val " << disp_val << endl;
+			
+			if (disp_val > minDisparity)
+			{
+				sum += disp_val;
+			}
+		}
+	}
+	return sum/(rows - 2 * boundingBox )/(cols - boundingBox - cols_start_aft_cutout);
+}
+
+double Pose::getVariance(Mat disp_img, bool planeFitted)
+{
+	double mean = getMean(disp_img, planeFitted);
+	double temp = 0;
+
+	for (int y = boundingBox; y < rows - boundingBox; ++y)
+	{
+		for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
+		{
+			double disp_val = 0;
+			if(planeFitted)
+				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+			else
+				disp_val = (double)disp_img.at<uchar>(y,x);
+			//cout << "disp_val " << disp_val << endl;
+			
+			if (disp_val > minDisparity)
+			{
+				temp += (disp_val-mean)*(disp_val-mean);
+			}
+		}
+	}
+	
+	return temp/((rows - 2 * boundingBox )/(cols - boundingBox - cols_start_aft_cutout) - 1);
+}
+
 
 void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {

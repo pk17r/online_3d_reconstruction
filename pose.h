@@ -50,6 +50,8 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 
+bool visualize = false;
+string visualize_file = "";
 string currentDateTimeStr;
 double reduction_ratio = 1;
 double focallength = 16.0 / 1000 / 3.75 * 1000000;
@@ -150,5 +152,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat0,
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat1);
 const string currentDateTime();
+double getMean(Mat disp_img, bool planeFitted);
+double getVariance(Mat disp_img, bool planeFitted);
 
 };

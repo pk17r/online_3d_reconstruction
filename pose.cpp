@@ -23,6 +23,41 @@ Pose::Pose(int argc, char* argv[])
 	int retVal = parseCmdArgs(argc, argv);
 	if (retVal == -1)
 		throw "Exception: Incorrect inputs!";
+		
+	if (visualize)
+	{
+		cout << "Reading PLY file..." << endl;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PLYReader Reader;
+		Reader.read(visualize_file, *cloudrgb);
+		
+		cout << "Read PLY file!\nStarting Visualization..." << endl;
+		
+		pcl::visualization::PCLVisualizer viewer ("3d visualizer " + visualize_file);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
+		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, "cloudrgb_MAVLink");
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloudrgb_MAVLink");
+
+		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
+		
+		//pcl::PointXYZ start_pt; start_pt.x = 10; start_pt.y = -15; start_pt.z = 0;
+		//viewer.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
+		//pcl::PointXYZ end_pt; end_pt.x = 12; end_pt.y = -12; end_pt.z = 0;
+		//viewer.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
+		
+		viewer.addCoordinateSystem (1.0, 0, 0, 0);
+		viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+		viewer.setPosition(1280/2, 720/2); // Setting visualiser window position
+		
+		while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
+			viewer.spinOnce();
+		}
+		viewer.close();
+		
+		cout << "Cya!" << endl;
+		return;
+	}
+	
 	
 	readCalibFile();
 	readPoseFile();
@@ -46,7 +81,7 @@ Pose::Pose(int argc, char* argv[])
 		createPlaneFittedDisparityImages();
 	}
 	
-	op_fl.open("output/points.txt", ios::out);
+	//op_fl.open("output/points.txt", ios::out);
 	
 	//view 3D point cloud of first image & disparity map
 	//vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> cloudrgbVec;
@@ -147,6 +182,9 @@ Pose::Pose(int argc, char* argv[])
 	pcl::io::savePLYFileBinary(writePath, *cloudrgb_FeatureMatched);
 	std::cerr << "Saved " << cloudrgb_FeatureMatched->points.size () << " data points to " << writePath << endl;
 	
+	cout << "Finding 3D transformation, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
+	cout << "Finished Pose Estimation, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
+	
 	if(preview)
 	{
 		pcl::visualization::PCLVisualizer viewer ("3d reconstruction cloudrgb_MAVLink");
@@ -156,6 +194,11 @@ Pose::Pose(int argc, char* argv[])
 
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		
+		//pcl::PointXYZ start_pt; start_pt.x = 10; start_pt.y = -15; start_pt.z = 0;
+		//viewer.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
+		//pcl::PointXYZ end_pt; end_pt.x = 12; end_pt.y = -12; end_pt.z = 0;
+		//viewer.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
+		
 		viewer.addCoordinateSystem (1.0, 0, 0, 0);
 		viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
 		viewer.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
@@ -163,6 +206,7 @@ Pose::Pose(int argc, char* argv[])
 		while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
 			viewer.spinOnce();
 		}
+		viewer.close();
 		
 		//3D reconstruction using Feature Matching
 		pcl::visualization::PCLVisualizer viewer1 ("3d reconstruction Feature Matching");
@@ -172,6 +216,9 @@ Pose::Pose(int argc, char* argv[])
 
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		
+		//viewer1.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
+		//viewer1.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
+		
 		viewer1.addCoordinateSystem (1.0, 0, 0, 0);
 		viewer1.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
 		viewer1.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
@@ -179,6 +226,7 @@ Pose::Pose(int argc, char* argv[])
 		while (!viewer1.wasStopped ()) { // Display the visualiser until 'q' key is pressed
 			viewer1.spinOnce();
 		}
+		viewer1.close();
 	}
 	
 	//Mat mtxR, mtxQ, transVect, rotMatrixX, rotMatrixY, rotMatrixZ;
@@ -197,9 +245,6 @@ Pose::Pose(int argc, char* argv[])
 	//drawMatches(full_images[0], keypoints_src, full_images[1], keypoints_dst, match.matches, matchedImageInliers, Scalar::all(-1), Scalar::all(-1), inliers, DrawMatchesFlags::DEFAULT);
 	//imwrite("output/matchedImage.jpg", matchedImage);
 	//imwrite("output/matchedImageInliers.jpg", matchedImageInliers);
-	
-	cout << "Finding 3D transformation, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
-	cout << "Finished Pose Estimation, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
 	
 }
 
