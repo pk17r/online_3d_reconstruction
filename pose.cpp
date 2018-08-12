@@ -49,78 +49,106 @@ Pose::Pose(int argc, char* argv[])
 	op_fl.open("output/points.txt", ios::out);
 	
 	//view 3D point cloud of first image & disparity map
-	if(preview)
+	//vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> cloudrgbVec;
+	//vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> transformed_cloudrgbVec;
+	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_matVec;
+	//vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> transformedFeatureMatch_cloudrgbVec;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFeatureMatch_cloudrgb_last;
+	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec;
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	cloudrgb_MAVLink->is_dense = true;
+	cloudrgb_FeatureMatched->is_dense = true;
+	
+	for (int i = 0; i < img_numbers.size(); i++)
 	{
-		vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> cloudrgbVec;
-		vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> transformed_cloudrgbVec;
-		vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_matVec;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb(new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink(new pcl::PointCloud<pcl::PointXYZRGB> ());
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched(new pcl::PointCloud<pcl::PointXYZRGB> ());
-		//cloudrgb_MAVLink->width    = cols * sqrt(img_numbers.size());
-		//cloudrgb_MAVLink->height   = rows * sqrt(img_numbers.size());
-		cloudrgb_MAVLink->is_dense = true;
-		//cloudrgb_MAVLink->points.resize (cloudrgb_MAVLink->width * cloudrgb_MAVLink->height);
-		//cloudrgb_FeatureMatched->width    = cols * sqrt(img_numbers.size());
-		//cloudrgb_FeatureMatched->height   = rows * sqrt(img_numbers.size());
-		cloudrgb_FeatureMatched->is_dense = true;
-		//cloudrgb_FeatureMatched->points.resize (cloudrgb_FeatureMatched->width * cloudrgb_FeatureMatched->height);
-
-		for (int i = 0; i < img_numbers.size(); i++)
+		createPtCloud(i, cloudrgb);
+		cout << "Created point cloud " << i << endl;
+		
+		//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
+		int* data_index_arr = data_index_finder(img_numbers[i]);
+		int pose_index = data_index_arr[0];
+		//int heading_index = data_index_arr[1];
+		//Eigen::Affine3f transform_MAVLink = Eigen::Affine3f::Identity();
+		//// Define a translation on x, y and z axis.
+		//transform_MAVLink.translation() << pose_data[pose_index][tx_ind], pose_data[pose_index][ty_ind], pose_data[pose_index][tz_ind];
+		//// The same rotation matrix as before; theta radians around Z axis
+		//double theta = heading_data[heading_index][hdg_ind] * PI / 180;
+		//transform_MAVLink.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+		
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
+		t_matVec.push_back(t_mat);
+		
+		transformPtCloud2(cloudrgb, transformed_cloudrgb, t_mat);
+		cout << "Transformed point cloud " << i << endl;
+		
+		//cloudrgbVec.push_back(cloudrgb);
+		//transformed_cloudrgbVec.push_back(transformed_cloudrgb);
+		
+		//generating the bigger point cloud
+		cloudrgb_MAVLink->insert(cloudrgb_MAVLink->end(),transformed_cloudrgb->begin(),transformed_cloudrgb->end());
+		cout << "inserted to cloudrgb_MAVLink" << endl;
+		
+		//Feature Matching Alignment
+		if (i == 0)
 		{
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb(new pcl::PointCloud<pcl::PointXYZRGB> ());
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz(new pcl::PointCloud<pcl::PointXYZ> ());
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb( new pcl::PointCloud<pcl::PointXYZRGB>() );
-			
-			createPtCloud(i, cloudrgb, cloudxyz);
-			cout << "Created point cloud " << i << endl;
-			
-			//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
-			int* data_index_arr = data_index_finder(img_numbers[i]);
-			int pose_index = data_index_arr[0];
-			//int heading_index = data_index_arr[1];
-			//
-			//Eigen::Affine3f transform_MAVLink = Eigen::Affine3f::Identity();
-			//// Define a translation on x, y and z axis.
-			//transform_MAVLink.translation() << pose_data[pose_index][tx_ind], pose_data[pose_index][ty_ind], pose_data[pose_index][tz_ind];
-			//
-			//// The same rotation matrix as before; theta radians around Z axis
-			//double theta = heading_data[heading_index][hdg_ind] * PI / 180;
-			//transform_MAVLink.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
-			
-			//Eigen::Quaternion<float> uav_quaternion = Eigen::Quaternion<float> (pose_data[pose_index][qx_ind], pose_data[pose_index][qy_ind], pose_data[pose_index][qz_ind], pose_data[pose_index][qw_ind]);
-			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
-			t_matVec.push_back(t_mat);
-			
-			// Print the transformation
-			//printf ("Correcting 3D pt cloud using transform_MAVLink\n");
-			//std::cout << transform_MAVLink.matrix() << std::endl;
-			
-			//transformPtCloud(cloudrgb, transformed_cloudrgb, transform_MAVLink);
-			transformPtCloud2(cloudrgb, transformed_cloudrgb, t_mat);
-			cout << "Transformed point cloud " << i << endl;
-			
-			//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (transformed_cloudrgb);
-			//viewer.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb, rgb, "transformed_cloud" + to_string(i));
-			//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + to_string(i));
-			
-			cloudrgbVec.push_back(cloudrgb);
-			transformed_cloudrgbVec.push_back(transformed_cloudrgb);
+			//transformedFeatureMatch_cloudrgbVec.push_back(transformed_cloudrgb);
+			transformedFeatureMatch_cloudrgb_last = transformed_cloudrgb;
+			t_FMVec.push_back(t_mat);
 			
 			//generating the bigger point cloud
-			cloudrgb_MAVLink->insert(cloudrgb_MAVLink->end(),transformed_cloudrgb->begin(),transformed_cloudrgb->end());
-			//copyPointCloud(*transformed_cloudrgb,*cloudrgb_MAVLink);
-			cout << "inserted to cloudrgb_MAVLink" << endl;
+			copyPointCloud(*transformed_cloudrgb,*cloudrgb_FeatureMatched);
+		}
+		else
+		{
+			//estimate rigid body transform between matched points
+			pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 T_SVD_matched_pts = estimateRigidBodyTransformBetweenMatchedPoints(i, i-1, t_mat, t_FMVec[i-1]);
+			t_FMVec.push_back(T_SVD_matched_pts * t_mat);
+			
+			//working with 3D point clouds
+			//pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb0 = transformedFeatureMatch_cloudrgb_last;
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb1( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			
+			//pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te00;
+			//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD00;
+			//
+			//te00.estimateRigidTransformation(*transformedFM_cloudrgb1, *transformedFM_cloudrgb0, T_SVD00);
+			//cout << "computed point cloud transformation is\n" << T_SVD00 << endl;
+			
+			transformPtCloud2(transformed_cloudrgb, transformedFM_cloudrgb1, T_SVD_matched_pts);
+			cout << "Feature Matched and Transformed point cloud " << i << endl;
+			
+			//transformedFeatureMatch_cloudrgbVec.push_back(transformedFM_cloudrgb1);
+			transformedFeatureMatch_cloudrgb_last = transformedFM_cloudrgb1;
+			
+			//generating the bigger point cloud
+			cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformedFM_cloudrgb1->begin(),transformedFM_cloudrgb1->end());
 		}
 		
-		cout << "cloudrgb_MAVLink->points.size () " << cloudrgb_MAVLink->points.size () << endl;
-		cout << "cloudrgb_MAVLink->height " << cloudrgb_MAVLink->height << endl;
-		cout << "cloudrgb_MAVLink->width " << cloudrgb_MAVLink->width << endl;
-		
-		string writePath = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
-		pcl::io::savePLYFileBinary(writePath, *cloudrgb_MAVLink);
-		std::cerr << "Saved " << cloudrgb_MAVLink->points.size () << " data points to " << writePath << endl;
-		
+	}
+	
+	cout << "cloudrgb_MAVLink->points.size () " << cloudrgb_MAVLink->points.size () << endl;
+	cout << "cloudrgb_MAVLink->height " << cloudrgb_MAVLink->height << endl;
+	cout << "cloudrgb_MAVLink->width " << cloudrgb_MAVLink->width << endl;
+	
+	cout << "cloudrgb_FeatureMatched->points.size () " << cloudrgb_FeatureMatched->points.size () << endl;
+	cout << "cloudrgb_FeatureMatched->height " << cloudrgb_FeatureMatched->height << endl;
+	cout << "cloudrgb_FeatureMatched->width " << cloudrgb_FeatureMatched->width << endl;
+	
+	string writePath = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
+	pcl::io::savePLYFileBinary(writePath, *cloudrgb_MAVLink);
+	std::cerr << "Saved " << cloudrgb_MAVLink->points.size () << " data points to " << writePath << endl;
+	
+	writePath = "cloudrgb_FeatureMatched_" + currentDateTimeStr + ".ply";
+	pcl::io::savePLYFileBinary(writePath, *cloudrgb_FeatureMatched);
+	std::cerr << "Saved " << cloudrgb_FeatureMatched->points.size () << " data points to " << writePath << endl;
+	
+	if(preview)
+	{
 		pcl::visualization::PCLVisualizer viewer ("3d reconstruction cloudrgb_MAVLink");
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb_MAVLink);
 		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb_MAVLink, rgb, "cloudrgb_MAVLink");
@@ -137,61 +165,11 @@ Pose::Pose(int argc, char* argv[])
 		}
 		
 		//3D reconstruction using Feature Matching
-		
 		pcl::visualization::PCLVisualizer viewer1 ("3d reconstruction Feature Matching");
-		
-		vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> transformedFeatureMatch_cloudrgbVec;
-		vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec;
-		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb = transformed_cloudrgbVec[0];
-		
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb0 (transformed_cloudrgb);
-		viewer1.addPointCloud<pcl::PointXYZRGB> (transformed_cloudrgb, rgb0, "transformedFM_cloud" + to_string(0));
-		viewer1.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformedFM_cloud" + to_string(0));
-		
-		transformedFeatureMatch_cloudrgbVec.push_back(transformed_cloudrgb);
-		t_FMVec.push_back(t_matVec[0]);
-		
-		//generating the bigger point cloud
-		copyPointCloud(*transformed_cloudrgb,*cloudrgb_FeatureMatched);
-		
-		//printPoints(transformed_cloudrgb, 100 + 0);
-		
-		for (int i = 1; i < img_numbers.size(); i++)
-		{
-			//estimate rigid body transform between matched points
-			pcl::registration::TransformationEstimation<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 T_SVD_matched_pts = estimateRigidBodyTransformBetweenMatchedPoints(i, i-1, t_matVec[i], t_FMVec[i-1]);
-			t_FMVec.push_back(T_SVD_matched_pts * t_matVec[i]);
-			
-			//working with 3D point clouds
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb0 = transformedFeatureMatch_cloudrgbVec[i-1];
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb1 = transformed_cloudrgbVec[i];
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb2( new pcl::PointCloud<pcl::PointXYZRGB>() );
-			
-			//pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te00;
-			//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD00;
-			//
-			//te00.estimateRigidTransformation(*transformedFM_cloudrgb1, *transformedFM_cloudrgb0, T_SVD00);
-			//cout << "computed point cloud transformation is\n" << T_SVD00 << endl;
-			
-			transformPtCloud2(transformedFM_cloudrgb1, transformedFM_cloudrgb2, T_SVD_matched_pts);
-			cout << "Transformed point cloud " << i << endl;
-			
-			pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (transformedFM_cloudrgb2);
-			viewer1.addPointCloud<pcl::PointXYZRGB> (transformedFM_cloudrgb2, rgb, "transformedFM_cloud" + to_string(i));
-			viewer1.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformedFM_cloud" + to_string(i));
-			
-			transformedFeatureMatch_cloudrgbVec.push_back(transformedFM_cloudrgb2);
-			
-			//generating the bigger point cloud
-			//copyPointCloud(*transformedFM_cloudrgb2,*cloudrgb_FeatureMatched);
-			cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformedFM_cloudrgb2->begin(),transformedFM_cloudrgb2->end());
-		}
-		
-		writePath = "cloudrgb_FeatureMatched_" + currentDateTimeStr + ".ply";
-		pcl::io::savePLYFileBinary(writePath, *cloudrgb_FeatureMatched);
-		std::cerr << "Saved " << cloudrgb_FeatureMatched->points.size () << " data points to " << writePath << endl;
-		
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbFM (cloudrgb_FeatureMatched);
+		viewer1.addPointCloud<pcl::PointXYZRGB> (cloudrgb_FeatureMatched, rgbFM, "cloudrgb_FeatureMatched");
+		viewer1.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloudrgb_FeatureMatched");
+
 		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		
 		viewer1.addCoordinateSystem (1.0, 0, 0, 0);
@@ -348,15 +326,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_t0 (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_t1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	
-	//cloud0->width    = cols;
-	//cloud0->height   = rows;
 	cloud0->is_dense = true;
-	//cloud0->points.resize (cloud0->width * cloud0->height);
-	//
-	//cloud1->width    = cols;
-	//cloud1->height   = rows;
 	cloud1->is_dense = true;
-	//cloud1->points.resize (cloud1->width * cloud1->height);
 	
 	op_fl << "\npoint clouds " << img0_index << " and " << img1_index << endl;
 	

@@ -815,18 +815,10 @@ void Pose::createPlaneFittedDisparityImages()
 	}
 }
 
-void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudxyz)
+void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
 	cout << "Image index: " << img_index << endl;
-	//cloudrgb->width    = cols;
-	//cloudrgb->height   = rows;
 	cloudrgb->is_dense = true;
-	//cloudrgb->points.resize (cloudrgb->width * cloudrgb->height);
-	
-	//cloudxyz->width    = cloudrgb->width;
-	//cloudxyz->height   = cloudrgb->height;
-	cloudxyz->is_dense = true;
-	//cloudxyz->points.resize (cloudxyz->width * cloudxyz->height);
 	
 	int point_clout_pts = 0;
 	cv::Mat_<double> vec_tmp(4,1);
@@ -860,15 +852,10 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 				
 				point_clout_pts++;
 				
-				pcl::PointXYZ pt_3d;
-				pt_3d.x = (float)vec_tmp(0);
-				pt_3d.y = (float)vec_tmp(1);
-				pt_3d.z = (float)vec_tmp(2);
-				
 				pcl::PointXYZRGB pt_3drgb;
-				pt_3drgb.x = pt_3d.x;
-				pt_3drgb.y = pt_3d.y;
-				pt_3drgb.z = pt_3d.z;
+				pt_3drgb.x = (float)vec_tmp(0);
+				pt_3drgb.y = (float)vec_tmp(1);
+				pt_3drgb.z = (float)vec_tmp(2);
 				Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
 				//cout << (uint32_t)color[2] << " " << (uint32_t)color[1] << " " << (uint32_t)color[0] << endl;
 				
@@ -876,7 +863,6 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
 				
 				cloudrgb->points.push_back(pt_3drgb);
-				cloudxyz->points.push_back(pt_3d);
 				//cout << pt_3d << endl;
 			}
 		}
