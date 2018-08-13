@@ -179,16 +179,27 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		{
 			visualize = true;
 			n_imgs = 1;		//just to stop program from reading images.txt file
-			read_PLY_filename = string(argv[i + 1]);
-			cout << "Visualize " << read_PLY_filename << endl;
+			read_PLY_filename0 = string(argv[i + 1]);
+			cout << "Visualize " << read_PLY_filename0 << endl;
 			i++;
+		}
+		else if (string(argv[i]) == "--join_point_clouds")
+		{
+			join_point_clouds = true;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			read_PLY_filename0 = string(argv[++i]);
+			read_tf_filename0 = string(argv[++i]);
+			read_PLY_filename1 = string(argv[++i]);
+			read_tf_filename1 = string(argv[++i]);
+			cout << "Join " << read_PLY_filename0 << " and " << read_PLY_filename1 << endl;
+			cout << "using tf values " << read_tf_filename0 << " and " << read_tf_filename1 << endl;
 		}
 		else if (string(argv[i]) == "--downsample")
 		{
 			downsample = true;
 			n_imgs = 1;		//just to stop program from reading images.txt file
-			read_PLY_filename = string(argv[i + 1]);
-			cout << "Downsample " << read_PLY_filename << endl;
+			read_PLY_filename0 = string(argv[i + 1]);
+			cout << "Downsample " << read_PLY_filename0 << endl;
 			i++;
 		}
 		else if (string(argv[i]) == "--log")
@@ -1188,12 +1199,12 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 	cout << "Cya!" << endl;
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::read_PLY_File()
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::read_PLY_File(string point_cloud_filename)
 {
 	cout << "Reading PLY file..." << endl;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PLYReader Reader;
-	Reader.read(read_PLY_filename, *cloudrgb);
+	Reader.read(point_cloud_filename, *cloudrgb);
 	cout << "Read PLY file!" << endl;
 	return cloudrgb;
 }

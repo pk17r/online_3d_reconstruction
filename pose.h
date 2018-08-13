@@ -54,7 +54,11 @@ int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 double voxel_size = 0.01; //in meters
 bool downsample = false;
 bool visualize = false;
-string read_PLY_filename = "";
+bool join_point_clouds = false;
+string read_PLY_filename0 = "";
+string read_tf_filename0 = "";
+string read_PLY_filename1 = "";
+string read_tf_filename1 = "";
 string currentDateTimeStr;
 double reduction_ratio = 1;
 double focallength = 16.0 / 1000 / 3.75 * 1000000;
@@ -131,8 +135,6 @@ ofstream f;	//logging stuff
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
 
-ofstream op_fl;
-
 //declaring functions
 void readCalibFile();
 void printUsage();
@@ -151,14 +153,15 @@ int binarySearch(vector<double> seq, int l, int r, double x);
 int binarySearchImageTime(int l, int r, double x);
 int* data_index_finder(int image_number);
 void printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num);
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 estimateRigidBodyTransformBetweenMatchedPoints(int img0_index, int img1_index,
+void generate_Matched_Keypoints_Point_Clouds(int img0_index, int img1_index,
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat0,
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat1);
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat1,
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_t0, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_t1);
 const string currentDateTime();
 double getMean(Mat disp_img, bool planeFitted);
 double getVariance(Mat disp_img, bool planeFitted);
 void visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name);
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File();
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
 
 };
