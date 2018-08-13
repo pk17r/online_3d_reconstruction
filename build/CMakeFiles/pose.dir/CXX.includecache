@@ -69,6 +69,8 @@ pcl/registration/transformation_estimation.h
 -
 pcl/registration/transformation_estimation_svd.h
 -
+pcl/filters/voxel_grid.h
+-
 time.h
 -
 
@@ -1468,12 +1470,32 @@ pcl/filters/statistical_outlier_removal.h
 pcl/common/io.h
 -
 
+/usr/include/pcl-1.8/pcl/filters/impl/voxel_grid.hpp
+pcl/common/centroid.h
+-
+pcl/common/common.h
+-
+pcl/common/io.h
+-
+pcl/filters/voxel_grid.h
+-
+
 /usr/include/pcl-1.8/pcl/filters/statistical_outlier_removal.h
 pcl/filters/filter_indices.h
 -
 pcl/search/pcl_search.h
 -
 pcl/filters/impl/statistical_outlier_removal.hpp
+-
+
+/usr/include/pcl-1.8/pcl/filters/voxel_grid.h
+pcl/filters/boost.h
+-
+pcl/filters/filter.h
+-
+map
+-
+pcl/filters/impl/voxel_grid.hpp
 -
 
 /usr/include/pcl-1.8/pcl/for_each_type.h

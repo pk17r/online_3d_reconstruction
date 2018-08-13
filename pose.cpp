@@ -23,41 +23,47 @@ Pose::Pose(int argc, char* argv[])
 	int retVal = parseCmdArgs(argc, argv);
 	if (retVal == -1)
 		throw "Exception: Incorrect inputs!";
-		
-	if (visualize)
+	
+	if (downsample)
 	{
-		cout << "Reading PLY file..." << endl;
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		pcl::PLYReader Reader;
-		Reader.read(visualize_file, *cloudrgb);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File();
 		
-		cout << "Read PLY file!\nStarting Visualization..." << endl;
+		cerr << "PointCloud before filtering: " << cloudrgb->width * cloudrgb->height 
+			<< " data points (" << pcl::getFieldsList (*cloudrgb) << ")." << endl;
 		
-		pcl::visualization::PCLVisualizer viewer ("3d visualizer " + visualize_file);
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
-		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, "cloudrgb_MAVLink");
-		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloudrgb_MAVLink");
+		for (int i = 0; i < cloudrgb->size(); i++)
+			cloudrgb->points[i].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		
+		// Create the filtering object
+		pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+		sor.setInputCloud (cloudrgb);
+		sor.setLeafSize (voxel_size,voxel_size,1000);
+		sor.filter (*cloudrgb_filtered);
 
-		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
+		for (int i = 0; i < cloudrgb_filtered->size(); i++)
+			cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
 		
-		//pcl::PointXYZ start_pt; start_pt.x = 10; start_pt.y = -15; start_pt.z = 0;
-		//viewer.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
-		//pcl::PointXYZ end_pt; end_pt.x = 12; end_pt.y = -12; end_pt.z = 0;
-		//viewer.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
+		cerr << "PointCloud after filtering: " << cloudrgb_filtered->width * cloudrgb_filtered->height 
+			<< " data points (" << pcl::getFieldsList (*cloudrgb_filtered) << ")." << endl;
 		
-		viewer.addCoordinateSystem (1.0, 0, 0, 0);
-		viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-		viewer.setPosition(1280/2, 720/2); // Setting visualiser window position
+		string writePath = "downsampled_" + read_PLY_filename;
+		save_pt_cloud_to_PLY_File(cloudrgb_filtered, writePath);
 		
-		while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-			viewer.spinOnce();
-		}
-		viewer.close();
+		visualize_pt_cloud(cloudrgb_filtered, "Downsampled Point Cloud");
 		
 		cout << "Cya!" << endl;
 		return;
 	}
 	
+	if (visualize)
+	{
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File();
+		visualize_pt_cloud(cloudrgb, read_PLY_filename);
+		cout << "Cya!" << endl;
+		return;
+	}
 	
 	readCalibFile();
 	readPoseFile();
@@ -163,70 +169,21 @@ Pose::Pose(int argc, char* argv[])
 			//generating the bigger point cloud
 			cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformedFM_cloudrgb1->begin(),transformedFM_cloudrgb1->end());
 		}
-		
 	}
 	
-	cout << "cloudrgb_MAVLink->points.size () " << cloudrgb_MAVLink->points.size () << endl;
-	cout << "cloudrgb_MAVLink->height " << cloudrgb_MAVLink->height << endl;
-	cout << "cloudrgb_MAVLink->width " << cloudrgb_MAVLink->width << endl;
-	
-	cout << "cloudrgb_FeatureMatched->points.size () " << cloudrgb_FeatureMatched->points.size () << endl;
-	cout << "cloudrgb_FeatureMatched->height " << cloudrgb_FeatureMatched->height << endl;
-	cout << "cloudrgb_FeatureMatched->width " << cloudrgb_FeatureMatched->width << endl;
-	
 	string writePath = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
-	pcl::io::savePLYFileBinary(writePath, *cloudrgb_MAVLink);
-	std::cerr << "Saved " << cloudrgb_MAVLink->points.size () << " data points to " << writePath << endl;
+	save_pt_cloud_to_PLY_File(cloudrgb_MAVLink, writePath);
 	
 	writePath = "cloudrgb_FeatureMatched_" + currentDateTimeStr + ".ply";
-	pcl::io::savePLYFileBinary(writePath, *cloudrgb_FeatureMatched);
-	std::cerr << "Saved " << cloudrgb_FeatureMatched->points.size () << " data points to " << writePath << endl;
+	save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched, writePath);
 	
 	cout << "Finding 3D transformation, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 	cout << "Finished Pose Estimation, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
 	
 	if(preview)
 	{
-		pcl::visualization::PCLVisualizer viewer ("3d reconstruction cloudrgb_MAVLink");
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb_MAVLink);
-		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb_MAVLink, rgb, "cloudrgb_MAVLink");
-		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloudrgb_MAVLink");
-
-		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
-		
-		//pcl::PointXYZ start_pt; start_pt.x = 10; start_pt.y = -15; start_pt.z = 0;
-		//viewer.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
-		//pcl::PointXYZ end_pt; end_pt.x = 12; end_pt.y = -12; end_pt.z = 0;
-		//viewer.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
-		
-		viewer.addCoordinateSystem (1.0, 0, 0, 0);
-		viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-		viewer.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
-		
-		while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-			viewer.spinOnce();
-		}
-		viewer.close();
-		
-		//3D reconstruction using Feature Matching
-		pcl::visualization::PCLVisualizer viewer1 ("3d reconstruction Feature Matching");
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbFM (cloudrgb_FeatureMatched);
-		viewer1.addPointCloud<pcl::PointXYZRGB> (cloudrgb_FeatureMatched, rgbFM, "cloudrgb_FeatureMatched");
-		viewer1.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloudrgb_FeatureMatched");
-
-		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
-		
-		//viewer1.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
-		//viewer1.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
-		
-		viewer1.addCoordinateSystem (1.0, 0, 0, 0);
-		viewer1.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-		viewer1.setPosition(full_images[0].cols/2, full_images[0].rows/2); // Setting visualiser window position
-		
-		while (!viewer1.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-			viewer1.spinOnce();
-		}
-		viewer1.close();
+		visualize_pt_cloud(cloudrgb_MAVLink, "cloudrgb_MAVLink");
+		visualize_pt_cloud(cloudrgb_FeatureMatched, "cloudrgb_FeatureMatched");
 	}
 	
 	//Mat mtxR, mtxQ, transVect, rotMatrixX, rotMatrixY, rotMatrixZ;

@@ -178,8 +178,17 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--visualize")
 		{
 			visualize = true;
-			visualize_file = string(argv[i + 1]);
-			cout << "Visualize " << visualize_file << endl;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			read_PLY_filename = string(argv[i + 1]);
+			cout << "Visualize " << read_PLY_filename << endl;
+			i++;
+		}
+		else if (string(argv[i]) == "--downsample")
+		{
+			downsample = true;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			read_PLY_filename = string(argv[i + 1]);
+			cout << "Downsample " << read_PLY_filename << endl;
 			i++;
 		}
 		else if (string(argv[i]) == "--log")
@@ -364,7 +373,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 	{
 		compose_megapix = 0.6;
 	}
-	if (n_imgs == 0 && !visualize)
+	if (n_imgs == 0)
 	{
 		ifstream images_file;
 		images_file.open("images/images.txt");
@@ -386,8 +395,6 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else
 			throw "Exception: Unable to open images_file!";
 	}
-	if (img_numbers.size() < 2 && !visualize)
-		throw "Exception: Number of images needs to be greater than two!";
 	
 	return 0;
 }
@@ -1080,4 +1087,119 @@ void Pose::transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl
 {
 	// Executing the transformation
 	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform_2);
+}
+
+static void mouseEventOccurred (const pcl::visualization::MouseEvent &event)
+{
+	if (event.getButton () == pcl::visualization::MouseEvent::LeftButton && event.getType () == pcl::visualization::MouseEvent::MouseButtonRelease)
+	{
+		std::cout << "Left mouse button released at position (" << event.getX () << "," << event.getY () << ")" << std::endl;
+	}
+}
+
+// struct that will contain point cloud and indices 
+struct CloudandIndices 
+{ 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ptr; 
+	pcl::PointIndices::Ptr point_indicies; 
+}; 
+
+//This gets all of the indices that you box out.   
+void area_picking_get_points (const pcl::visualization::AreaPickingEvent &event, void* cloudStruct)
+{ 
+	struct CloudandIndices *cloudInfoStruct = (struct CloudandIndices*) cloudStruct;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tempCloud = cloudInfoStruct->cloud_ptr;
+	pcl::PointIndices::Ptr point_indices_ = cloudInfoStruct->point_indicies;
+	
+	if (event.getPointsIndices (point_indices_->indices)) 
+	{ 
+		cout <<"picked "<< point_indices_->indices.size() << " points,";
+		double x = 0, y = 0, z = 0, var_x = 0, var_y = 0, var_z = 0;
+		for (unsigned int i = 0; i < point_indices_->indices.size(); i++)
+		{
+			int index = point_indices_->indices[i];
+			//cout <<"point " << index << " (" << tempCloud->points[index].x << "," << tempCloud->points[index].y << "," << tempCloud->points[index].z << ")" << endl;
+			x += tempCloud->points[index].x;
+			y += tempCloud->points[index].y;
+			z += tempCloud->points[index].z;
+		}
+		x /= point_indices_->indices.size();
+		y /= point_indices_->indices.size();
+		z /= point_indices_->indices.size();
+		
+		for (unsigned int i = 0; i < point_indices_->indices.size(); i++)
+		{
+			int index = point_indices_->indices[i];
+			//cout <<"point " << index << " (" << tempCloud->points[index].x << "," << tempCloud->points[index].y << "," << tempCloud->points[index].z << ")" << endl;
+			var_x += (tempCloud->points[index].x - x)*(tempCloud->points[index].x - x);
+			var_y += (tempCloud->points[index].y - y)*(tempCloud->points[index].y - y);
+			var_z += (tempCloud->points[index].z - z)*(tempCloud->points[index].z - z);
+		}
+		var_x /= (point_indices_->indices.size() - 1);
+		var_y /= (point_indices_->indices.size() - 1);
+		var_z /= (point_indices_->indices.size() - 1);
+		
+		cout << " mean (" << x << "," << y << "," << z << ")" << " std (" << sqrt(var_x) << "," << sqrt(var_y) << "," << sqrt(var_z) << ")" << endl;
+	}
+	else 
+		cout<<"No valid points selected!"<<std::endl; 
+}
+
+void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name)
+{
+	cout << "Starting Visualization..." << endl;
+	
+	cout << "NOTE:" << endl;
+	cout << "- use h for help" << endl;
+	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
+	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
+	
+	pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
+	viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
+
+	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
+	
+	//pcl::PointXYZ start_pt; start_pt.x = 10; start_pt.y = -15; start_pt.z = 0;
+	//viewer.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
+	//pcl::PointXYZ end_pt; end_pt.x = 12; end_pt.y = -12; end_pt.z = 0;
+	//viewer.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
+	
+	viewer.addCoordinateSystem (1.0, 0, 0, 0);
+	viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+	viewer.setPosition(1280/2, 720/2); // Setting visualiser window position
+	//viewer.registerMouseCallback (mouseEventOccurred);
+	
+	// Struct Pointers for Passing Cloud to Events/Callbacks ----------- some of this may be redundant 
+	pcl::PointIndices::Ptr point_indicies (new pcl::PointIndices());
+	struct CloudandIndices pointSelectors;
+	pointSelectors.cloud_ptr = cloudrgb;
+	pointSelectors.point_indicies = point_indicies;
+	CloudandIndices *pointSelectorsPtr = &pointSelectors;
+	//taken from http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
+	viewer.registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
+
+	while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
+		viewer.spinOnce();
+	}
+	viewer.close();
+	
+	cout << "Cya!" << endl;
+}
+
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::read_PLY_File()
+{
+	cout << "Reading PLY file..." << endl;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::PLYReader Reader;
+	Reader.read(read_PLY_filename, *cloudrgb);
+	cout << "Read PLY file!" << endl;
+	return cloudrgb;
+}
+
+void Pose::save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath)
+{
+	pcl::io::savePLYFileBinary(writePath, *cloudrgb);
+	std::cerr << "Saved Point Cloud with " << cloudrgb->points.size () << " data points to " << writePath << endl;
 }

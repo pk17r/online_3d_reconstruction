@@ -27,6 +27,7 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/registration/transformation_estimation.h>
 #include <pcl/registration/transformation_estimation_svd.h>
+#include <pcl/filters/voxel_grid.h>
 #include <time.h>
 
 //#define ENABLE_LOG 1
@@ -50,8 +51,10 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 
+double voxel_size = 0.01; //in meters
+bool downsample = false;
 bool visualize = false;
-string visualize_file = "";
+string read_PLY_filename = "";
 string currentDateTimeStr;
 double reduction_ratio = 1;
 double focallength = 16.0 / 1000 / 3.75 * 1000000;
@@ -154,5 +157,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 const string currentDateTime();
 double getMean(Mat disp_img, bool planeFitted);
 double getVariance(Mat disp_img, bool planeFitted);
+void visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name);
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File();
+void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
 
 };

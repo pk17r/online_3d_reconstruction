@@ -7,6 +7,31 @@ H between images 1 and 0:
 [0.9986152205996509, -0.02142043067507202, -57.04418835912747;
  0.01775082323071882, 0.9999822840104245, -253.2987554760954;
  7.513454861528523e-07, 5.668221670682236e-06, 1]
+index 0 disp_img_var -833353 plane_fitted_disp_img_var -358595
+index 1 disp_img_var -684812 plane_fitted_disp_img_var -481597
+index 2 disp_img_var -658076 plane_fitted_disp_img_var -542085
+index 3 disp_img_var -1.16527e+06 plane_fitted_disp_img_var -535520
+index 4 disp_img_var -1.42133e+06 plane_fitted_disp_img_var -1.05803e+06
+index 5 disp_img_var -1.54902e+06 plane_fitted_disp_img_var -1.16719e+06
+index 6 disp_img_var -1.70478e+06 plane_fitted_disp_img_var -1.22441e+06
+index 7 disp_img_var -1.9808e+06 plane_fitted_disp_img_var -1.11566e+06
+index 8 disp_img_var -1.54358e+06 plane_fitted_disp_img_var -1.14499e+06
+index 9 disp_img_var -1.55949e+06 plane_fitted_disp_img_var -1.22758e+06
+index 10 disp_img_var -1.18845e+06 plane_fitted_disp_img_var -985096
+index 11 disp_img_var -724398 plane_fitted_disp_img_var -577628
+index 12 disp_img_var -750034 plane_fitted_disp_img_var -637482
+index 13 disp_img_var -800277 plane_fitted_disp_img_var -679717
+index 14 disp_img_var -704269 plane_fitted_disp_img_var -548729
+index 15 disp_img_var -785025 plane_fitted_disp_img_var -598977
+index 16 disp_img_var -805110 plane_fitted_disp_img_var -556552
+index 17 disp_img_var -2.19334e+06 plane_fitted_disp_img_var -448504
+index 18 disp_img_var -978282 plane_fitted_disp_img_var -699381
+index 19 disp_img_var -965179 plane_fitted_disp_img_var -753956
+index 20 disp_img_var -1.06837e+06 plane_fitted_disp_img_var -693016
+index 21 disp_img_var -889414 plane_fitted_disp_img_var -619888
+index 22 disp_img_var -808330 plane_fitted_disp_img_var -598014
+index 23 disp_img_var -699044 plane_fitted_disp_img_var -531057
+index 24 disp_img_var -677785 plane_fitted_disp_img_var -491178
 point_clout_pts: 747801
 point_clout_pts: 747960
 src_img_idx: 1 dst_img_idx: 0
@@ -192,3 +217,11 @@ computed transformation between MATCHED KEYPOINTS T_SVD2 is
  -0.0407135    0.998673   0.0315406   -0.453429
 -0.00977261  -0.0319632    0.999441    -1.22896
           0           0           0           1
+point_clout_pts: 747959
+src_img_idx: 24 dst_img_idx: 23
+keypoints3D_src.size() 365
+computed transformation between MATCHED KEYPOINTS T_SVD2 is
+  0.998394   0.052632 -0.0209683  -0.612239
+-0.0507405   0.995312  0.0823363  -0.777325
+ 0.0252036 -0.0811401   0.996384    -1.1175
+         0          0          0          1
