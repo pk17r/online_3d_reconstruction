@@ -65,6 +65,30 @@ Pose::Pose(int argc, char* argv[])
 		return;
 	}
 	
+	if (align_point_cloud)
+	{
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in = read_PLY_File(read_PLY_filename0);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out = read_PLY_File(read_PLY_filename1);
+		
+		cout << "Running ICP to align point clouds..." << endl;
+		pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+		icp.setInputSource(cloud_in);
+		icp.setInputTarget(cloud_out);
+		pcl::PointCloud<pcl::PointXYZRGB> Final;
+		icp.align(Final);
+		cout << "has converged: " << icp.hasConverged() << " score: " << icp.getFitnessScore() << endl;
+		cout << icp.getFinalTransformation() << endl;
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr Final_ptr (&Final);
+		
+		string writePath = "ICP_aligned_" + read_PLY_filename0;
+		save_pt_cloud_to_PLY_File(Final_ptr, writePath);
+		
+		visualize_pt_cloud(Final_ptr, writePath);
+		
+		return;
+	}
+	
 	if (join_point_clouds)
 	{
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb0 = read_PLY_File(read_PLY_filename0);

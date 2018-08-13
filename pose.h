@@ -28,6 +28,8 @@
 #include <pcl/registration/transformation_estimation.h>
 #include <pcl/registration/transformation_estimation_svd.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/registration/icp.h>
 #include <time.h>
 
 //#define ENABLE_LOG 1
@@ -51,10 +53,11 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 
-double voxel_size = 0.01; //in meters
 bool downsample = false;
+double voxel_size = 0.01; //in meters
 bool visualize = false;
 bool join_point_clouds = false;
+bool align_point_cloud = false;
 string read_PLY_filename0 = "";
 string read_tf_filename0 = "";
 string read_PLY_filename1 = "";

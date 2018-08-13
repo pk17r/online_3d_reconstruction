@@ -194,12 +194,25 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "Join " << read_PLY_filename0 << " and " << read_PLY_filename1 << endl;
 			cout << "using tf values " << read_tf_filename0 << " and " << read_tf_filename1 << endl;
 		}
+		else if (string(argv[i]) == "--align_point_cloud")
+		{
+			align_point_cloud = true;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			read_PLY_filename0 = string(argv[++i]);
+			read_PLY_filename1 = string(argv[++i]);
+			cout << "Align " << read_PLY_filename0 << " and " << read_PLY_filename1 << " using ICP." << endl;
+		}
 		else if (string(argv[i]) == "--downsample")
 		{
 			downsample = true;
 			n_imgs = 1;		//just to stop program from reading images.txt file
 			read_PLY_filename0 = string(argv[i + 1]);
 			cout << "Downsample " << read_PLY_filename0 << endl;
+			i++;
+		}
+		else if (string(argv[i]) == "--voxel_size")
+		{
+			voxel_size = atof(argv[i + 1]);
 			i++;
 		}
 		else if (string(argv[i]) == "--log")
