@@ -30,6 +30,8 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/registration/icp.h>
+#include <pcl/surface/mls.h>
+#include <pcl/PCLPointCloud2.h>
 #include <time.h>
 
 //#define ENABLE_LOG 1
@@ -53,7 +55,12 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 
+bool smooth_surface = false;
+int polynomial_order = 2;
+double search_radius = 0.005, sqr_gauss_param = 0.003;
 bool downsample = false;
+bool downsample_transform = false;
+string downsample_transform_file = "";
 double voxel_size = 0.01; //in meters
 bool visualize = false;
 bool join_point_clouds = false;
@@ -156,7 +163,7 @@ int binarySearch(vector<double> seq, int l, int r, double x);
 int binarySearchImageTime(int l, int r, double x);
 int* data_index_finder(int image_number);
 void printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num);
-void generate_Matched_Keypoints_Point_Clouds(int img0_index, int img1_index,
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_Matched_Keypoints_Point_Clouds(int img0_index, int img1_index,
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat0,
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat1,
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_t0, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_t1);
@@ -166,5 +173,8 @@ double getVariance(Mat disp_img, bool planeFitted);
 void visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
+(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
 
 };

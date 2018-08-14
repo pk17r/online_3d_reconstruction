@@ -202,6 +202,14 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			read_PLY_filename1 = string(argv[++i]);
 			cout << "Align " << read_PLY_filename0 << " and " << read_PLY_filename1 << " using ICP." << endl;
 		}
+		else if (string(argv[i]) == "--smooth_surface")
+		{
+			smooth_surface = true;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			read_PLY_filename0 = string(argv[i + 1]);
+			cout << "smooth_surface " << read_PLY_filename0 << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--downsample")
 		{
 			downsample = true;
@@ -210,9 +218,18 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "Downsample " << read_PLY_filename0 << endl;
 			i++;
 		}
+		else if (string(argv[i]) == "--downsample_transform")
+		{
+			downsample_transform = true;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			downsample_transform_file = string(argv[i + 1]);
+			cout << "downsample_transform " << downsample_transform_file << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--voxel_size")
 		{
 			voxel_size = atof(argv[i + 1]);
+			cout << "voxel_size " << voxel_size << endl;
 			i++;
 		}
 		else if (string(argv[i]) == "--log")
@@ -767,6 +784,13 @@ void Pose::pairWiseMatching()
 		f << pairwise_matches[1].H << endl;
 		f << "H between images 1 and 0:" << endl;
 		f << pairwise_matches[2].H << endl;
+		
+		
+		cout << "\nPairwise matches:" << endl;
+		for (int i = 0; i < pairwise_matches.size(); i++)
+		{
+			f << "i" << i << " src " << pairwise_matches[i].src_img_idx << " dst " << pairwise_matches[i].dst_img_idx << " confidence " << pairwise_matches[i].confidence << " inliers " << pairwise_matches[i].inliers_mask.size() << " matches " << pairwise_matches[i].matches.size() << endl;
+		}
 	}
 	
 }
@@ -850,8 +874,12 @@ void Pose::createPlaneFittedDisparityImages()
 			}
 		}
 		double_disparity_images.push_back(new_disp_img);
-		cout << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
-		f << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
+		
+		if(log_stuff)
+		{
+			cout << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
+			f << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
+		}
 	}
 }
 

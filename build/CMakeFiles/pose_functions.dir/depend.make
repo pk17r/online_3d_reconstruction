@@ -234,6 +234,7 @@ CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/com
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/common/concatenate.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/common/copy_point.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/common/eigen.h
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/common/geometry.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/common/impl/accumulators.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/common/impl/centroid.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/common/impl/common.hpp
@@ -344,6 +345,12 @@ CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/sea
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/search/organized.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/search/pcl_search.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/search/search.h
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/surface/boost.h
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/surface/eigen.h
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/surface/impl/mls.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/surface/impl/processing.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/surface/mls.h
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/surface/processing.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/visualization/area_picking_event.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/visualization/boost.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/include/pcl-1.8/pcl/visualization/common/actor_map.h

@@ -235,6 +235,7 @@ CMakeFiles/pose.dir/main.cpp.o
  /usr/include/pcl-1.8/pcl/common/concatenate.h
  /usr/include/pcl-1.8/pcl/common/copy_point.h
  /usr/include/pcl-1.8/pcl/common/eigen.h
+ /usr/include/pcl-1.8/pcl/common/geometry.h
  /usr/include/pcl-1.8/pcl/common/impl/accumulators.hpp
  /usr/include/pcl-1.8/pcl/common/impl/centroid.hpp
  /usr/include/pcl-1.8/pcl/common/impl/common.hpp
@@ -345,6 +346,12 @@ CMakeFiles/pose.dir/main.cpp.o
  /usr/include/pcl-1.8/pcl/search/organized.h
  /usr/include/pcl-1.8/pcl/search/pcl_search.h
  /usr/include/pcl-1.8/pcl/search/search.h
+ /usr/include/pcl-1.8/pcl/surface/boost.h
+ /usr/include/pcl-1.8/pcl/surface/eigen.h
+ /usr/include/pcl-1.8/pcl/surface/impl/mls.hpp
+ /usr/include/pcl-1.8/pcl/surface/impl/processing.hpp
+ /usr/include/pcl-1.8/pcl/surface/mls.h
+ /usr/include/pcl-1.8/pcl/surface/processing.h
  /usr/include/pcl-1.8/pcl/visualization/area_picking_event.h
  /usr/include/pcl-1.8/pcl/visualization/boost.h
  /usr/include/pcl-1.8/pcl/visualization/common/actor_map.h
