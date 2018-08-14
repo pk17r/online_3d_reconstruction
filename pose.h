@@ -61,7 +61,7 @@ double search_radius = 0.005, sqr_gauss_param = 0.003;
 bool downsample = false;
 bool downsample_transform = false;
 string downsample_transform_file = "";
-double voxel_size = 0.01; //in meters
+double voxel_size = 0.005; //in meters
 bool visualize = false;
 bool join_point_clouds = false;
 bool align_point_cloud = false;
@@ -87,6 +87,7 @@ string imagePrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/left_rect/"
 string disparityPrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/disparities/";
 string segmentlblPrefix = "segmentlabels/";
 
+//indices in pose and heading data files
 const int tx_ind=3,ty_ind=4,tz_ind=5,qx_ind=6,qy_ind=7,qz_ind=8,qw_ind=9,hdg_ind=3;
 //translation and rotation between image and head of hexacopter
 const double trans_x_hi = -0.300;
@@ -104,6 +105,14 @@ data_t images_times_data;	//header.seq,secs,NSECS
 vector<double> images_times_seq;
 vector<double> pose_times_seq;
 vector<double> heading_times_seq;
+
+	vector<pcl::PointXYZRGB> hexPosMAVLinkVec;
+	vector<pcl::PointXYZRGB> hexPosFMVec;
+	vector<pcl::PointXYZRGB> hexPosFMFittedVec;
+	bool displayCamPositions = false;
+	string hexPosMAVLinkfilename = "output/hexPosMAVLink.txt";
+	string hexPosFMfilename = "output/hexPosFM.txt";
+	string hexPosFMFittedfilename = "output/hexPosFMFitted.txt";
 
 bool log_stuff = false;
 bool preview = false;
@@ -176,5 +185,7 @@ void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
 (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out);
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
 
 };

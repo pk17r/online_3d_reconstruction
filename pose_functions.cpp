@@ -218,6 +218,13 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "Downsample " << read_PLY_filename0 << endl;
 			i++;
 		}
+		else if (string(argv[i]) == "--displayCamPositions")
+		{
+			displayCamPositions = true;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			cout << "displayCamPositions" << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--downsample_transform")
 		{
 			downsample_transform = true;
@@ -1209,6 +1216,77 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 	pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
 	viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+	if(displayCamPositions)
+	{
+		if (hexPosMAVLinkVec.size() == 0)
+		{
+			ifstream data_file;
+			data_t hexPosMAVLink_data;
+			data_file.open(hexPosMAVLinkfilename);
+			data_file >> hexPosMAVLink_data;
+			// Complain if something went wrong.
+			if (!data_file.eof())
+				throw "Exception: Could not open hexPosMAVLinkfilename file!";
+			data_file.close();
+
+			cout << "hexPosMAVLink" << endl;
+			for (int i = 0; i < hexPosMAVLink_data.size(); i++)
+			{
+				pcl::PointXYZRGB hexPosMAVLink;
+				hexPosMAVLink.x = hexPosMAVLink_data[i][0];
+				hexPosMAVLink.y = hexPosMAVLink_data[i][1];
+				hexPosMAVLink.z = hexPosMAVLink_data[i][2];
+				hexPosMAVLinkVec.push_back(hexPosMAVLink);
+				cout << hexPosMAVLink << endl;
+			}
+			
+			data_t hexPosFM_data;
+			data_file.open(hexPosFMfilename);
+			data_file >> hexPosFM_data;
+			// Complain if something went wrong.
+			if (!data_file.eof())
+				throw "Exception: Could not open hexPosFMfilename file!";
+			data_file.close();
+
+			cout << "\nhexPosFM" << endl;
+			for (int i = 0; i < hexPosFM_data.size(); i++)
+			{
+				pcl::PointXYZRGB hexPosFM;
+				hexPosFM.x = hexPosFM_data[i][0];
+				hexPosFM.y = hexPosFM_data[i][1];
+				hexPosFM.z = hexPosFM_data[i][2];
+				hexPosFMVec.push_back(hexPosFM);
+				cout << hexPosFM << endl;
+			}
+
+			data_t hexPosFMFitted_data;
+			data_file.open(hexPosFMFittedfilename);
+			data_file >> hexPosFMFitted_data;
+			// Complain if something went wrong.
+			if (!data_file.eof())
+				throw "Exception: Could not open hexPosFMFittedfilename file!";
+			data_file.close();
+
+			cout << "\nhexPosFMFitted" << endl;
+			for (int i = 0; i < hexPosFMFitted_data.size(); i++)
+			{
+				pcl::PointXYZRGB hexPosFMFitted;
+				hexPosFMFitted.x = hexPosFMFitted_data[i][0];
+				hexPosFMFitted.y = hexPosFMFitted_data[i][1];
+				hexPosFMFitted.z = hexPosFMFitted_data[i][2];
+				hexPosFMFittedVec.push_back(hexPosFMFitted);
+				cout << hexPosFMFitted << endl;
+			}
+		}
+		
+		for (int i = 0; i < hexPosMAVLinkVec.size(); i++)
+		{
+			viewer.addSphere(hexPosMAVLinkVec[i], 0.1, 255, 0, 0, "MAVLink"+to_string(i), 0);
+			viewer.addSphere(hexPosFMVec[i], 0.1, 0, 255, 0, "FM"+to_string(i), 0);
+			viewer.addSphere(hexPosFMFittedVec[i], 0.1, 0, 0, 255, "FMFitted"+to_string(i), 0);
+		}
+	}
+	
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
 
 	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
@@ -1255,3 +1333,85 @@ void Pose::save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 	pcl::io::savePLYFileBinary(writePath, *cloudrgb);
 	std::cerr << "Saved Point Cloud with " << cloudrgb->points.size () << " data points to " << writePath << endl;
 }
+
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out)
+{
+	cout << "Running ICP to align point clouds..." << endl;
+	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+	icp.setInputSource(cloud_in);
+	icp.setInputTarget(cloud_out);
+	pcl::PointCloud<pcl::PointXYZRGB> Final;
+	icp.align(Final);
+	cout << "has converged: " << icp.hasConverged() << " score: " << icp.getFitnessScore() << endl;
+	Eigen::Matrix4f icp_tf = icp.getFinalTransformation();
+	cout << icp_tf << endl;
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp_main;
+	Mat tf_icp = Mat::zeros(cv::Size(4, 4), CV_64FC1);
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			tf_icp.at<double>(i,j) = icp_tf(i,j);
+			tf_icp_main(i,j) = icp_tf(i,j);
+		}
+	}
+	string writePath = "tf_icp_" + currentDateTimeStr + ".yml";
+	cv::FileStorage fs(writePath, cv::FileStorage::WRITE);
+	fs << "tf_icp" << tf_icp;
+	cout << "Wrote tf_icp values to " << writePath << endl;
+	fs.release();	// close Settings file
+	
+	return tf_icp_main;
+}
+
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
+{
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp;
+	if(downsample_transform)
+	{
+		Mat tf_icp_mat;
+	
+		cv::FileStorage fs0(downsample_transform_file, cv::FileStorage::READ);
+		fs0["tf_icp"] >> tf_icp_mat;
+		fs0.release();	// close tf values file
+		
+		for (int i = 0; i < 4; i++)
+			for (int j = 0; j < 4; j++)
+				tf_icp(i,j) = tf_icp_mat.at<double>(i,j);
+	}
+	
+	if (downsample_transform)
+	{
+		cout << "Transforming cloud using\n" << tf_icp << endl;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		
+		pcl::transformPointCloud(*cloudrgb, *cloudrgb_transformed, tf_icp);
+		
+		cloudrgb = cloudrgb_transformed;
+		cout << "cloud transformed." << endl;
+	}
+	
+	cerr << "PointCloud before filtering: " << cloudrgb->width * cloudrgb->height 
+		<< " data points (" << pcl::getFieldsList (*cloudrgb) << ")." << endl;
+	
+	for (int i = 0; i < cloudrgb->size(); i++)
+		cloudrgb->points[i].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	
+	// Create the filtering object
+	pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+	sor.setInputCloud (cloudrgb);
+	sor.setLeafSize (voxel_size,voxel_size,1000);
+	sor.filter (*cloudrgb_filtered);
+
+	for (int i = 0; i < cloudrgb_filtered->size(); i++)
+		cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
+	
+	cerr << "PointCloud after filtering: " << cloudrgb_filtered->width * cloudrgb_filtered->height 
+		<< " data points (" << pcl::getFieldsList (*cloudrgb_filtered) << ")." << endl;
+	
+	return cloudrgb_filtered;
+}
+

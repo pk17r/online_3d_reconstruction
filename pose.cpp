@@ -26,52 +26,9 @@ Pose::Pose(int argc, char* argv[])
 	
 	if (downsample)
 	{
-		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp;
-		if(downsample_transform)
-		{
-			Mat tf_icp_mat;
-		
-			cv::FileStorage fs0(downsample_transform_file, cv::FileStorage::READ);
-			fs0["tf_icp"] >> tf_icp_mat;
-			fs0.release();	// close tf values file
-			
-			for (int i = 0; i < 4; i++)
-				for (int j = 0; j < 4; j++)
-					tf_icp(i,j) = tf_icp_mat.at<double>(i,j);
-		}
-		
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
 		
-		if (downsample_transform)
-		{
-			cout << "Transforming cloud using\n" << tf_icp << endl;
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
-			
-			pcl::transformPointCloud(*cloudrgb, *cloudrgb_transformed, tf_icp);
-			
-			cloudrgb = cloudrgb_transformed;
-			cout << "cloud transformed." << endl;
-		}
-		
-		cerr << "PointCloud before filtering: " << cloudrgb->width * cloudrgb->height 
-			<< " data points (" << pcl::getFieldsList (*cloudrgb) << ")." << endl;
-		
-		for (int i = 0; i < cloudrgb->size(); i++)
-			cloudrgb->points[i].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
-		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		
-		// Create the filtering object
-		pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-		sor.setInputCloud (cloudrgb);
-		sor.setLeafSize (voxel_size,voxel_size,1000);
-		sor.filter (*cloudrgb_filtered);
-
-		for (int i = 0; i < cloudrgb_filtered->size(); i++)
-			cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
-		
-		cerr << "PointCloud after filtering: " << cloudrgb_filtered->width * cloudrgb_filtered->height 
-			<< " data points (" << pcl::getFieldsList (*cloudrgb_filtered) << ")." << endl;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered = downsamplePtCloud(cloudrgb);
 		
 		string writePath = "downsampled_" + read_PLY_filename0;
 		save_pt_cloud_to_PLY_File(cloudrgb_filtered, writePath);
@@ -84,7 +41,7 @@ Pose::Pose(int argc, char* argv[])
 	
 	if (smooth_surface)
 	{
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
+		/*pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
 		
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr xyz_cloud_smoothed (new pcl::PointCloud<pcl::PointXYZRGBNormal> ());
 
@@ -140,7 +97,7 @@ Pose::Pose(int argc, char* argv[])
 		
 		visualize_pt_cloud(cloud, writePath);
 		cout << "Cya!" << endl;
-		return;
+		return;*/
 	}
 	
 	if (visualize)
@@ -156,33 +113,14 @@ Pose::Pose(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in = read_PLY_File(read_PLY_filename0);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out = read_PLY_File(read_PLY_filename1);
 		
-		cout << "Running ICP to align point clouds..." << endl;
-		pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
-		icp.setInputSource(cloud_in);
-		icp.setInputTarget(cloud_out);
-		pcl::PointCloud<pcl::PointXYZRGB> Final;
-		icp.align(Final);
-		cout << "has converged: " << icp.hasConverged() << " score: " << icp.getFitnessScore() << endl;
-		Eigen::Matrix4f icp_tf = icp.getFinalTransformation();
-		cout << icp_tf << endl;
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(cloud_in, cloud_out);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_Fitted(new pcl::PointCloud<pcl::PointXYZRGB> ());
+		transformPtCloud2(cloud_in, cloud_Fitted, tf_icp);
 		
-		Mat tf_icp = Mat::zeros(cv::Size(4, 4), CV_64FC1);
-		for (int i = 0; i < 4; i++)
-			for (int j = 0; j < 4; j++)
-				tf_icp.at<double>(i,j) = icp_tf(i,j);
+		string writePath = "ICP_aligned_" + read_PLY_filename0;
+		save_pt_cloud_to_PLY_File(cloud_Fitted, writePath);
 		
-		string writePath = "tf_icp_" + currentDateTimeStr + ".yml";
-		cv::FileStorage fs(writePath, cv::FileStorage::WRITE);
-		fs << "tf_icp" << tf_icp;
-		cout << "Wrote tf_icp values to " << writePath << endl;
-		fs.release();	// close Settings file
-		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr Final_ptr (&Final);
-		
-		writePath = "ICP_aligned_" + read_PLY_filename0;
-		//save_pt_cloud_to_PLY_File(Final_ptr, writePath);
-		
-		visualize_pt_cloud(Final_ptr, writePath);
+		visualize_pt_cloud(cloud_Fitted, writePath);
 		
 		return;
 	}
@@ -320,6 +258,14 @@ Pose::Pose(int argc, char* argv[])
 	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFeatureMatch_cloudrgb_last;
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec;
 	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	cloud_hexPos_MAVLink->is_dense = true;
+	cloud_hexPos_FM->is_dense = true;
+	ofstream hexPosMAVLinkfile, hexPosFMfile, hexPosFMFittedfile;
+	hexPosMAVLinkfile.open(hexPosMAVLinkfilename, ios::out);
+	hexPosFMfile.open(hexPosFMfilename, ios::out);
+	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink(new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched(new pcl::PointCloud<pcl::PointXYZRGB> ());
 	cloudrgb_MAVLink->is_dense = true;
@@ -343,6 +289,16 @@ Pose::Pose(int argc, char* argv[])
 		//// The same rotation matrix as before; theta radians around Z axis
 		//double theta = heading_data[heading_index][hdg_ind] * PI / 180;
 		//transform_MAVLink.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+		
+		pcl::PointXYZRGB hexPosMAVLink;
+		hexPosMAVLink.x = pose_data[pose_index][tx_ind];
+		hexPosMAVLink.y = pose_data[pose_index][ty_ind];
+		hexPosMAVLink.z = pose_data[pose_index][tz_ind];
+		uint32_t rgbMAVLink = (uint32_t)255;
+		hexPosMAVLink.rgb = *reinterpret_cast<float*>(&rgbMAVLink);
+		hexPosMAVLinkVec.push_back(hexPosMAVLink);
+		hexPosMAVLinkfile << hexPosMAVLink.x << "," << hexPosMAVLink.y << "," << hexPosMAVLink.z << endl;
+		cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
 		
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
 		t_matVec.push_back(t_mat);
@@ -379,6 +335,16 @@ Pose::Pose(int argc, char* argv[])
 			
 			t_FMVec.push_back(T_SVD_matched_pts * t_mat);
 			
+			pcl::PointXYZRGB hexPosFM;// = pcl::transformPoint(hexPosMAVLink, T_SVD_matched_pts);
+			hexPosFM.x = static_cast<float> (T_SVD_matched_pts (0, 0) * hexPosMAVLink.x + T_SVD_matched_pts (0, 1) * hexPosMAVLink.y + T_SVD_matched_pts (0, 2) * hexPosMAVLink.z + T_SVD_matched_pts (0, 3));
+			hexPosFM.y = static_cast<float> (T_SVD_matched_pts (1, 0) * hexPosMAVLink.x + T_SVD_matched_pts (1, 1) * hexPosMAVLink.y + T_SVD_matched_pts (1, 2) * hexPosMAVLink.z + T_SVD_matched_pts (1, 3));
+			hexPosFM.z = static_cast<float> (T_SVD_matched_pts (2, 0) * hexPosMAVLink.x + T_SVD_matched_pts (2, 1) * hexPosMAVLink.y + T_SVD_matched_pts (2, 2) * hexPosMAVLink.z + T_SVD_matched_pts (2, 3));
+			uint32_t rgbFM = (uint32_t)255 << 8;	//green
+			hexPosFM.rgb = *reinterpret_cast<float*>(&rgbFM);
+			hexPosFMVec.push_back(hexPosFM);
+			hexPosFMfile << hexPosFM.x << "," << hexPosFM.y << "," << hexPosFM.z << endl;
+			cloud_hexPos_FM->points.push_back(hexPosFM);
+			
 			//working with 3D point clouds
 			//pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb0 = transformedFeatureMatch_cloudrgb_last;
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedFM_cloudrgb1( new pcl::PointCloud<pcl::PointXYZRGB>() );
@@ -394,48 +360,55 @@ Pose::Pose(int argc, char* argv[])
 		}
 	}
 	
-	string writePath = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
-	save_pt_cloud_to_PLY_File(cloudrgb_MAVLink, writePath);
-	
-	writePath = "cloudrgb_FeatureMatched_" + currentDateTimeStr + ".ply";
-	save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched, writePath);
+	hexPosMAVLinkfile.close();
+	hexPosFMfile.close();
 	
 	cout << "Finding 3D transformation, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 	cout << "Finished Pose Estimation, total time: " << ((getTickCount() - app_start_time) / getTickFrequency()) << " sec" << endl;
 	
-	//writing first and last tf values to yml file which can be used to join rows of point clouds later
-	int img_first = img_numbers[0];
-	int img_last = img_numbers[img_numbers.size()-1];
-	//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_first = t_FMVec[0];
-	//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_last = t_FMVec[img_numbers.size()-1];
-	Mat tf_first = Mat::zeros(cv::Size(4, 4), CV_64FC1);
-	Mat tf_last = Mat::zeros(cv::Size(4, 4), CV_64FC1);
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			tf_first.at<double>(i,j) = t_FMVec[0](i,j);
-			tf_last.at<double>(i,j) = t_FMVec[img_numbers.size()-1](i,j);
-		}
-	}
-	cout << "img_numbers[0]: " << img_first << endl;
-	cout << "computed point cloud transformation is\n" << tf_first << endl;
-	cout << "img_numbers[img_numbers.size()-1]: " << img_last << endl;
-	cout << "computed point cloud transformation is\n" << tf_last << endl;
+	cout << "Saving point clouds..." << endl;
+	read_PLY_filename0 = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
+	save_pt_cloud_to_PLY_File(cloudrgb_MAVLink, read_PLY_filename0);
 	
-	writePath = "tf_info_" + currentDateTimeStr + ".yml";
-	cv::FileStorage fs(writePath, cv::FileStorage::WRITE);
-	fs << "img_first" << img_first;
-	fs << "tf_first" << tf_first;
-	fs << "img_last" << img_last;
-	fs << "tf_last" << tf_last;
-	cout << "Wrote tf values to " << writePath << endl;
-	fs.release();	// close Settings file
+	read_PLY_filename1 = "cloudrgb_FeatureMatched_" + currentDateTimeStr + ".ply";
+	save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched, read_PLY_filename1);
+	
+	//transforming the camera positions using ICP
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_Fitted(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	transformPtCloud2(cloud_hexPos_FM, cloud_hexPos_Fitted, tf_icp);
+	hexPosFMFittedfile.open(hexPosFMFittedfilename, ios::out);
+	for (int i = 0; i < cloud_hexPos_Fitted->points.size(); i++)
+	{
+		uint32_t rgbFitted = (uint32_t)255 << 16;	//blue
+		cloud_hexPos_Fitted->points[i].rgb = *reinterpret_cast<float*>(&rgbFitted);
+		hexPosFMFittedVec.push_back(cloud_hexPos_Fitted->points[i]);
+		hexPosFMFittedfile << cloud_hexPos_Fitted->points[i].x << "," << cloud_hexPos_Fitted->points[i].y << "," << cloud_hexPos_Fitted->points[i].z << endl;
+	}
+	hexPosFMFittedfile.close();
+	cloud_hexPos_Fitted->insert(cloud_hexPos_Fitted->end(),cloud_hexPos_FM->begin(),cloud_hexPos_FM->end());
+	cloud_hexPos_Fitted->insert(cloud_hexPos_Fitted->end(),cloud_hexPos_MAVLink->begin(),cloud_hexPos_MAVLink->end());
+	
+	//rectifying Feature Matched Pt Cloud
+	cout << "rectifying Feature Matched Pt Cloud using ICP result..." << endl;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FM_Fitted(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	transformPtCloud2(cloudrgb_FeatureMatched, cloudrgb_FM_Fitted, tf_icp);
+	
+	//downsampling
+	cout << "downsampling..." << endl;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink_downsamp = downsamplePtCloud(cloudrgb_MAVLink);
+	read_PLY_filename0 = "downsampled_" + read_PLY_filename0;
+	save_pt_cloud_to_PLY_File(cloudrgb_MAVLink_downsamp, read_PLY_filename0);
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FM_Fitted_downsamp = downsamplePtCloud(cloudrgb_FM_Fitted);
+	read_PLY_filename1 = "downsampled_rectified_" + read_PLY_filename1;
+	save_pt_cloud_to_PLY_File(cloudrgb_FM_Fitted_downsamp, read_PLY_filename1);
 	
 	if(preview)
 	{
-		visualize_pt_cloud(cloudrgb_MAVLink, "cloudrgb_MAVLink");
-		visualize_pt_cloud(cloudrgb_FeatureMatched, "cloudrgb_FeatureMatched");
+		displayCamPositions = true;
+		visualize_pt_cloud(cloud_hexPos_Fitted, "hexPos_Fitted red:MAVLink green:FeatureMatched blue:FM_Fitted");
+		visualize_pt_cloud(cloudrgb_FM_Fitted_downsamp, "cloudrgb_FM_Fitted_downsampled");
 	}
 	
 	//Mat mtxR, mtxQ, transVect, rotMatrixX, rotMatrixY, rotMatrixZ;
