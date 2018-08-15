@@ -103,6 +103,7 @@ float match_conf = 0.3f;
 const string save_log_to = "output/log.txt";
 int range_width = -1;
 bool use_segment_labels = false;
+bool release = true;
 
 vector<Mat> full_images;
 vector<Mat> disparity_images;
@@ -122,8 +123,9 @@ void readImages();
 void findFeatures();
 void pairWiseMatching();
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
+void createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
 void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform);
-void createPlaneFittedDisparityImages();
+void createPlaneFittedDisparityImages(int i);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose);
 int binarySearchUsingTime(vector<double> seq, int l, int r, double time);
 int binarySearchImageTime(int l, int r, int imageNumber);

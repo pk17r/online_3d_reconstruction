@@ -200,6 +200,18 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "voxel_size " << voxel_size << endl;
 			i++;
 		}
+		else if (string(argv[i]) == "--test")
+		{
+			release = false;
+			cout << "test version" << endl;
+			i++;
+		}
+		else if (string(argv[i]) == "--range_width")
+		{
+			range_width = atoi(argv[i + 1]);
+			cout << "range_width " << range_width << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--log")
 		{
 			cout << "log" << endl;
@@ -376,14 +388,14 @@ int Pose::data_index_finder(int image_number)
 {
 	//SEARCH PROCESS: get time NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
 	int image_time_index = binarySearchImageTime(0, images_times_seq.size()-1, image_number);
-	cout << fixed <<  "image_number: " << image_number << " image_time_index: " << image_time_index << " time: " << images_times_seq[image_time_index] << endl;
+	//cout << fixed <<  "image_number: " << image_number << " image_time_index: " << image_time_index << " time: " << images_times_seq[image_time_index] << endl;
 	
 	int pose_index = binarySearchUsingTime(pose_times_seq, 0, pose_times_seq.size()-1, images_times_seq[image_time_index]);
-	(pose_index == -1)? printf("pose_index is not found\n") : printf("pose_index: %d\n", pose_index);
+	//(pose_index == -1)? printf("pose_index is not found\n") : printf("pose_index: %d\n", pose_index);
 	
-	cout << "pose: ";
-	for (int i = 0; i < 9; i++)
-		cout << fixed << " " << pose_data[pose_index][i];
+	//cout << "pose: ";
+	//for (int i = 0; i < 9; i++)
+	//	cout << fixed << " " << pose_data[pose_index][i];
 	return pose_index;
 }
 
@@ -401,6 +413,7 @@ void Pose::readImages()
 	Mat full_img;
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
+		cout << "reading image number " << img_numbers[i] << endl;
 		full_img = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
 		if(full_img.empty())
 			throw "Exception: cannot read full_img!";
@@ -432,15 +445,19 @@ void Pose::readImages()
 			if(disp_img.empty())
 				throw "Exception: Cannot read disparity image!";
 			
-			double disp_img_var = getVariance(disp_img, false);
-			cout << img_numbers[i] << " disp_img_var " << disp_img_var << endl;
-			log_file << img_numbers[i] << " disp_img_var " << disp_img_var << endl;
-			if (disp_img_var > 5)
-				throw "Exception: disp_img_var > 5. Unacceptable disparity image.";
-			
+			if (release)
+			{
+				double disp_img_var = getVariance(disp_img, false);
+				cout << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
+				log_file << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
+				if (disp_img_var > 5)
+					throw "Exception: disp_img_var > 5. Unacceptable disparity image.";
+			}
 			disparity_images[i] = disp_img;
 			//imshow( "Display window", disp_img );                   // Show our image inside it.
 			//waitKey(0);                                          // Wait for a keystroke in the window
+			
+			createPlaneFittedDisparityImages(i);
 		}
 		else
 		{
@@ -527,83 +544,83 @@ void Pose::pairWiseMatching()
 	
 }
 
-void Pose::createPlaneFittedDisparityImages()
+void Pose::createPlaneFittedDisparityImages(int i)
 {
-	for (int i = 0; i < segment_maps.size(); i++)
+	//cout << "Image" << i << endl;
+	Mat segment_img = segment_maps[i];
+	Mat disp_img = disparity_images[i];
+	Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
+	
+	for (int cluster = 1; cluster < 256; cluster++)
 	{
-		//cout << "Image" << i << endl;
-		Mat segment_img = segment_maps[i];
-		Mat disp_img = disparity_images[i];
-		Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
-		
-		for (int cluster = 1; cluster < 256; cluster++)
+		//find pixels in this segment
+		vector<int> Xc, Yc;
+		for (int l = 0; l < segment_img.rows; l++)
 		{
-			//find pixels in this segment
-			vector<int> Xc, Yc;
-			for (int l = 0; l < segment_img.rows; l++)
+			for (int k = 0; k < segment_img.cols; k++)
 			{
-				for (int k = 0; k < segment_img.cols; k++)
+				if(segment_img.at<uchar>(l,k) == cluster)
 				{
-					if(segment_img.at<uchar>(l,k) == cluster)
-					{
-						Xc.push_back(k);
-						Yc.push_back(l);
-					}
+					Xc.push_back(k);
+					Yc.push_back(l);
 				}
-			}
-			//cout << "cluster" << cluster << " size:" << Xc.size();
-			if(Xc.size() == 0)		//all labels covered!
-				break;
-			
-			vector<double> Zp, Xp, Yp;
-			for (int p = 0; p < Xc.size(); p++)
-			{
-				if (Xc[p] > cols_start_aft_cutout && Xc[p] < segment_img.cols - boundingBox && Yc[p] > boundingBox && Yc[p] < segment_img.rows - boundingBox)
-				{
-					//cout << "disp_img.at<uchar>(Yc[p],Xc[p]): " << disp_img.at<uchar>(Yc[p],Xc[p]) << endl;
-					Zp.push_back((double)disp_img.at<uchar>(Yc[p],Xc[p]));
-					Xp.push_back((double)Xc[p]);
-					Yp.push_back((double)Yc[p]);
-				}
-			}
-			//cout << "read all cluster disparities..." << endl;
-			//cout << " Accepted points: " << Xp.size() << endl;
-			if(Xp.size() == 0)		//all labels covered!
-				continue;
-			
-			//define A matrix
-			Mat A = Mat::zeros(Xp.size(),3, CV_64F);
-			Mat b = Mat::zeros(Xp.size(),1, CV_64F);
-			for (int p = 0; p < Xp.size(); p++)
-			{
-				A.at<double>(p,0) = Xp[p];
-				A.at<double>(p,1) = Yp[p];
-				A.at<double>(p,2) = 1;
-				b.at<double>(p,0) = Zp[p];
-			}
-			//cout << "A.size() " << A.size() << endl;
-			
-			// Pseudo Inverse in Solution of Over-determined Linear System of Equations
-			// https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
-			
-			Mat At = A.t();
-			//cout << "At.size() " << At.size() << endl;
-			Mat AtA = At * A;
-			//cout << "AtA " << AtA << endl;
-			Mat AtAinv;
-			invert(AtA, AtAinv, DECOMP_SVD);
-			//cout << "AtAinv:\n" << AtAinv << endl;
-		
-			Mat x = AtAinv * At * b;
-			//cout << "x:\n" << x << endl;
-			
-			for (int p = 0; p < Xc.size(); p++)
-			{
-				new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,0) * Xc[p] + 1.0 * x.at<double>(0,1) * Yc[p] + 1.0 * x.at<double>(0,2);
 			}
 		}
-		double_disparity_images.push_back(new_disp_img);
+		//cout << "cluster" << cluster << " size:" << Xc.size();
+		if(Xc.size() == 0)		//all labels covered!
+			break;
 		
+		vector<double> Zp, Xp, Yp;
+		for (int p = 0; p < Xc.size(); p++)
+		{
+			if (Xc[p] > cols_start_aft_cutout && Xc[p] < segment_img.cols - boundingBox && Yc[p] > boundingBox && Yc[p] < segment_img.rows - boundingBox)
+			{
+				//cout << "disp_img.at<uchar>(Yc[p],Xc[p]): " << disp_img.at<uchar>(Yc[p],Xc[p]) << endl;
+				Zp.push_back((double)disp_img.at<uchar>(Yc[p],Xc[p]));
+				Xp.push_back((double)Xc[p]);
+				Yp.push_back((double)Yc[p]);
+			}
+		}
+		//cout << "read all cluster disparities..." << endl;
+		//cout << " Accepted points: " << Xp.size() << endl;
+		if(Xp.size() == 0)		//all labels covered!
+			continue;
+		
+		//define A matrix
+		Mat A = Mat::zeros(Xp.size(),3, CV_64F);
+		Mat b = Mat::zeros(Xp.size(),1, CV_64F);
+		for (int p = 0; p < Xp.size(); p++)
+		{
+			A.at<double>(p,0) = Xp[p];
+			A.at<double>(p,1) = Yp[p];
+			A.at<double>(p,2) = 1;
+			b.at<double>(p,0) = Zp[p];
+		}
+		//cout << "A.size() " << A.size() << endl;
+		
+		// Pseudo Inverse in Solution of Over-determined Linear System of Equations
+		// https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+		
+		Mat At = A.t();
+		//cout << "At.size() " << At.size() << endl;
+		Mat AtA = At * A;
+		//cout << "AtA " << AtA << endl;
+		Mat AtAinv;
+		invert(AtA, AtAinv, DECOMP_SVD);
+		//cout << "AtAinv:\n" << AtAinv << endl;
+	
+		Mat x = AtAinv * At * b;
+		//cout << "x:\n" << x << endl;
+		
+		for (int p = 0; p < Xc.size(); p++)
+		{
+			new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,0) * Xc[p] + 1.0 * x.at<double>(0,1) * Yc[p] + 1.0 * x.at<double>(0,2);
+		}
+	}
+	double_disparity_images.push_back(new_disp_img);
+	
+	if (release)
+	{
 		double plane_fitted_disp_img_var = getVariance(new_disp_img, true);
 		cout << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
 		log_file << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
@@ -655,13 +672,11 @@ double Pose::getVariance(Mat disp_img, bool planeFitted)
 	return temp/((rows - 2 * boundingBox )*(cols - boundingBox - cols_start_aft_cutout) - 1);
 }
 
-
 void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
-	cout << "Image index: " << img_index << endl;
+	cout << "Image index: " << img_index;
 	cloudrgb->is_dense = true;
 	
-	int point_clout_pts = 0;
 	cv::Mat_<double> vec_tmp(4,1);
 	
 	Mat disp_img;
@@ -669,7 +684,7 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 		disp_img = double_disparity_images[img_index];
 	else
 		disp_img = disparity_images[img_index];
-	cout << "disp_img.type(): " << type2str(disp_img.type()) << endl;;
+	//cout << "disp_img.type(): " << type2str(disp_img.type()) << endl;;
 	
 	for (int y = boundingBox; y < rows - boundingBox; ++y)
 	{
@@ -691,8 +706,6 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 				vec_tmp = Q*vec_tmp;
 				vec_tmp /= vec_tmp(3);
 				
-				point_clout_pts++;
-				
 				pcl::PointXYZRGB pt_3drgb;
 				pt_3drgb.x = (float)vec_tmp(0);
 				pt_3drgb.y = (float)vec_tmp(1);
@@ -707,9 +720,93 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 			}
 		}
 	}
-	cout << "point_clout_pts: " << point_clout_pts << endl;
+	cout << " point_clout_pts: " << cloudrgb->points.size() << endl;
 	if(log_stuff)
-		log_file << "point_clout_pts: " << point_clout_pts << endl;
+		log_file << " point_clout_pts: " << cloudrgb->points.size() << endl;
+}
+
+void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
+{
+	cout << "Image index: " << img_index;
+	cloudrgb->is_dense = true;
+	
+	vector<KeyPoint> keypoints = features[img_index].keypoints;
+	
+	cv::Mat_<double> vec_tmp(4,1);
+	
+	Mat disp_img;
+	if(use_segment_labels)
+		disp_img = double_disparity_images[img_index];
+	else
+		disp_img = disparity_images[img_index];
+	
+	for (int i = 0; i < keypoints.size(); i++)
+	{
+		double disp_val = 0;
+		if(use_segment_labels)
+			disp_val = disp_img.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
+		else
+			disp_val = (double)disp_img.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
+		
+		if (disp_val > minDisparity)
+		{
+			//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+			vec_tmp(0)=keypoints[i].pt.x; vec_tmp(1)=keypoints[i].pt.y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
+			vec_tmp = Q*vec_tmp;
+			vec_tmp /= vec_tmp(3);
+			
+			pcl::PointXYZRGB pt_3drgb;
+			pt_3drgb.x = (float)vec_tmp(0);
+			pt_3drgb.y = (float)vec_tmp(1);
+			pt_3drgb.z = (float)vec_tmp(2);
+			Vec3b color = full_images[img_index].at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
+			
+			uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+			pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
+			
+			cloudrgb->points.push_back(pt_3drgb);
+			//cout << pt_3d << endl;
+		}
+	}
+	for (int y = boundingBox; y < rows - boundingBox;)
+	{
+		for (int x = cols_start_aft_cutout; x < cols - boundingBox;)
+		{
+			double disp_val = 0;
+			//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
+			//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
+			if(use_segment_labels)
+				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+			else
+				disp_val = (double)disp_img.at<uchar>(y,x);
+			//cout << "disp_val " << disp_val << endl;
+			
+			if (disp_val > minDisparity)
+			{
+				//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+				vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
+				vec_tmp = Q*vec_tmp;
+				vec_tmp /= vec_tmp(3);
+				
+				pcl::PointXYZRGB pt_3drgb;
+				pt_3drgb.x = (float)vec_tmp(0);
+				pt_3drgb.y = (float)vec_tmp(1);
+				pt_3drgb.z = (float)vec_tmp(2);
+				Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
+				
+				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
+				
+				cloudrgb->points.push_back(pt_3drgb);
+				//cout << pt_3d << endl;
+			}
+			x += 10;
+		}
+		y += 10;
+	}
+	cout << " point_clout_pts: " << cloudrgb->points.size() << endl;
+	if(log_stuff)
+		log_file << " point_clout_pts: " << cloudrgb->points.size() << endl;
 }
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
@@ -846,7 +943,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	//cout << "r_invert_y:\n" << r_invert_y << endl;
 	//cout << "r_wh:\n" << r_wh << endl;
 	//cout << "t_wh:\n" << t_wh << endl;
-	cout << "t_mat:\n" << t_mat << endl;
+	//cout << "t_mat:\n" << t_mat << endl;
 	
 	return t_mat;
 }

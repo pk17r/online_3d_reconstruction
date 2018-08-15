@@ -126,7 +126,7 @@ Pose::Pose(int argc, char* argv[])
 	readCalibFile();
 	readPoseFile();
 	readImages();
-
+	
 	int64 app_start_time = getTickCount();
 	int64 t = getTickCount();
 	
@@ -138,12 +138,6 @@ Pose::Pose(int argc, char* argv[])
 	t = getTickCount();
 	pairWiseMatching();
 	cout << "Pairwise matching, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
-	
-	if(use_segment_labels)
-	{
-		cout << "Use_segment_labels to improve disparity images..." << endl;
-		createPlaneFittedDisparityImages();
-	}
 	
 	//view 3D point cloud of first image & disparity map
 	//vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> cloudrgbVec;
@@ -254,7 +248,8 @@ Pose::Pose(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb(new pcl::PointCloud<pcl::PointXYZRGB> ());
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		
-		createPtCloud(i, cloudrgb);
+		//createPtCloud(i, cloudrgb);
+		createFeaturePtCloud(i, cloudrgb);
 		//cout << "Created point cloud " << i << endl;
 		
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf = tf_icp * t_FMVec[i];
@@ -366,15 +361,25 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 			keypoints_src = features[match.src_img_idx].keypoints;
 			keypoints_dst = features[match.dst_img_idx].keypoints;
 			
-			Mat disp_img_src = disparity_images[match.src_img_idx];
-			Mat disp_img_dst = disparity_images[match.dst_img_idx];
+			Mat disp_img_src, disp_img_dst;
+			if(use_segment_labels)
+			{
+				disp_img_src = double_disparity_images[match.src_img_idx];
+				disp_img_dst = double_disparity_images[match.dst_img_idx];
+				
+			}
+			else
+			{
+				disp_img_src = disparity_images[match.src_img_idx];
+				disp_img_dst = disparity_images[match.dst_img_idx];
+			}
 			
 			//define 3d points for all keypoints
 			vector<Point3d> keypoints3D_src, keypoints3D_dst;
 			vector<int> keypoints3D_2D_index_src, keypoints3D_2D_index_dst;
 			
-			cout << "Converting 2D matches to 3D matches..." << endl;
-			cout << "match.inliers_mask.size() " << match.inliers_mask.size() << endl;
+			//cout << "Converting 2D matches to 3D matches..." << endl;
+			//cout << "match.inliers_mask.size() " << match.inliers_mask.size() << endl;
 			
 			for (int i = 0; i < match.inliers_mask.size(); i++)
 			{
@@ -384,8 +389,17 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 					int queryIdx = match.matches[i].queryIdx;
 					
 					//*3. convert corresponding features to 3D using disparity image information
-					int disp_val_src = (int)disp_img_src.at<char>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
-					int disp_val_dst = (int)disp_img_dst.at<char>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
+					double disp_val_src, disp_val_dst;
+					if(use_segment_labels)
+					{
+						disp_val_src = disp_img_src.at<double>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
+						disp_val_dst = disp_img_dst.at<double>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
+					}
+					else
+					{
+						disp_val_src = (double)disp_img_src.at<char>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
+						disp_val_dst = (double)disp_img_dst.at<char>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
+					}
 
 					cv::Mat_<double> vec_src(4, 1);
 					cv::Mat_<double> vec_dst(4, 1);
@@ -419,8 +433,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 
 				}
 			}
-			log_file << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
-			cout << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
+			//log_file << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
+			//cout << "keypoints3D_src.size() " << keypoints3D_src.size() << endl;
 			
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -442,47 +456,47 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 				cloud_current_temp->points.push_back(pt_3d_src);
 				cloud_prior_temp->points.push_back(pt_3d_dst);
 			}
-			cout << "cloud_current_temp->size() " << cloud_current_temp->size() << endl;
-			cout << "cloud_prior_temp->size() " << cloud_prior_temp->size() << endl;
+			//cout << "cloud_current_temp->size() " << cloud_current_temp->size() << endl;
+			//cout << "cloud_prior_temp->size() " << cloud_prior_temp->size() << endl;
 			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_FM = t_FMVec[match.dst_img_idx];
-			cout << "t_FMVec[" << match.dst_img_idx << "]\n" << t_FM << endl;
+			//cout << "t_FMVec[" << match.dst_img_idx << "]\n" << t_FM << endl;
 			
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
 			
 			pcl::transformPointCloud(*cloud_current_temp, *cloud_current_t_temp, t_mat_MAVLink);
-			cout << "cloud_current_temp transformed." << endl;
+			//cout << "cloud_current_temp transformed." << endl;
 			pcl::transformPointCloud(*cloud_prior_temp, *cloud_prior_t_temp, t_FM);
-			cout << "cloud_prior_temp transformed." << endl;
+			//cout << "cloud_prior_temp transformed." << endl;
 			
 			if (first_match)
 			{
 				copyPointCloud(*cloud_current_t_temp,*cloud_current);
 				copyPointCloud(*cloud_prior_t_temp,*cloud_prior);
 				first_match = false;
-				cout << "clouds copied!" << endl;
+				//cout << "clouds copied!" << endl;
 			}
 			else
 			{
 				cloud_current->insert(cloud_current->end(),cloud_current_t_temp->begin(),cloud_current_t_temp->end());
 				cloud_prior->insert(cloud_prior->end(),cloud_prior_t_temp->begin(),cloud_prior_t_temp->end());
-				cout << "clouds inserted!" << endl;
+				//cout << "clouds inserted!" << endl;
 			}
 		}
 		if (match.src_img_idx >= img_index && match.dst_img_idx >= img_index)
 			break;
 	}
 	
-	cout << "cloud_current->size() " << cloud_current->size() << endl;
-	cout << "cloud_prior->size() " << cloud_prior->size() << endl;
+	//cout << "cloud_current->size() " << cloud_current->size() << endl;
+	//cout << "cloud_prior->size() " << cloud_prior->size() << endl;
 	
-	cout << "Finding Rigid Body Transformation..." << endl;
+	//cout << "Finding Rigid Body Transformation..." << endl;
 	
 	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
 	
 	te2.estimateRigidTransformation(*cloud_current, *cloud_prior, T_SVD_matched_pts);
-	cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
+	//cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
 	log_file << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
 	
 	return T_SVD_matched_pts;
