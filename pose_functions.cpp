@@ -1,11 +1,3 @@
-/* STEPS:
-*
-* Defining functions here
-*
-*
-*
-* */
-
 #include "pose.h"
 
 // Get current date/time, format is YYYY-MM-DD.HH:mm:ss
@@ -27,113 +19,93 @@ const string Pose::currentDateTime()
 // Let's overload the stream input operator to read a list of CSV fields (which a CSV record).
 // Remember, a record is a list of doubles separated by commas ','.
 istream& operator >> ( istream& ins, record_t& record )
-  {
-  // make sure that the returned record contains only the stuff we read now
-  record.clear();
+{
+	// make sure that the returned record contains only the stuff we read now
+	record.clear();
 
-  // read the entire line into a string (a CSV record is terminated by a newline)
-  string line;
-  getline( ins, line );
+	// read the entire line into a string (a CSV record is terminated by a newline)
+	string line;
+	getline( ins, line );
 
-  // now we'll use a stringstream to separate the fields out of the line
-  stringstream ss( line );
-  string field;
-  while (getline( ss, field, ',' ))
-    {
-    // for each field we wish to convert it to a double
-    // (since we require that the CSV contains nothing but floating-point values)
-    stringstream fs( field );
-    double f = 0.0;  // (default value is 0.0)
-    fs >> f;
+	// now we'll use a stringstream to separate the fields out of the line
+	stringstream ss( line );
+	string field;
+	while (getline( ss, field, ',' ))
+	{
+		// for each field we wish to convert it to a double
+		// (since we require that the CSV contains nothing but floating-point values)
+		stringstream fs( field );
+		double f = 0.0;  // (default value is 0.0)
+		fs >> f;
 
-    // add the newly-converted field to the end of the record
-    record.push_back( f );
-    }
+		// add the newly-converted field to the end of the record
+		record.push_back( f );
+	}
 
-  // Now we have read a single line, converted into a list of fields, converted the fields
-  // from strings to doubles, and stored the results in the argument record, so
-  // we just return the argument stream as required for this kind of input overload function.
-  return ins;
-  }
+	// Now we have read a single line, converted into a list of fields, converted the fields
+	// from strings to doubles, and stored the results in the argument record, so
+	// we just return the argument stream as required for this kind of input overload function.
+	return ins;
+}
 
 //-----------------------------------------------------------------------------
 // Let's likewise overload the stream input operator to read a list of CSV records.
 // This time it is a little easier, just because we only need to worry about reading
 // records, and not fields.
 istream& operator >> ( istream& ins, data_t& data )
-  {
-  // make sure that the returned data only contains the CSV data we read here
-  data.clear();
-
-  // For every record we can read from the file, append it to our resulting data
-  record_t record;
-  while (ins >> record)
-    {
-    data.push_back( record );
-    }
-
-  // Again, return the argument stream as required for this kind of input stream overload.
-  return ins;  
-  }
+{
+	// make sure that the returned data only contains the CSV data we read here
+	data.clear();
+	
+	// For every record we can read from the file, append it to our resulting data
+	record_t record;
+	while (ins >> record)
+		data.push_back( record );
+	
+	// Again, return the argument stream as required for this kind of input stream overload.
+	return ins;  
+}
 
 void Pose::printUsage()
 {
 	cout <<
-		"Rotation model images stitcher.\n\n"
-		"pose img1 img2 [...imgN] [flags]\n\n"
-		"Flags:\n"
-		"  --preview\n"
-		"      Run stitching in the preview mode. Works faster than usual mode,\n"
-		"      but output image will have lower resolution.\n"
-		"  --try_cuda (yes|no)\n"
-		"      Try to use CUDA. The default value is 'yes'.\n"
-		"\nMotion Estimation Flags:\n"
-		"  --work_megapix <float>\n"
-		"      Resolution for image registration step. The default is 1.2288 Mpx.\n"
-		"  --features (surf|orb)\n"
-		"      Type of features used for images matching. The default is orb.\n"
-		"  --match_conf <float>\n"
-		"      Confidence for feature matching step. The default is 0.65 for surf and 0.3 for orb.\n"
-		"  --conf_thresh <float>\n"
-		"      Threshold for two images are from the same panorama confidence.\n"
-		"      The default is 1.0.\n"
-		"  --ba (reproj|ray)\n"
-		"      Bundle adjustment cost function. The default is ray.\n"
-		"  --ba_refine_mask (mask)\n"
-		"      Set refinement mask for bundle adjustment. It looks like 'x_xxx',\n"
-		"      where 'x' means refine respective parameter and '_' means don't\n"
-		"      refine one, and has the following format:\n"
-		"      <fx><skew><ppx><aspect><ppy>. The default mask is 'xxxxx'. If bundle\n"
-		"      adjustment doesn't support estimation of selected parameter then\n"
-		"      the respective flag is ignored.\n"
-		"  --wave_correct (no|horiz|vert)\n"
-		"      Perform wave effect correction. The default is 'vert'.\n"
-		"  --save_graph <file_name>\n"
-		"      Save matches graph represented in DOT language to <file_name> file.\n"
-		"      Labels description: Nm is number of matches, Ni is number of inliers,\n"
-		"      C is confidence.\n"
-		"\nCompositing Flags:\n"
-		"  --warp (plane|cylindrical|spherical|fisheye|stereographic|compressedPlaneA2B1|compressedPlaneA1.5B1|compressedPlanePortraitA2B1|compressedPlanePortraitA1.5B1|paniniA2B1|paniniA1.5B1|paniniPortraitA2B1|paniniPortraitA1.5B1|mercator|transverseMercator)\n"
-		"      Warp surface type. The default is 'spherical'.\n"
-		"  --seam_megapix <float>\n"
-		"      Resolution for seam estimation step. The default is 0.1 Mpx.\n"
-		"  --seam (no|voronoi|gc_color|gc_colorgrad)\n"
-		"      Seam estimation method. The default is 'voronoi'.\n"
-		"  --compose_megapix <float>\n"
-		"      Resolution for compositing step. Use -1 for original resolution.\n"
-		"      The default is -1.\n"
-		"  --expos_comp (no|gain|gain_blocks)\n"
-		"      Exposure compensation method. The default is 'gain_blocks'.\n"
-		"  --blend (no|feather|multiband)\n"
-		"      Blending method. The default is 'multiband'.\n"
-		"  --blend_strength <float>\n"
-		"      Blending strength from [0,100] range. The default is 5.\n"
-		"  --output <result_img>\n"
-		"      The default is 'result.jpg'.\n"
-		"  --timelapse (as_is|crop) \n"
-		"      Output warped images separately as frames of a time lapse movie, with 'fixed_' prepended to input file names.\n"
-		"  --rangewidth <int>\n"
-		"      uses range_width to limit number of images to match with.\n";
+		"Process:"
+		"\n  1. extract 2D features from images"
+		"\n  2. find pairwise feature correspondence"
+		"\n  3. convert corresponding features to 3D using disparity image information"
+		"\n  4. find transformation between corresponding 3D points using rigid body transformation over multiple images"
+		"\n  5. overlay point clouds using the calculated transformation"
+		"\n  6. do a correction step by fitting calculated camera positions over recorded camera positions using ICP"
+		"\n  7. use this transformation to transform the point cloud to make it near to ground truth"
+		"\n\nNotes:"
+		"\n  - image numbers to be supplied either using command line or in the file " << imageNumbersFile <<
+		"\n  - Usage to supply images from command line ./pose img1 img2 [...imgN] [flags]"
+		"\n  - camera calib file 'cam13calib.yml' needs to be supplied at data_files folder"
+		"\n  - image trigger times file needs to be kept at data_files/images.txt"
+		"\n  - pose information file needs to be kept at data_files/pose.txt"
+		"\n  - left cam images will be read from " << imagePrefix <<
+		"\n  - disparity images will be read from " << disparityPrefix <<
+		"\n  - segmented label maps will be read from " << segmentlblPrefix <<
+		"\n  - hexacopter positions recorded, feature match calculated and feature match positions ICP fitted over recorded positions"
+		" will be stored in " << hexPosMAVLinkfilename << ", " << hexPosFMfilename << " & " << hexPosFMFittedfilename << ", respectively"
+		"\n\nFlags:"
+		"\n  --use_segment_labels"
+		"\n      Use pre-made segmented labels for every image to improve resolution of disparity images"
+		"\n  --preview"
+		"\n      visualize generated point cloud at the end"
+		"\n  --visualize [Pt Cloud]"
+		"\n      Visualize a given point cloud"
+		"\n  --align_point_cloud [Pt Cloud 1] [Pt Cloud 2]"
+		"\n      Align point clouds using ICP algorithm"
+		"\n  --downsample [Pt Cloud]"
+		"\n      Downsample a point cloud along with optional voxel size in meters"
+		"\n  --voxel_size []"
+		"\n      Voxel size in m to find average value of points for downsampling"
+		"\n  --displayCamPositions"
+		"\n      Display camera positions along with point cloud during visualization"
+		"\n  --log"
+		"\n      log most things in output/graph file"
+		<< endl;
 }
 
 string Pose::type2str(int type)
@@ -182,17 +154,6 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			read_PLY_filename0 = string(argv[i + 1]);
 			cout << "Visualize " << read_PLY_filename0 << endl;
 			i++;
-		}
-		else if (string(argv[i]) == "--join_point_clouds")
-		{
-			join_point_clouds = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
-			read_PLY_filename0 = string(argv[++i]);
-			read_tf_filename0 = string(argv[++i]);
-			read_PLY_filename1 = string(argv[++i]);
-			read_tf_filename1 = string(argv[++i]);
-			cout << "Join " << read_PLY_filename0 << " and " << read_PLY_filename1 << endl;
-			cout << "using tf values " << read_tf_filename0 << " and " << read_tf_filename1 << endl;
 		}
 		else if (string(argv[i]) == "--align_point_cloud")
 		{
@@ -263,151 +224,11 @@ int Pose::parseCmdArgs(int argc, char** argv)
 				throw "Exception: Bad --try_cuda flag value!";
 			i++;
 		}
-		else if (string(argv[i]) == "--work_megapix")
-		{
-			work_megapix = atof(argv[i + 1]);
-			i++;
-		}
-		else if (string(argv[i]) == "--boundingBox")
-		{
-			boundingBox = atoi(argv[i + 1]);
-			i++;
-		}
-		else if (string(argv[i]) == "--seam_megapix")
-		{
-			seam_megapix = atof(argv[i + 1]);
-			i++;
-		}
-		else if (string(argv[i]) == "--compose_megapix")
-		{
-			compose_megapix = atof(argv[i + 1]);
-			i++;
-		}
-		else if (string(argv[i]) == "--result")
-		{
-			result_name = argv[i + 1];
-			i++;
-		}
 		else if (string(argv[i]) == "--features")
 		{
 			features_type = argv[i + 1];
 			if (features_type == "orb")
 				match_conf = 0.3f;
-			i++;
-		}
-		else if (string(argv[i]) == "--match_conf")
-		{
-			match_conf = static_cast<float>(atof(argv[i + 1]));
-			i++;
-		}
-		else if (string(argv[i]) == "--conf_thresh")
-		{
-			conf_thresh = static_cast<float>(atof(argv[i + 1]));
-			i++;
-		}
-		else if (string(argv[i]) == "--ba")
-		{
-			ba_cost_func = argv[i + 1];
-			i++;
-		}
-		else if (string(argv[i]) == "--ba_refine_mask")
-		{
-			ba_refine_mask = argv[i + 1];
-			if (ba_refine_mask.size() != 5)
-				throw "Exception: Incorrect refinement mask length!";
-			i++;
-		}
-		else if (string(argv[i]) == "--wave_correct")
-		{
-			if (string(argv[i + 1]) == "no")
-				do_wave_correct = false;
-			else if (string(argv[i + 1]) == "horiz")
-			{
-				do_wave_correct = true;
-				wave_correct = detail::WAVE_CORRECT_HORIZ;
-			}
-			else if (string(argv[i + 1]) == "vert")
-			{
-				do_wave_correct = true;
-				wave_correct = detail::WAVE_CORRECT_VERT;
-			}
-			else
-				throw "Exception: Bad --wave_correct flag value!";
-			i++;
-		}
-		else if (string(argv[i]) == "--save_graph")
-		{
-			save_graph = true;
-			save_graph_to = argv[i + 1];
-			i++;
-		}
-		else if (string(argv[i]) == "--warp")
-		{
-			warp_type = string(argv[i + 1]);
-			i++;
-		}
-		else if (string(argv[i]) == "--expos_comp")
-		{
-			if (string(argv[i + 1]) == "no")
-				expos_comp_type = ExposureCompensator::NO;
-			else if (string(argv[i + 1]) == "gain")
-				expos_comp_type = ExposureCompensator::GAIN;
-			else if (string(argv[i + 1]) == "gain_blocks")
-				expos_comp_type = ExposureCompensator::GAIN_BLOCKS;
-			else
-				throw "Exception: Bad exposure compensation method!";
-			i++;
-		}
-		else if (string(argv[i]) == "--seam")
-		{
-			if (string(argv[i + 1]) == "no" ||
-				string(argv[i + 1]) == "voronoi" ||
-				string(argv[i + 1]) == "gc_color" ||
-				string(argv[i + 1]) == "gc_colorgrad" ||
-				string(argv[i + 1]) == "dp_color" ||
-				string(argv[i + 1]) == "dp_colorgrad")
-				seam_find_type = argv[i + 1];
-			else
-				throw "Exception: Bad seam finding method!";
-			i++;
-		}
-		else if (string(argv[i]) == "--blend")
-		{
-			if (string(argv[i + 1]) == "no")
-				blend_type = Blender::NO;
-			else if (string(argv[i + 1]) == "feather")
-				blend_type = Blender::FEATHER;
-			else if (string(argv[i + 1]) == "multiband")
-				blend_type = Blender::MULTI_BAND;
-			else
-				throw "Exception: Bad blending method!";
-			i++;
-		}
-		else if (string(argv[i]) == "--timelapse")
-		{
-			timelapse = true;
-
-			if (string(argv[i + 1]) == "as_is")
-				timelapse_type = Timelapser::AS_IS;
-			else if (string(argv[i + 1]) == "crop")
-				timelapse_type = Timelapser::CROP;
-			else
-				throw "Exception: Bad timelapse method!";
-			i++;
-		}
-		else if (string(argv[i]) == "--rangewidth")
-		{
-			range_width = atoi(argv[i + 1]);
-			i++;
-		}
-		else if (string(argv[i]) == "--blend_strength")
-		{
-			blend_strength = static_cast<float>(atof(argv[i + 1]));
-			i++;
-		}
-		else if (string(argv[i]) == "--output")
-		{
-			result_name = argv[i + 1];
 			i++;
 		}
 		else
@@ -417,14 +238,10 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			++n_imgs;
 		}
 	}
-	if (preview)
-	{
-		compose_megapix = 0.6;
-	}
 	if (n_imgs == 0)
 	{
 		ifstream images_file;
-		images_file.open("images/images.txt");
+		images_file.open(imageNumbersFile);
 		if(images_file.is_open())
 		{
 			string line;
@@ -438,10 +255,10 @@ int Pose::parseCmdArgs(int argc, char** argv)
 				cout << img_num << " ";
 			}
 			images_file.close();
-			cout << "\nRead " << n_imgs << " image numbers from images_file!" << endl;
+			cout << "\nRead " << n_imgs << " image numbers from " << imageNumbersFile << endl;
 		}
 		else
-			throw "Exception: Unable to open images_file!";
+			throw "Exception: Unable to open imageNumbersFile!";
 	}
 	
 	return 0;
@@ -450,30 +267,25 @@ int Pose::parseCmdArgs(int argc, char** argv)
 // A recursive binary search function. It returns 
 // location of x in given array arr[l..r] is present, 
 // otherwise -1
-int Pose::binarySearchImageTime(int l, int r, double x)
+int Pose::binarySearchImageTime(int l, int r, int imageNumber)
 {
 	if (r >= l)
 	{
         int mid = l + (r - l)/2;
-        //cout << "mid " << mid << " images_times_data[mid][0] " << images_times_data[mid][0] << " x-images_times_data[mid][0] " << x - images_times_data[mid][0] << endl;
  
-        // If the element is present at the middle 
-        // itself
-        if(images_times_data[mid][0] == x)
+        // If the element is present at the middle
+        if((int)images_times_data[mid][0] == imageNumber)
 			return mid;
 		
-        // If element is smaller than mid, then 
-        // it can only be present in left subarray
-        if (images_times_data[mid][0] > x)
-            return binarySearchImageTime(l, mid-1, x);
+        // If element is smaller than mid, then it can only be present in left subarray
+        if ((int)images_times_data[mid][0] > imageNumber)
+            return binarySearchImageTime(l, mid-1, imageNumber);
  
-        // Else the element can only be present
-        // in right subarray
-        return binarySearchImageTime(mid+1, r, x);
+        // Else the element can only be present in right subarray
+        return binarySearchImageTime(mid+1, r, imageNumber);
    }
  
-   // We reach here when element is not 
-   // present in array
+   // We reach here when element is not present in array
    throw "Exception: binarySearchImageTime: unsuccessful search!";
    return -1;
 }
@@ -481,18 +293,16 @@ int Pose::binarySearchImageTime(int l, int r, double x)
 // A recursive binary search function. It returns 
 // location of x in given array arr[l..r] is present, 
 // otherwise -1
-int Pose::binarySearch(vector<double> seq, int l, int r, double x)
+int Pose::binarySearchUsingTime(vector<double> seq, int l, int r, double time)
 {
 	if (r >= l)
 	{
         int mid = l + (r - l)/2;
-        //cout << "mid " << mid << " seq[mid] " << seq[mid] << " x-seq[mid] " << x - seq[mid] << endl;
  
-        // If the element is present at the middle 
-        // itself
+        // If the element is present at the middle
         if(mid > 0 && mid < seq.size()-1)
         {
-			if (seq[mid-1] < x && seq[mid+1] > x)	//if (arr[mid] == x)
+			if (seq[mid-1] < time && seq[mid+1] > time)
 				return mid;
 		}
 		else if(mid == 0)
@@ -505,22 +315,19 @@ int Pose::binarySearch(vector<double> seq, int l, int r, double x)
 		}
 		else
 		{
-			throw "Exception: binarySearch: This should not be hit!";
+			throw "Exception: binarySearchUsingTime: This should not be hit!";
 		}
 		
-        // If element is smaller than mid, then 
-        // it can only be present in left subarray
-        if (seq[mid] > x)
-            return binarySearch(seq, l, mid-1, x);
+        // If element is smaller than mid, then it can only be present in left subarray
+        if (seq[mid] > time)
+            return binarySearchUsingTime(seq, l, mid-1, time);
  
-        // Else the element can only be present
-        // in right subarray
-        return binarySearch(seq, mid+1, r, x);
+        // Else the element can only be present in right subarray
+        return binarySearchUsingTime(seq, mid+1, r, time);
    }
  
-   // We reach here when element is not 
-   // present in array
-   throw "Exception: binarySearch: unsuccessful search!";
+   // We reach here when element is not present in array
+   throw "Exception: binarySearchUsingTime: unsuccessful search!";
    return -1;
 }
 
@@ -537,8 +344,6 @@ void Pose::readCalibFile()
 
 void Pose::readPoseFile()
 {
-	//read pose file
-	// Here is the file containing the data. Read it into data.
 	//pose_data
 	ifstream data_file;
 	data_file.open(dataFilesPrefix + pose_file);
@@ -562,66 +367,40 @@ void Pose::readPoseFile()
 	for (int i = 0; i < images_times_data.size(); i++)
 		images_times_seq.push_back(images_times_data[i][2]);
 	
-	//heading_data
-	data_file.open(dataFilesPrefix + heading_data_file);
-	data_file >> heading_data;
-	// Complain if something went wrong.
-	if (!data_file.eof())
-		throw "Exception: Could not open heading_data file!";
-	data_file.close();
-	
-	for (int i = 0; i < heading_data.size(); i++)
-		heading_times_seq.push_back(heading_data[i][2]);
-	
 	cout << "Your images_times file contains " << images_times_data.size() << " records.\n";
 	cout << "Your pose_data file contains " << pose_data.size() << " records.\n";
-	cout << "Your heading_data file contains " << heading_data.size() << " records.\n";
-	
-	//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
-	data_index_finder(1248);
+	//cout << "Your heading_data file contains " << heading_data.size() << " records.\n";
 }
 
-int* Pose::data_index_finder(int image_number)
+int Pose::data_index_finder(int image_number)
 {
-	//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
-	int image_time_index = binarySearchImageTime(0, images_times_seq.size()-1, (double)image_number);
+	//SEARCH PROCESS: get time NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
+	int image_time_index = binarySearchImageTime(0, images_times_seq.size()-1, image_number);
 	cout << fixed <<  "image_number: " << image_number << " image_time_index: " << image_time_index << " time: " << images_times_seq[image_time_index] << endl;
-	int pose_index = binarySearch(pose_times_seq, 0, pose_times_seq.size()-1, images_times_seq[image_time_index]);
+	
+	int pose_index = binarySearchUsingTime(pose_times_seq, 0, pose_times_seq.size()-1, images_times_seq[image_time_index]);
 	(pose_index == -1)? printf("pose_index is not found\n") : printf("pose_index: %d\n", pose_index);
-	int heading_index = binarySearch(heading_times_seq, 0, heading_times_seq.size()-1, images_times_seq[image_time_index]);
-	(heading_index == -1)? printf("heading_index is not found\n") : printf("heading_index: %d\n", heading_index);
 	
 	cout << "pose: ";
 	for (int i = 0; i < 9; i++)
 		cout << fixed << " " << pose_data[pose_index][i];
-	cout << "\nheading: ";
-	for (int i = 0; i < 3; i++)
-		cout << fixed << " " << heading_data[heading_index][i];
-	cout << "\n";
-	int arr[2] = {pose_index, heading_index};
-	int* arr_ptr = &(arr[0]);
-	return arr_ptr;
+	return pose_index;
 }
 
 void Pose::readImages()
 {
-	images = vector<Mat>(img_numbers.size());
 	full_images = vector<Mat>(img_numbers.size());
 	disparity_images = vector<Mat>(img_numbers.size());
-	full_img_sizes = vector<Size>(img_numbers.size());
-	//namedWindow( "Display window", WINDOW_AUTOSIZE );// Create a window for display.
 	if(use_segment_labels)
-	{
 		segment_maps = vector<Mat>(img_numbers.size());
-	}
-	save_graph_to = "output/graph";
+	
 	//logging stuff
 	if(log_stuff)
-		f.open(save_graph_to.c_str(), ios::out);
+		log_file.open(save_log_to.c_str(), ios::out);
 	
+	Mat full_img;
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
-		//cout << img_numbers[i] << endl;
 		full_img = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
 		if(full_img.empty())
 			throw "Exception: cannot read full_img!";
@@ -630,14 +409,11 @@ void Pose::readImages()
 		//waitKey(0);                                          // Wait for a keystroke in the window
 		if (i == 0)
 		{
-			work_megapix = 1.0 * full_img.rows * full_img.cols / 1000000;
-			cout << "work_megapix: " << work_megapix << endl;
 			rows = full_img.rows;
 			cols = full_img.cols;
 			cols_start_aft_cutout = (int)(cols/cutout_ratio);
 		}
 		full_images[i] = full_img;
-		full_img_sizes[i] = full_img.size();
 		
 		//read labelled segment maps
 		if(use_segment_labels)
@@ -666,43 +442,11 @@ void Pose::readImages()
 			disparity_images[i] = disp_img;
 		}
 		
-		
 		if (full_img.empty())
 			throw "Exception: Can't read image!";
-		
-		if (work_megapix < 0)
-		{
-			img = full_img;
-			work_scale = 1;
-			is_work_scale_set = true;
-		}
-		else
-		{
-			if (!is_work_scale_set)
-			{
-				work_scale = min(1.0, sqrt(work_megapix * 1e6 / full_img.size().area()));
-				is_work_scale_set = true;
-			}
-			resize(full_img, img, Size(), work_scale, work_scale);
-		}
-		if (!is_seam_scale_set)
-		{
-			seam_scale = min(1.0, sqrt(seam_megapix * 1e6 / full_img.size().area()));
-			seam_work_aspect = seam_scale / work_scale;
-			cout << "seam_scale: " << seam_scale << "\nseam_work_aspect: " << seam_work_aspect << endl;
-			is_seam_scale_set = true;
-		}
-
-		resize(full_img, img, Size(), seam_scale, seam_scale);
-		images[i] = img.clone();
-		
-		save_graph_to = save_graph_to + "_" + to_string(img_numbers[i]);
 	}
 	
 	full_img.release();
-	img.release();
-	save_graph_to = save_graph_to + ".txt";
-	reduction_ratio = 1.0 * full_images[0].rows / disparity_images[0].rows;
 }
 
 void Pose::findFeatures()
@@ -736,17 +480,7 @@ void Pose::findFeatures()
 	
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
-		if (work_scale != 1)
-		{
-			full_img = full_images[i];
-			resize(full_img, img, Size(), work_scale, work_scale);
-		}
-		else
-		{
-			img = full_images[i];
-		}
-
-		(*finder)(img, features[i]);
+		(*finder)(full_images[i], features[i]);
 		//vector<KeyPoint> keypointsD;
 		//detector->detect(img,keypointsD,Mat());
 		features[i].img_idx = i;
@@ -756,15 +490,12 @@ void Pose::findFeatures()
 	
 	finder->collectGarbage();
 	//free(detector);
-	img.release();
 }
 
 void Pose::pairWiseMatching()
 {
 	if (range_width == -1)
 	{
-		//cv::detail::AffineBestOf2NearestMatcher::AffineBestOf2NearestMatcher	(	bool 	full_affine = false, bool 	try_use_gpu = false, float 	match_conf = 0.3f, int 	num_matches_thresh1 = 6 )
-		//AffineBestOf2NearestMatcher matcher(true, try_cuda, match_conf,1);
 		BestOf2NearestMatcher matcher(try_cuda, match_conf);
 		matcher(features, pairwise_matches);
 		matcher.collectGarbage();
@@ -778,25 +509,11 @@ void Pose::pairWiseMatching()
 	
 	if(log_stuff)
 	{
-		cout << "Baseline (in m) " << baseline << " focallength (in pixel) " << focallength << endl;
-		//cout << matchesGraphAsString(img_numbers, pairwise_matches, conf_thresh) << endl;
-		cout << "H between images 0 and 1:" << endl;
-		cout << pairwise_matches[1].H << endl;
-		cout << "H between images 1 and 0:" << endl;
-		cout << pairwise_matches[2].H << endl;
-		
-		f << "Baseline (in m) " << baseline << " focallength (in pixel) " << focallength << endl;
-		//f << matchesGraphAsString(img_numbers, pairwise_matches, conf_thresh) << endl;
-		f << "H between images 0 and 1:" << endl;
-		f << pairwise_matches[1].H << endl;
-		f << "H between images 1 and 0:" << endl;
-		f << pairwise_matches[2].H << endl;
-		
-		
 		cout << "\nPairwise matches:" << endl;
+		log_file << "\nPairwise matches:" << endl;
 		for (int i = 0; i < pairwise_matches.size(); i++)
 		{
-			f << "i" << i << " src " << pairwise_matches[i].src_img_idx << " dst " << pairwise_matches[i].dst_img_idx << " confidence " << pairwise_matches[i].confidence << " inliers " << pairwise_matches[i].inliers_mask.size() << " matches " << pairwise_matches[i].matches.size() << endl;
+			log_file << "i" << i << " src " << pairwise_matches[i].src_img_idx << " dst " << pairwise_matches[i].dst_img_idx << " confidence " << pairwise_matches[i].confidence << " inliers " << pairwise_matches[i].inliers_mask.size() << " matches " << pairwise_matches[i].matches.size() << endl;
 		}
 	}
 	
@@ -808,9 +525,7 @@ void Pose::createPlaneFittedDisparityImages()
 	{
 		//cout << "Image" << i << endl;
 		Mat segment_img = segment_maps[i];
-		
 		Mat disp_img = disparity_images[i];
-		
 		Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
 		
 		for (int cluster = 1; cluster < 256; cluster++)
@@ -831,7 +546,6 @@ void Pose::createPlaneFittedDisparityImages()
 			//cout << "cluster" << cluster << " size:" << Xc.size();
 			if(Xc.size() == 0)		//all labels covered!
 				break;
-			
 			
 			vector<double> Zp, Xp, Yp;
 			for (int p = 0; p < Xc.size(); p++)
@@ -882,11 +596,12 @@ void Pose::createPlaneFittedDisparityImages()
 		}
 		double_disparity_images.push_back(new_disp_img);
 		
-		if(log_stuff)
-		{
-			cout << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
-			f << "index " << i << " disp_img_var " << getVariance(disp_img, false) << " plane_fitted_disp_img_var " << getVariance(new_disp_img, true) << endl;
-		}
+		double disp_img_var = getVariance(disp_img, false);
+		double plane_fitted_disp_img_var = getVariance(new_disp_img, true);
+		cout << "index " << i << " disp_img_var " << disp_img_var << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+		log_file << "index " << i << " disp_img_var " << disp_img_var << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+		if (disp_img_var > 3 || plane_fitted_disp_img_var > 3)
+			throw "Exception: disp_img_var or plane_fitted_disp_img_var > 3. Unacceptable disparity images.";
 	}
 }
 
@@ -899,18 +614,15 @@ double Pose::getMean(Mat disp_img, bool planeFitted)
 		{
 			double disp_val = 0;
 			if(planeFitted)
-				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+				disp_val = disp_img.at<double>(y,x);
 			else
 				disp_val = (double)disp_img.at<uchar>(y,x);
-			//cout << "disp_val " << disp_val << endl;
 			
 			if (disp_val > minDisparity)
-			{
 				sum += disp_val;
-			}
 		}
 	}
-	return sum/(rows - 2 * boundingBox )/(cols - boundingBox - cols_start_aft_cutout);
+	return sum/((rows - 2 * boundingBox )*(cols - boundingBox - cols_start_aft_cutout));
 }
 
 double Pose::getVariance(Mat disp_img, bool planeFitted)
@@ -924,19 +636,16 @@ double Pose::getVariance(Mat disp_img, bool planeFitted)
 		{
 			double disp_val = 0;
 			if(planeFitted)
-				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+				disp_val = disp_img.at<double>(y,x);
 			else
 				disp_val = (double)disp_img.at<uchar>(y,x);
-			//cout << "disp_val " << disp_val << endl;
 			
 			if (disp_val > minDisparity)
-			{
 				temp += (disp_val-mean)*(disp_val-mean);
-			}
 		}
 	}
 	
-	return temp/((rows - 2 * boundingBox )/(cols - boundingBox - cols_start_aft_cutout) - 1);
+	return temp/((rows - 2 * boundingBox )*(cols - boundingBox - cols_start_aft_cutout) - 1);
 }
 
 
@@ -982,7 +691,6 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 				pt_3drgb.y = (float)vec_tmp(1);
 				pt_3drgb.z = (float)vec_tmp(2);
 				Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
-				//cout << (uint32_t)color[2] << " " << (uint32_t)color[1] << " " << (uint32_t)color[0] << endl;
 				
 				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
@@ -994,7 +702,7 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 	}
 	cout << "point_clout_pts: " << point_clout_pts << endl;
 	if(log_stuff)
-		f << "point_clout_pts: " << point_clout_pts << endl;
+		log_file << "point_clout_pts: " << point_clout_pts << endl;
 }
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
@@ -1136,24 +844,10 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	return t_mat;
 }
 
-void Pose::transformPtCloud2(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform)
+void Pose::transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform)
 {
 	// Executing the transformation
 	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform);
-}
-
-void Pose::transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, Eigen::Affine3f transform_2)
-{
-	// Executing the transformation
-	pcl::transformPointCloud(*cloudrgb, *transformed_cloudrgb, transform_2);
-}
-
-static void mouseEventOccurred (const pcl::visualization::MouseEvent &event)
-{
-	if (event.getButton () == pcl::visualization::MouseEvent::LeftButton && event.getType () == pcl::visualization::MouseEvent::MouseButtonRelease)
-	{
-		std::cout << "Left mouse button released at position (" << event.getX () << "," << event.getY () << ")" << std::endl;
-	}
 }
 
 // struct that will contain point cloud and indices 
@@ -1237,7 +931,6 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 				hexPosMAVLink.y = hexPosMAVLink_data[i][1];
 				hexPosMAVLink.z = hexPosMAVLink_data[i][2];
 				hexPosMAVLinkVec.push_back(hexPosMAVLink);
-				cout << hexPosMAVLink << endl;
 			}
 			
 			data_t hexPosFM_data;
@@ -1256,7 +949,6 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 				hexPosFM.y = hexPosFM_data[i][1];
 				hexPosFM.z = hexPosFM_data[i][2];
 				hexPosFMVec.push_back(hexPosFM);
-				cout << hexPosFM << endl;
 			}
 
 			data_t hexPosFMFitted_data;
@@ -1275,7 +967,6 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 				hexPosFMFitted.y = hexPosFMFitted_data[i][1];
 				hexPosFMFitted.z = hexPosFMFitted_data[i][2];
 				hexPosFMFittedVec.push_back(hexPosFMFitted);
-				cout << hexPosFMFitted << endl;
 			}
 		}
 		
@@ -1291,15 +982,9 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 
 	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 	
-	//pcl::PointXYZ start_pt; start_pt.x = 10; start_pt.y = -15; start_pt.z = 0;
-	//viewer.addText3D("S", start_pt, 1.0, 1.0, 1.0, 1.0, "S", 0);
-	//pcl::PointXYZ end_pt; end_pt.x = 12; end_pt.y = -12; end_pt.z = 0;
-	//viewer.addText3D("E", end_pt, 1.0, 1.0, 1.0, 1.0, "E", 0);
-	
 	viewer.addCoordinateSystem (1.0, 0, 0, 0);
 	viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
 	viewer.setPosition(1280/2, 720/2); // Setting visualiser window position
-	//viewer.registerMouseCallback (mouseEventOccurred);
 	
 	// Struct Pointers for Passing Cloud to Events/Callbacks ----------- some of this may be redundant 
 	pcl::PointIndices::Ptr point_indicies (new pcl::PointIndices());
@@ -1307,7 +992,7 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 	pointSelectors.cloud_ptr = cloudrgb;
 	pointSelectors.point_indicies = point_indicies;
 	CloudandIndices *pointSelectorsPtr = &pointSelectors;
-	//taken from http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
+	//reference http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
 	viewer.registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
 
 	while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
@@ -1347,20 +1032,9 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	cout << icp_tf << endl;
 	
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp_main;
-	Mat tf_icp = Mat::zeros(cv::Size(4, 4), CV_64FC1);
 	for (int i = 0; i < 4; i++)
-	{
 		for (int j = 0; j < 4; j++)
-		{
-			tf_icp.at<double>(i,j) = icp_tf(i,j);
 			tf_icp_main(i,j) = icp_tf(i,j);
-		}
-	}
-	string writePath = "tf_icp_" + currentDateTimeStr + ".yml";
-	cv::FileStorage fs(writePath, cv::FileStorage::WRITE);
-	fs << "tf_icp" << tf_icp;
-	cout << "Wrote tf_icp values to " << writePath << endl;
-	fs.release();	// close Settings file
 	
 	return tf_icp_main;
 }
