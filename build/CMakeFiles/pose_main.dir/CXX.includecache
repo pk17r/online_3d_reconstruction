@@ -18,7 +18,7 @@ fstream
 string
 -
 opencv2/opencv_modules.hpp
-/home/pkr/pkr-work/pose_estimation/opencv2/opencv_modules.hpp
+-
 opencv2/core/utility.hpp
 -
 opencv2/imgcodecs.hpp

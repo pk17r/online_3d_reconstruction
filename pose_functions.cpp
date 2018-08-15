@@ -428,9 +428,17 @@ void Pose::readImages()
 			//read disparity image
 			Mat disp_img(rows,cols, CV_8UC1);
 			disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-			disparity_images[i] = disp_img;
+			
 			if(disp_img.empty())
 				throw "Exception: Cannot read disparity image!";
+			
+			double disp_img_var = getVariance(disp_img, false);
+			cout << img_numbers[i] << " disp_img_var " << disp_img_var << endl;
+			log_file << img_numbers[i] << " disp_img_var " << disp_img_var << endl;
+			if (disp_img_var > 5)
+				throw "Exception: disp_img_var > 5. Unacceptable disparity image.";
+			
+			disparity_images[i] = disp_img;
 			//imshow( "Display window", disp_img );                   // Show our image inside it.
 			//waitKey(0);                                          // Wait for a keystroke in the window
 		}
@@ -596,12 +604,11 @@ void Pose::createPlaneFittedDisparityImages()
 		}
 		double_disparity_images.push_back(new_disp_img);
 		
-		double disp_img_var = getVariance(disp_img, false);
 		double plane_fitted_disp_img_var = getVariance(new_disp_img, true);
-		cout << "index " << i << " disp_img_var " << disp_img_var << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
-		log_file << "index " << i << " disp_img_var " << disp_img_var << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
-		if (disp_img_var > 3 || plane_fitted_disp_img_var > 3)
-			throw "Exception: disp_img_var or plane_fitted_disp_img_var > 3. Unacceptable disparity images.";
+		cout << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+		log_file << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+		if (plane_fitted_disp_img_var > 3)
+			throw "Exception: plane_fitted_disp_img_var > 3. Unacceptable disparity image.";
 	}
 }
 
