@@ -1,71 +1,5 @@
 #include "pose.h"
 
-// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
-const string Pose::currentDateTime()
-{
-    time_t     now = time(0);
-    struct tm  tstruct;
-    char       buf[80];
-    tstruct = *localtime(&now);
-    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
-    // for more information about date/time format
-    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
-
-    return buf;
-}
-
-//http://www.cplusplus.com/forum/general/17771/
-//-----------------------------------------------------------------------------
-// Let's overload the stream input operator to read a list of CSV fields (which a CSV record).
-// Remember, a record is a list of doubles separated by commas ','.
-istream& operator >> ( istream& ins, record_t& record )
-{
-	// make sure that the returned record contains only the stuff we read now
-	record.clear();
-
-	// read the entire line into a string (a CSV record is terminated by a newline)
-	string line;
-	getline( ins, line );
-
-	// now we'll use a stringstream to separate the fields out of the line
-	stringstream ss( line );
-	string field;
-	while (getline( ss, field, ',' ))
-	{
-		// for each field we wish to convert it to a double
-		// (since we require that the CSV contains nothing but floating-point values)
-		stringstream fs( field );
-		double f = 0.0;  // (default value is 0.0)
-		fs >> f;
-
-		// add the newly-converted field to the end of the record
-		record.push_back( f );
-	}
-
-	// Now we have read a single line, converted into a list of fields, converted the fields
-	// from strings to doubles, and stored the results in the argument record, so
-	// we just return the argument stream as required for this kind of input overload function.
-	return ins;
-}
-
-//-----------------------------------------------------------------------------
-// Let's likewise overload the stream input operator to read a list of CSV records.
-// This time it is a little easier, just because we only need to worry about reading
-// records, and not fields.
-istream& operator >> ( istream& ins, data_t& data )
-{
-	// make sure that the returned data only contains the CSV data we read here
-	data.clear();
-	
-	// For every record we can read from the file, append it to our resulting data
-	record_t record;
-	while (ins >> record)
-		data.push_back( record );
-	
-	// Again, return the argument stream as required for this kind of input stream overload.
-	return ins;  
-}
-
 void Pose::printUsage()
 {
 	cout <<
@@ -91,45 +25,28 @@ void Pose::printUsage()
 		"\n\nFlags:"
 		"\n  --use_segment_labels"
 		"\n      Use pre-made segmented labels for every image to improve resolution of disparity images"
+		"\n  --jump_pixels [int]"
+		"\n      number of pixels to jump on in each direction to make 3D reconstruction. Make it 5 for faster but sparcer 3D reconstruction"
+		"\n  --range_width [int]"
+		"\n      Number of nearby images to do pairwise matching on for every image"
 		"\n  --preview"
 		"\n      visualize generated point cloud at the end"
-		"\n  --visualize [Pt Cloud]"
+		"\n  --displayCamPositions"
+		"\n      Display camera positions along with point cloud during visualization"
+		"\n  --visualize [Pt Cloud filename]"
 		"\n      Visualize a given point cloud"
 		"\n  --align_point_cloud [Pt Cloud 1] [Pt Cloud 2]"
 		"\n      Align point clouds using ICP algorithm"
-		"\n  --downsample [Pt Cloud]"
+		"\n  --downsample [Pt Cloud file name] (optional)--voxel_size [float]"
 		"\n      Downsample a point cloud along with optional voxel size in meters"
-		"\n  --voxel_size []"
 		"\n      Voxel size in m to find average value of points for downsampling"
-		"\n  --displayCamPositions"
-		"\n      Display camera positions along with point cloud during visualization"
+		"\n  --smooth_surface [Pt Cloud file name] (optional)--search_radius [float]"
+		"\n      Smooth surface"
+		"\n  --mesh_surface [Pt Cloud file name]"
+		"\n      Mesh surface using triangulation"
 		"\n  --log"
-		"\n      log most things in output/graph file"
+		"\n      log most things in output/log.txt file"
 		<< endl;
-}
-
-string Pose::type2str(int type)
-{
-  string r;
-
-  uchar depth = type & CV_MAT_DEPTH_MASK;
-  uchar chans = 1 + (type >> CV_CN_SHIFT);
-
-  switch ( depth ) {
-    case CV_8U:  r = "8U"; break;
-    case CV_8S:  r = "8S"; break;
-    case CV_16U: r = "16U"; break;
-    case CV_16S: r = "16S"; break;
-    case CV_32S: r = "32S"; break;
-    case CV_32F: r = "32F"; break;
-    case CV_64F: r = "64F"; break;
-    default:     r = "User"; break;
-  }
-
-  r += "C";
-  r += (chans+'0');
-
-  return r;
 }
 
 int Pose::parseCmdArgs(int argc, char** argv)
@@ -171,6 +88,14 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "smooth_surface " << read_PLY_filename0 << endl;
 			i++;
 		}
+		else if (string(argv[i]) == "--mesh_surface")
+		{
+			mesh_surface = true;
+			n_imgs = 1;		//just to stop program from reading images.txt file
+			read_PLY_filename0 = string(argv[i + 1]);
+			cout << "mesh_surface " << read_PLY_filename0 << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--downsample")
 		{
 			downsample = true;
@@ -200,11 +125,22 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "voxel_size " << voxel_size << endl;
 			i++;
 		}
+		else if (string(argv[i]) == "--search_radius")
+		{
+			search_radius = atof(argv[i + 1]);
+			cout << "search_radius " << search_radius << endl;
+			i++;
+		}
+		else if (string(argv[i]) == "--jump_pixels")
+		{
+			jump_pixels = atoi(argv[i + 1]);
+			cout << "jump_pixels " << jump_pixels << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--test")
 		{
 			release = false;
-			cout << "test version" << endl;
-			i++;
+			cout << "test version, don't check variance of disparity images to speed up development" << endl;
 		}
 		else if (string(argv[i]) == "--range_width")
 		{
@@ -274,6 +210,96 @@ int Pose::parseCmdArgs(int argc, char** argv)
 	}
 	
 	return 0;
+}
+
+string Pose::type2str(int type)
+{
+  string r;
+
+  uchar depth = type & CV_MAT_DEPTH_MASK;
+  uchar chans = 1 + (type >> CV_CN_SHIFT);
+
+  switch ( depth ) {
+    case CV_8U:  r = "8U"; break;
+    case CV_8S:  r = "8S"; break;
+    case CV_16U: r = "16U"; break;
+    case CV_16S: r = "16S"; break;
+    case CV_32S: r = "32S"; break;
+    case CV_32F: r = "32F"; break;
+    case CV_64F: r = "64F"; break;
+    default:     r = "User"; break;
+  }
+
+  r += "C";
+  r += (chans+'0');
+
+  return r;
+}
+
+// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
+const string Pose::currentDateTime()
+{
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+    // for more information about date/time format
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+    return buf;
+}
+
+//http://www.cplusplus.com/forum/general/17771/
+//-----------------------------------------------------------------------------
+// Let's overload the stream input operator to read a list of CSV fields (which a CSV record).
+// Remember, a record is a list of doubles separated by commas ','.
+istream& operator >> ( istream& ins, record_t& record )
+{
+	// make sure that the returned record contains only the stuff we read now
+	record.clear();
+
+	// read the entire line into a string (a CSV record is terminated by a newline)
+	string line;
+	getline( ins, line );
+
+	// now we'll use a stringstream to separate the fields out of the line
+	stringstream ss( line );
+	string field;
+	while (getline( ss, field, ',' ))
+	{
+		// for each field we wish to convert it to a double
+		// (since we require that the CSV contains nothing but floating-point values)
+		stringstream fs( field );
+		double f = 0.0;  // (default value is 0.0)
+		fs >> f;
+
+		// add the newly-converted field to the end of the record
+		record.push_back( f );
+	}
+
+	// Now we have read a single line, converted into a list of fields, converted the fields
+	// from strings to doubles, and stored the results in the argument record, so
+	// we just return the argument stream as required for this kind of input overload function.
+	return ins;
+}
+
+//-----------------------------------------------------------------------------
+// Let's likewise overload the stream input operator to read a list of CSV records.
+// This time it is a little easier, just because we only need to worry about reading
+// records, and not fields.
+istream& operator >> ( istream& ins, data_t& data )
+{
+	// make sure that the returned data only contains the CSV data we read here
+	data.clear();
+	
+	// For every record we can read from the file, append it to our resulting data
+	record_t record;
+	while (ins >> record)
+		data.push_back( record );
+	
+	// Again, return the argument stream as required for this kind of input stream overload.
+	return ins;  
 }
 
 // A recursive binary search function. It returns 
@@ -674,7 +700,7 @@ double Pose::getVariance(Mat disp_img, bool planeFitted)
 
 void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
-	cout << "Image index: " << img_index;
+	cout << "Pt Cloud #" << img_index;
 	cloudrgb->is_dense = true;
 	
 	cv::Mat_<double> vec_tmp(4,1);
@@ -720,14 +746,14 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 			}
 		}
 	}
-	cout << " point_clout_pts: " << cloudrgb->points.size() << endl;
+	cout << " points " << cloudrgb->points.size() << "\t";
 	if(log_stuff)
-		log_file << " point_clout_pts: " << cloudrgb->points.size() << endl;
+		log_file << " points " << cloudrgb->points.size() << endl;
 }
 
 void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
-	cout << "Image index: " << img_index;
+	cout << "Pt Cloud #" << img_index;
 	cloudrgb->is_dense = true;
 	
 	vector<KeyPoint> keypoints = features[img_index].keypoints;
@@ -800,13 +826,13 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 				cloudrgb->points.push_back(pt_3drgb);
 				//cout << pt_3d << endl;
 			}
-			x += 10;
+			x += jump_pixels;
 		}
-		y += 10;
+		y += jump_pixels;
 	}
-	cout << " point_clout_pts: " << cloudrgb->points.size() << endl;
+	cout << " points " << cloudrgb->points.size() << "\t";
 	if(log_stuff)
-		log_file << " point_clout_pts: " << cloudrgb->points.size() << endl;
+		log_file << " points " << cloudrgb->points.size() << endl;
 }
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
@@ -1002,7 +1028,7 @@ void area_picking_get_points (const pcl::visualization::AreaPickingEvent &event,
 		cout<<"No valid points selected!"<<std::endl; 
 }
 
-void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name)
+void Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name)
 {
 	cout << "Starting Visualization..." << endl;
 	
@@ -1012,8 +1038,16 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
 	
 	pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
-	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
-	viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+	if(showcloud)
+	{
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
+		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+	}
+	if(showmesh)
+	{
+		viewer.addPolygonMesh(mesh,"meshes",0);
+	}
+	
 	if(displayCamPositions)
 	{
 		if (hexPosMAVLinkVec.size() == 0)
@@ -1090,14 +1124,17 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 	viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
 	viewer.setPosition(1280/2, 720/2); // Setting visualiser window position
 	
-	// Struct Pointers for Passing Cloud to Events/Callbacks ----------- some of this may be redundant 
-	pcl::PointIndices::Ptr point_indicies (new pcl::PointIndices());
-	struct CloudandIndices pointSelectors;
-	pointSelectors.cloud_ptr = cloudrgb;
-	pointSelectors.point_indicies = point_indicies;
-	CloudandIndices *pointSelectorsPtr = &pointSelectors;
-	//reference http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
-	viewer.registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
+	if(showcloud)
+	{
+		// Struct Pointers for Passing Cloud to Events/Callbacks ----------- some of this may be redundant 
+		pcl::PointIndices::Ptr point_indicies (new pcl::PointIndices());
+		struct CloudandIndices pointSelectors;
+		pointSelectors.cloud_ptr = cloudrgb;
+		pointSelectors.point_indicies = point_indicies;
+		CloudandIndices *pointSelectorsPtr = &pointSelectors;
+		//reference http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
+		viewer.registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
+	}
 
 	while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
 		viewer.spinOnce();

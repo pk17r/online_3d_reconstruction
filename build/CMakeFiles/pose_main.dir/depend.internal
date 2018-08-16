@@ -341,10 +341,14 @@ CMakeFiles/pose_main.dir/pose.cpp.o
  /usr/include/pcl-1.8/pcl/search/search.h
  /usr/include/pcl-1.8/pcl/surface/boost.h
  /usr/include/pcl-1.8/pcl/surface/eigen.h
+ /usr/include/pcl-1.8/pcl/surface/gp3.h
+ /usr/include/pcl-1.8/pcl/surface/impl/gp3.hpp
  /usr/include/pcl-1.8/pcl/surface/impl/mls.hpp
  /usr/include/pcl-1.8/pcl/surface/impl/processing.hpp
+ /usr/include/pcl-1.8/pcl/surface/impl/reconstruction.hpp
  /usr/include/pcl-1.8/pcl/surface/mls.h
  /usr/include/pcl-1.8/pcl/surface/processing.h
+ /usr/include/pcl-1.8/pcl/surface/reconstruction.h
  /usr/include/pcl-1.8/pcl/visualization/area_picking_event.h
  /usr/include/pcl-1.8/pcl/visualization/boost.h
  /usr/include/pcl-1.8/pcl/visualization/common/actor_map.h

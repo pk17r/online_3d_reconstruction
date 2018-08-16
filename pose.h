@@ -21,6 +21,8 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/registration/icp.h>
 #include <pcl/surface/mls.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/surface/gp3.h>
 //#include <pcl/PCLPointCloud2.h>
 #include <time.h>
 
@@ -40,10 +42,12 @@ vector<int> img_numbers;
 double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
+int jump_pixels = 1;
 
+bool mesh_surface = false;
 bool smooth_surface = false;
 int polynomial_order = 2;
-double search_radius = 0.005, sqr_gauss_param = 0.003;
+double search_radius = 0.02, sqr_gauss_param = 0.02;
 bool downsample = false;
 bool downsample_transform = false;
 string downsample_transform_file = "";
@@ -53,7 +57,7 @@ bool align_point_cloud = false;
 string read_PLY_filename0 = "";
 string read_PLY_filename1 = "";
 string currentDateTimeStr;
-double reduction_ratio = 1;
+//double reduction_ratio = 1;
 double focallength = 16.0 / 1000 / 3.75 * 1000000;
 double baseline = 600.0 / 1000;
 int cutout_ratio = 8;	//how much ratio of masking is to be done on left side of image as this area is not covered in stereo disparity images.
@@ -134,7 +138,7 @@ void printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num);
 const string currentDateTime();
 double getMean(Mat disp_img, bool planeFitted);
 double getVariance(Mat disp_img, bool planeFitted);
-void visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name);
+void visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud

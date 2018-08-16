@@ -340,10 +340,14 @@ CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/search/pcl_search.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/search/search.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/boost.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/eigen.h
+CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/gp3.h
+CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/impl/gp3.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/impl/mls.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/impl/processing.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/impl/reconstruction.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/mls.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/processing.h
+CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/surface/reconstruction.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/visualization/area_picking_event.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/visualization/boost.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/visualization/common/actor_map.h

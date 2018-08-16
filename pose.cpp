@@ -31,7 +31,8 @@ Pose::Pose(int argc, char* argv[])
 		string writePath = "downsampled_" + read_PLY_filename0;
 		save_pt_cloud_to_PLY_File(cloudrgb_filtered, writePath);
 		
-		visualize_pt_cloud(cloudrgb_filtered, "Downsampled Point Cloud");
+		pcl::PolygonMesh mesh;
+		visualize_pt_cloud(true, cloudrgb_filtered, false, mesh, "Downsampled Point Cloud");
 		
 		cout << "Cya!" << endl;
 		return;
@@ -39,69 +40,120 @@ Pose::Pose(int argc, char* argv[])
 	
 	if (smooth_surface)
 	{
-		/*pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
+		int64 t0 = getTickCount();
 		
-		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr xyz_cloud_smoothed (new pcl::PointCloud<pcl::PointXYZRGBNormal> ());
-
-		pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGBNormal> mls;
-		mls.setInputCloud (cloudrgb);
-		mls.setSearchRadius (search_radius);
-		mls.setSqrGaussParam (sqr_gauss_param);
-		mls.setPolynomialOrder (polynomial_order);
-
-		//  mls.setUpsamplingMethod (pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointNormal>::SAMPLE_LOCAL_PLANE);
-		//  mls.setUpsamplingMethod (pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointNormal>::RANDOM_UNIFORM_DENSITY);
-		//  mls.setUpsamplingMethod (pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointNormal>::VOXEL_GRID_DILATION);
-		mls.setUpsamplingMethod (pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGBNormal>::NONE);
-		mls.setPointDensity (60000 * int (search_radius)); // 300 points in a 5 cm radius
-		mls.setUpsamplingRadius (0.025);
-		mls.setUpsamplingStepSize (0.015);
-		mls.setDilationIterations (2);
-		mls.setDilationVoxelSize (0.01f);
-
-		// Define the tree to find the neighbors
-		pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
-		tree->setInputCloud (cloudrgb);
-		mls.setSearchMethod (tree);
-		mls.setComputeNormals (true);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
 		
-		// Define the output and the normals
+		// Create a KD-Tree
+		pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
+
+		// Output has the PointNormal type in order to store the normals calculated by MLS
 		pcl::PointCloud<pcl::PointXYZRGB> mls_points;
-		pcl::PointCloud<pcl::Normal>::Ptr mls_normals (new pcl::PointCloud<pcl::Normal> ());
-		mls.setOutputNormals (mls_normals);
-		// Compute the smoothed cloud
-		mls.reconstruct (mls_points);
-		// Extra: merge fields
-		pcl::PointCloud<pcl::PointNormal> mls_cloud;
-		pcl::concatenateFields (mls_points, *mls_normals, mls_cloud);
 
-		printf("Computing smoothed surface and normals with search_radius %f , sqr_gaussian_param %f, polynomial order %d\n", mls.getSearchRadius(), mls.getSqrGaussParam(), mls.getPolynomialOrder());
+		// Init object (second point type is for the normals, even if unused)
+		pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
+
+		mls.setComputeNormals (true);
+
+		// Set parameters
+		mls.setInputCloud (cloudrgb);
+		mls.setPolynomialOrder (true);
+		mls.setSearchMethod (tree);
+		mls.setSearchRadius (search_radius);
+		//mls.setUpsamplingMethod(pcl::MovingLeastSquares<pcl::PointXYZRGB,pcl::PointXYZRGB>::VOXEL_GRID_DILATION); 
+        //mls.setDilationVoxelSize(0.01); 
+        //mls.setPolynomialOrder(3); 
+
+		// Reconstruct
+		mls.process (mls_points);
 		
-		mls.process (*xyz_cloud_smoothed);
+		cout << "Smoothing surface, time: " << ((getTickCount() - t0) / getTickFrequency()) << " sec" << endl;
 		
-		cout << "done smoothing." << endl;
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
-		pcl::copyPointCloud(*xyz_cloud_smoothed,*cloud);
-		
-		//pcl::PCLPointCloud2 output;
-		//pcl::toPCLPointCloud2 (*xyz_cloud_smoothed, output);
-		//cout << "done conversion to PCLPointCloud2." << endl;
-		//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
-		//pcl::fromPCLPointCloud2( output, *cloud);
-		//cout << "done conversion to PointXYZRGB." << endl;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (&mls_points);
 		
 		string writePath = "smoothed_" + read_PLY_filename0;
 		save_pt_cloud_to_PLY_File(cloud, writePath);
 		
-		visualize_pt_cloud(cloud, writePath);
+		pcl::PolygonMesh mesh;
+		visualize_pt_cloud(true, cloud, false, mesh, writePath);
 		cout << "Cya!" << endl;
-		return;*/
+		return;
+	}
+	
+	if(mesh_surface)
+	{
+		int64 t0 = getTickCount();
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
+		
+		cout << "convert to PointXYZ" << endl;
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ> ());
+		pcl::copyPointCloud(*cloudrgb, *cloud);
+		
+		// Normal estimation*
+		cout << "Normal estimation" << endl;
+		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
+		pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+		tree->setInputCloud (cloud);
+		n.setInputCloud (cloud);
+		n.setSearchMethod (tree);
+		n.setKSearch (20);
+		n.compute (*normals);
+		//* normals should not contain the point normals + surface curvatures
+        
+		// Concatenate the XYZ and normal fields*
+		cout << "Concatenate the XYZ and normal fields" << endl;
+		pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+		pcl::concatenateFields (*cloud, *normals, *cloud_with_normals);
+		//* cloud_with_normals = cloud + normals
+        
+		// Create search tree*
+		cout << "Create search tree" << endl;
+		pcl::search::KdTree<pcl::PointNormal>::Ptr tree2 (new pcl::search::KdTree<pcl::PointNormal>);
+		tree2->setInputCloud (cloud_with_normals);
+        
+		// Initialize objects
+		cout << "Initialize objects and set values" << endl;
+		pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
+		pcl::PolygonMesh triangles;
+        
+		// Set the maximum distance between connected points (maximum edge length)
+		gp3.setSearchRadius (0.05);
+        
+		// Set typical values for the parameters
+		gp3.setMu (10);
+		gp3.setMaximumNearestNeighbors (500);
+		gp3.setMaximumSurfaceAngle(M_PI/2); // 90 degrees
+		gp3.setMinimumAngle(M_PI/18); // 10 degrees
+		gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
+		gp3.setNormalConsistency(false);
+        
+		// Get result
+		cout << "Get result" << endl;
+		gp3.setInputCloud (cloud_with_normals);
+		gp3.setSearchMethod (tree2);
+		gp3.reconstruct (triangles);
+		
+		cout << "Meshing surface, time: " << ((getTickCount() - t0) / getTickFrequency()) << " sec" << endl;
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr nullCloud;
+		
+		string writePath = "meshed_" + read_PLY_filename0;
+		pcl::io::savePLYFileBinary(writePath, triangles);
+		std::cerr << "Saved Mesh to " << writePath << endl;
+		
+		visualize_pt_cloud(false, nullCloud, true, triangles, writePath);
+		
+		cout << "Cya!" << endl;
+		return;
 	}
 	
 	if (visualize)
 	{
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
-		visualize_pt_cloud(cloudrgb, read_PLY_filename0);
+		pcl::PolygonMesh mesh;
+		visualize_pt_cloud(true, cloudrgb, false, mesh, read_PLY_filename0);
 		cout << "Cya!" << endl;
 		return;
 	}
@@ -118,7 +170,8 @@ Pose::Pose(int argc, char* argv[])
 		string writePath = "ICP_aligned_" + read_PLY_filename0;
 		save_pt_cloud_to_PLY_File(cloud_Fitted, writePath);
 		
-		visualize_pt_cloud(cloud_Fitted, writePath);
+		pcl::PolygonMesh mesh;
+		visualize_pt_cloud(true, cloud_Fitted, false, mesh, writePath);
 		
 		return;
 	}
@@ -248,25 +301,22 @@ Pose::Pose(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb(new pcl::PointCloud<pcl::PointXYZRGB> ());
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb( new pcl::PointCloud<pcl::PointXYZRGB>() );
 		
-		//createPtCloud(i, cloudrgb);
-		createFeaturePtCloud(i, cloudrgb);
+		if(jump_pixels == 1)
+			createPtCloud(i, cloudrgb);
+		else
+			createFeaturePtCloud(i, cloudrgb);
 		//cout << "Created point cloud " << i << endl;
 		
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf = tf_icp * t_FMVec[i];
 		
 		transformPtCloud(cloudrgb, transformed_cloudrgb, tf);
-		cout << "Transformed point cloud " << i << endl;
 		
+		//generating the bigger point cloud
 		if (i == 0)
-		{
-			//generating the bigger point cloud
 			copyPointCloud(*transformed_cloudrgb,*cloudrgb_FeatureMatched);
-		}
 		else
-		{			
-			//generating the bigger point cloud
 			cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb->begin(),transformed_cloudrgb->end());
-		}
+		cout << "Transformed and added." << endl;
 	}
 	
 	cout << "Finding 3D transformation, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
@@ -314,8 +364,9 @@ Pose::Pose(int argc, char* argv[])
 	if(preview)
 	{
 		displayCamPositions = true;
-		visualize_pt_cloud(cloud_hexPos_Fitted, "hexPos_Fitted red:MAVLink green:FeatureMatched blue:FM_Fitted");
-		visualize_pt_cloud(cloudrgb_FeatureMatched_downsamp, "cloudrgb_FM_Fitted_downsampled");
+		pcl::PolygonMesh mesh;
+		visualize_pt_cloud(true, cloud_hexPos_Fitted, false, mesh, "hexPos_Fitted red:MAVLink green:FeatureMatched blue:FM_Fitted");
+		visualize_pt_cloud(true, cloudrgb_FeatureMatched_downsamp, false, mesh, "cloudrgb_FM_Fitted_downsampled");
 	}
 	
 	//Mat mtxR, mtxQ, transVect, rotMatrixX, rotMatrixY, rotMatrixZ;

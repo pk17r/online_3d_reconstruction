@@ -47,6 +47,10 @@ pcl/registration/icp.h
 -
 pcl/surface/mls.h
 -
+pcl/kdtree/kdtree_flann.h
+-
+pcl/surface/gp3.h
+-
 time.h
 -
 
@@ -2366,6 +2370,32 @@ boost/shared_ptr.hpp
 Eigen/SVD
 -
 
+/usr/include/pcl-1.8/pcl/surface/gp3.h
+pcl/surface/reconstruction.h
+-
+pcl/surface/boost.h
+-
+pcl/conversions.h
+-
+pcl/kdtree/kdtree.h
+-
+pcl/kdtree/kdtree_flann.h
+-
+pcl/PolygonMesh.h
+-
+fstream
+-
+iostream
+-
+pcl/surface/impl/gp3.hpp
+-
+
+/usr/include/pcl-1.8/pcl/surface/impl/gp3.hpp
+pcl/surface/gp3.h
+-
+pcl/kdtree/impl/kdtree_flann.hpp
+-
+
 /usr/include/pcl-1.8/pcl/surface/impl/mls.hpp
 pcl/point_traits.h
 -
@@ -2387,6 +2417,10 @@ omp.h
 -
 
 /usr/include/pcl-1.8/pcl/surface/impl/processing.hpp
+
+/usr/include/pcl-1.8/pcl/surface/impl/reconstruction.hpp
+pcl/search/pcl_search.h
+-
 
 /usr/include/pcl-1.8/pcl/surface/mls.h
 pcl/pcl_base.h
@@ -2417,6 +2451,20 @@ pcl/PolygonMesh.h
 -
 pcl/surface/impl/processing.hpp
 /usr/include/pcl-1.8/pcl/surface/pcl/surface/impl/processing.hpp
+
+/usr/include/pcl-1.8/pcl/surface/reconstruction.h
+pcl/pcl_base.h
+-
+pcl/PolygonMesh.h
+-
+pcl/search/pcl_search.h
+-
+pcl/conversions.h
+-
+pcl/surface/boost.h
+-
+pcl/surface/impl/reconstruction.hpp
+-
 
 /usr/include/pcl-1.8/pcl/visualization/area_picking_event.h
 pcl/pcl_macros.h
