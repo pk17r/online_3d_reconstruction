@@ -53,6 +53,22 @@ pcl/surface/gp3.h
 -
 time.h
 -
+opencv2/opencv.hpp
+-
+opencv2/core.hpp
+-
+opencv2/highgui.hpp
+-
+stdio.h
+-
+opencv2/cudaarithm.hpp
+-
+opencv2/cudaimgproc.hpp
+-
+opencv2/features2d.hpp
+-
+opencv2/cudafeatures2d.hpp
+-
 
 /home/pkr/pkr-work/pose_estimation/pose_functions.cpp
 pose.h
@@ -30946,6 +30962,20 @@ cxcore.h
 opencv2/core/utility.hpp
 /usr/local/include/opencv2/core/opencv2/core/utility.hpp
 
+/usr/local/include/opencv2/core/cuda.hpp
+opencv2/core.hpp
+/usr/local/include/opencv2/core/opencv2/core.hpp
+opencv2/core/cuda_types.hpp
+/usr/local/include/opencv2/core/opencv2/core/cuda_types.hpp
+opencv2/core/cuda.inl.hpp
+/usr/local/include/opencv2/core/opencv2/core/cuda.inl.hpp
+
+/usr/local/include/opencv2/core/cuda.inl.hpp
+opencv2/core/cuda.hpp
+/usr/local/include/opencv2/core/opencv2/core/cuda.hpp
+
+/usr/local/include/opencv2/core/cuda_types.hpp
+
 /usr/local/include/opencv2/core/cvdef.h
 limits.h
 -
@@ -31125,6 +31155,30 @@ opencv2/core/core_c.h
 /usr/local/include/opencv2/core/opencv2/core/core_c.h
 
 /usr/local/include/opencv2/core/version.hpp
+
+/usr/local/include/opencv2/cudaarithm.hpp
+opencv2/core/cuda.hpp
+/usr/local/include/opencv2/opencv2/core/cuda.hpp
+
+/usr/local/include/opencv2/cudafeatures2d.hpp
+opencv2/core/cuda.hpp
+/usr/local/include/opencv2/opencv2/core/cuda.hpp
+opencv2/features2d.hpp
+/usr/local/include/opencv2/opencv2/features2d.hpp
+opencv2/cudafilters.hpp
+/usr/local/include/opencv2/opencv2/cudafilters.hpp
+
+/usr/local/include/opencv2/cudafilters.hpp
+opencv2/core/cuda.hpp
+/usr/local/include/opencv2/opencv2/core/cuda.hpp
+opencv2/imgproc.hpp
+/usr/local/include/opencv2/opencv2/imgproc.hpp
+
+/usr/local/include/opencv2/cudaimgproc.hpp
+opencv2/core/cuda.hpp
+/usr/local/include/opencv2/opencv2/core/cuda.hpp
+opencv2/imgproc.hpp
+/usr/local/include/opencv2/opencv2/imgproc.hpp
 
 /usr/local/include/opencv2/features2d.hpp
 opencv2/core.hpp

@@ -2767,6 +2767,9 @@ CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/c
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/base.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/bufferpool.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/core_c.h
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/cuda.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/cuda.inl.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/cuda_types.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/cvdef.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/cvstd.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/cvstd.inl.hpp
@@ -2786,6 +2789,10 @@ CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/c
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/types_c.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/utility.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/core/version.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/cudaarithm.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/cudafeatures2d.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/cudafilters.hpp
+CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/cudaimgproc.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/features2d.hpp
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/flann/config.h
 CMakeFiles/pose_functions.dir/pose_functions.cpp.o: /usr/local/include/opencv2/flann/defines.h

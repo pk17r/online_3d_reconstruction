@@ -437,9 +437,10 @@ void Pose::readImages()
 		log_file.open(save_log_to.c_str(), ios::out);
 	
 	Mat full_img;
+	cout << "reading image number";
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
-		cout << "reading image number " << img_numbers[i] << endl;
+		cout << " " << img_numbers[i] << std::flush;
 		full_img = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
 		if(full_img.empty())
 			throw "Exception: cannot read full_img!";
@@ -496,7 +497,7 @@ void Pose::readImages()
 		if (full_img.empty())
 			throw "Exception: Can't read image!";
 	}
-	
+	cout << endl;
 	full_img.release();
 }
 
@@ -529,6 +530,7 @@ void Pose::findFeatures()
 	//Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 	features = vector<ImageFeatures>(img_numbers.size());
 	
+	cout << "Features";
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
 		(*finder)(full_images[i], features[i]);
@@ -536,9 +538,9 @@ void Pose::findFeatures()
 		//detector->detect(img,keypointsD,Mat());
 		features[i].img_idx = i;
 		//features[i].keypoints = keypointsD;
-		cout << "Features in image #" << i + 1 << ": " << features[i].keypoints.size() << endl;
+		cout << " " << features[i].keypoints.size() << std::flush;
 	}
-	
+	cout << endl;
 	finder->collectGarbage();
 	//free(detector);
 }
@@ -567,6 +569,79 @@ void Pose::pairWiseMatching()
 			log_file << "i" << i << " src " << pairwise_matches[i].src_img_idx << " dst " << pairwise_matches[i].dst_img_idx << " confidence " << pairwise_matches[i].confidence << " inliers " << pairwise_matches[i].inliers_mask.size() << " matches " << pairwise_matches[i].matches.size() << endl;
 		}
 	}
+	
+}
+
+void Pose::orbcudaPairwiseMatching()
+{
+	unsigned long t_AAtime=0, t_BBtime=0, t_CCtime=0;
+	float t_pt;
+	float t_fpt;
+	t_AAtime = getTickCount(); 
+	cout << "orbcudaFeatureFinding start.." << endl;
+	
+	Ptr<cuda::ORB> orb = cuda::ORB::create();
+	vector<vector<KeyPoint>> keypointsVec;
+	vector<cuda::GpuMat> descriptorsVec;
+	
+	for (int i = 0; i < img_numbers.size(); i++)
+	{
+		cv::Mat grayImg;
+		cv::cvtColor(full_images[i], grayImg, CV_BGR2GRAY);
+		cuda::GpuMat grayImg_gpu(grayImg);
+		
+		vector<KeyPoint> keypoints;
+		cuda::GpuMat descriptors;
+		orb->detectAndCompute(grayImg_gpu, cuda::GpuMat(), keypoints, descriptors);
+		
+		keypointsVec.push_back(keypoints);
+		descriptorsVec.push_back(descriptors);
+		cout << " " << keypoints.size() << std::flush;
+	}
+	cout << endl;
+	
+	t_BBtime = getTickCount();
+	t_pt = (t_BBtime - t_AAtime)/getTickFrequency();
+	t_fpt = img_numbers.size()/t_pt;
+	printf("orb cuda features %.4lf sec/ %.4lf fps\n",  t_pt, t_fpt );
+	
+	cout << "cuda pairwise matching start" ;
+	Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
+	vector<vector<vector<DMatch>>> good_matchesVecVec;
+	for (int i = 0; i < img_numbers.size(); i++)
+	{
+		vector<vector<DMatch>> good_matchesVec;
+		
+		for (int j = 0; j < img_numbers.size(); j++)
+		{
+			if(i == j)
+			{
+				cout << " " << i << std::flush;
+			}
+			else
+			{
+				vector<vector<DMatch>> matches;
+				matcher->knnMatch(descriptorsVec[i], descriptorsVec[j], matches, 2);
+				vector<DMatch> good_matches;
+				for(int k = 0; k < matches.size(); k++)
+				{
+					if(matches[k][0].distance < 0.5 * matches[k][1].distance)
+					{
+						//cout << matches[k][0].distance << "/" << matches[k][1].distance << " " << matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
+						good_matches.push_back(matches[k][0]);
+					}
+				}
+				good_matchesVec.push_back(good_matches);
+			}
+		}
+		good_matchesVecVec.push_back(good_matchesVec);
+	}
+	cout << endl;
+	
+	t_CCtime = getTickCount();
+	t_pt = (t_CCtime - t_BBtime)/getTickFrequency();
+	t_fpt = img_numbers.size()/t_pt;
+	printf("cuda pairwise matching %.4lf sec/ %.4lf fps\n",  t_pt, t_fpt );
 	
 }
 

@@ -179,6 +179,7 @@ Pose::Pose(int argc, char* argv[])
 	readCalibFile();
 	readPoseFile();
 	readImages();
+	orbcudaPairwiseMatching();
 	
 	int64 app_start_time = getTickCount();
 	int64 t = getTickCount();

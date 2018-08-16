@@ -2767,6 +2767,9 @@ CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/affine.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/base.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/bufferpool.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/core_c.h
+CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/cuda.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/cuda.inl.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/cuda_types.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/cvdef.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/cvstd.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/cvstd.inl.hpp
@@ -2786,6 +2789,10 @@ CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/types.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/types_c.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/utility.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/core/version.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/cudaarithm.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/cudafeatures2d.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/cudafilters.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/cudaimgproc.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/features2d.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/flann/config.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/local/include/opencv2/flann/defines.h
