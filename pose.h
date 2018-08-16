@@ -59,6 +59,7 @@ double search_radius = 0.02, sqr_gauss_param = 0.02;
 bool downsample = false;
 bool downsample_transform = false;
 string downsample_transform_file = "";
+
 double voxel_size = 0.01; //in meters
 bool visualize = false;
 bool align_point_cloud = false;
@@ -113,7 +114,7 @@ bool try_cuda = true;
 string features_type = "orb";
 float match_conf = 0.3f;
 const string save_log_to = "output/log.txt";
-int range_width = -1;
+int range_width = 20;		//matching will be done between range_width number of sequential images.
 bool use_segment_labels = false;
 bool release = true;
 
@@ -124,6 +125,10 @@ vector<Mat> double_disparity_images;
 ofstream log_file;	//logging stuff
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
+vector<vector<KeyPoint>> keypointsVec;
+vector<cuda::GpuMat> descriptorsVec;
+Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
+
 
 //declaring functions
 void readCalibFile();
@@ -150,6 +155,9 @@ void visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
+(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud_New
 (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out);

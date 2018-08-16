@@ -437,7 +437,7 @@ void Pose::readImages()
 		log_file.open(save_log_to.c_str(), ios::out);
 	
 	Mat full_img;
-	cout << "reading image number";
+	cout << "\nReading image number";
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
 		cout << " " << img_numbers[i] << std::flush;
@@ -578,11 +578,9 @@ void Pose::orbcudaPairwiseMatching()
 	float t_pt;
 	float t_fpt;
 	t_AAtime = getTickCount(); 
-	cout << "orbcudaFeatureFinding start.." << endl;
+	cout << "\nOrb cuda Features Finding start.." << endl;
 	
 	Ptr<cuda::ORB> orb = cuda::ORB::create();
-	vector<vector<KeyPoint>> keypointsVec;
-	vector<cuda::GpuMat> descriptorsVec;
 	
 	for (int i = 0; i < img_numbers.size(); i++)
 	{
@@ -605,43 +603,41 @@ void Pose::orbcudaPairwiseMatching()
 	t_fpt = img_numbers.size()/t_pt;
 	printf("orb cuda features %.4lf sec/ %.4lf fps\n",  t_pt, t_fpt );
 	
-	cout << "cuda pairwise matching start" ;
-	Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
-	vector<vector<vector<DMatch>>> good_matchesVecVec;
-	for (int i = 0; i < img_numbers.size(); i++)
-	{
-		vector<vector<DMatch>> good_matchesVec;
-		
-		for (int j = 0; j < img_numbers.size(); j++)
-		{
-			if(i == j)
-			{
-				cout << " " << i << std::flush;
-			}
-			else
-			{
-				vector<vector<DMatch>> matches;
-				matcher->knnMatch(descriptorsVec[i], descriptorsVec[j], matches, 2);
-				vector<DMatch> good_matches;
-				for(int k = 0; k < matches.size(); k++)
-				{
-					if(matches[k][0].distance < 0.5 * matches[k][1].distance)
-					{
-						//cout << matches[k][0].distance << "/" << matches[k][1].distance << " " << matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
-						good_matches.push_back(matches[k][0]);
-					}
-				}
-				good_matchesVec.push_back(good_matches);
-			}
-		}
-		good_matchesVecVec.push_back(good_matchesVec);
-	}
-	cout << endl;
-	
-	t_CCtime = getTickCount();
-	t_pt = (t_CCtime - t_BBtime)/getTickFrequency();
-	t_fpt = img_numbers.size()/t_pt;
-	printf("cuda pairwise matching %.4lf sec/ %.4lf fps\n",  t_pt, t_fpt );
+	//cout << "\ncuda pairwise matching start..." ;
+	//vector<vector<vector<DMatch>>> good_matchesVecVec;
+	//for (int i = (range_width > 0 ? range_width : 0); i < img_numbers.size(); i++)
+	//{
+	//	vector<vector<DMatch>> good_matchesVec;
+	//	for (int j = 0; j < (range_width > 0 ? img_numbers.size() - range_width : img_numbers.size()); j++)
+	//	{
+	//		if(i == j)
+	//		{
+	//			cout << " " << i << std::flush;
+	//		}
+	//		else
+	//		{
+	//			vector<vector<DMatch>> matches;
+	//			matcher->knnMatch(descriptorsVec[i], descriptorsVec[j], matches, 2);
+	//			vector<DMatch> good_matches;
+	//			for(int k = 0; k < matches.size(); k++)
+	//			{
+	//				if(matches[k][0].distance < 0.5 * matches[k][1].distance && matches[k][0].distance < 40)
+	//				{
+	//					//cout << matches[k][0].distance << "/" << matches[k][1].distance << " " << matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
+	//					good_matches.push_back(matches[k][0]);
+	//				}
+	//			}
+	//			good_matchesVec.push_back(good_matches);
+	//		}
+	//	}
+	//	good_matchesVecVec.push_back(good_matchesVec);
+	//}
+	//cout << endl;
+	//
+	//t_CCtime = getTickCount();
+	//t_pt = (t_CCtime - t_BBtime)/getTickFrequency();
+	//t_fpt = img_numbers.size()/t_pt;
+	//printf("cuda pairwise matching %.4lf sec/ %.4lf fps\n\n",  t_pt, t_fpt );
 	
 }
 
@@ -832,6 +828,7 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 	cloudrgb->is_dense = true;
 	
 	vector<KeyPoint> keypoints = features[img_index].keypoints;
+	//vector<KeyPoint> keypoints = keypointsVec[img_index];
 	
 	cv::Mat_<double> vec_tmp(4,1);
 	
