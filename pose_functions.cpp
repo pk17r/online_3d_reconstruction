@@ -530,7 +530,7 @@ void Pose::findFeatures()
 	//Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 	features = vector<ImageFeatures>(img_numbers.size());
 	
-	cout << "Features";
+	cout << "\nFeatures";
 	for (int i = 0; i < img_numbers.size(); ++i)
 	{
 		(*finder)(full_images[i], features[i]);
@@ -1302,3 +1302,106 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	return cloudrgb_filtered;
 }
 
+void Pose::smoothPtCloud()
+{
+	int64 t0 = getTickCount();
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
+
+	// Create a KD-Tree
+	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
+
+	// Output has the PointNormal type in order to store the normals calculated by MLS
+	pcl::PointCloud<pcl::PointXYZRGB> mls_points;
+
+	// Init object (second point type is for the normals, even if unused)
+	pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
+
+	mls.setComputeNormals (true);
+
+	// Set parameters
+	mls.setInputCloud (cloudrgb);
+	mls.setPolynomialOrder (true);
+	mls.setSearchMethod (tree);
+	mls.setSearchRadius (search_radius);
+	
+	// Reconstruct
+	mls.process (mls_points);
+	
+	cout << "Smoothing surface, time: " << ((getTickCount() - t0) / getTickFrequency()) << " sec" << endl;
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (&mls_points);
+	
+	string writePath = "smoothed_" + read_PLY_filename0;
+	save_pt_cloud_to_PLY_File(cloud, writePath);
+	
+	pcl::PolygonMesh mesh;
+	visualize_pt_cloud(true, cloud, false, mesh, writePath);
+	cout << "Cya!" << endl;
+}
+
+void Pose::meshSurface()
+{
+	int64 t0 = getTickCount();
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
+	
+	cout << "convert to PointXYZ" << endl;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ> ());
+	pcl::copyPointCloud(*cloudrgb, *cloud);
+	
+	// Normal estimation*
+	cout << "Normal estimation" << endl;
+	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
+	pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+	tree->setInputCloud (cloud);
+	n.setInputCloud (cloud);
+	n.setSearchMethod (tree);
+	n.setKSearch (20);
+	n.compute (*normals);
+	//* normals should not contain the point normals + surface curvatures
+	
+	// Concatenate the XYZ and normal fields*
+	cout << "Concatenate the XYZ and normal fields" << endl;
+	pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+	pcl::concatenateFields (*cloud, *normals, *cloud_with_normals);
+	//* cloud_with_normals = cloud + normals
+	
+	// Create search tree*
+	cout << "Create search tree" << endl;
+	pcl::search::KdTree<pcl::PointNormal>::Ptr tree2 (new pcl::search::KdTree<pcl::PointNormal>);
+	tree2->setInputCloud (cloud_with_normals);
+	
+	// Initialize objects
+	cout << "Initialize objects and set values" << endl;
+	pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
+	pcl::PolygonMesh triangles;
+	
+	// Set the maximum distance between connected points (maximum edge length)
+	gp3.setSearchRadius (0.05);
+	
+	// Set typical values for the parameters
+	gp3.setMu (10);
+	gp3.setMaximumNearestNeighbors (500);
+	gp3.setMaximumSurfaceAngle(M_PI/2); // 90 degrees
+	gp3.setMinimumAngle(M_PI/18); // 10 degrees
+	gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
+	gp3.setNormalConsistency(false);
+	
+	// Get result
+	cout << "Get result" << endl;
+	gp3.setInputCloud (cloud_with_normals);
+	gp3.setSearchMethod (tree2);
+	gp3.reconstruct (triangles);
+	
+	cout << "Meshing surface, time: " << ((getTickCount() - t0) / getTickFrequency()) << " sec" << endl;
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr nullCloud;
+	
+	string writePath = "meshed_" + read_PLY_filename0;
+	pcl::io::savePLYFileBinary(writePath, triangles);
+	std::cerr << "Saved Mesh to " << writePath << endl;
+	
+	visualize_pt_cloud(false, nullCloud, true, triangles, writePath);
+	
+	cout << "Cya!" << endl;
+}
