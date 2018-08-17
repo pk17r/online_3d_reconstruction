@@ -9,6 +9,8 @@
 /home/pkr/pkr-work/pose_estimation/pose.cpp
 pose.h
 /home/pkr/pkr-work/pose_estimation/pose.h
+boost/filesystem.hpp
+-
 
 /home/pkr/pkr-work/pose_estimation/pose.h
 iostream

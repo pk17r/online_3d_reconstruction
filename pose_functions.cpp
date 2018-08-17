@@ -528,10 +528,10 @@ void Pose::findFeatures()
 	}
 
 	//Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
-	features = vector<ImageFeatures>(img_numbers.size());
+	//features = vector<ImageFeatures>(img_numbers.size());		//moved to main()
 	
 	cout << "\nFeatures";
-	for (int i = 0; i < img_numbers.size(); ++i)
+	for (int i = start_idx; i < end_idx + 1; ++i)
 	{
 		(*finder)(full_images[i], features[i]);
 		//vector<KeyPoint> keypointsD;
@@ -1122,69 +1122,19 @@ void Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>:
 	
 	if(displayCamPositions)
 	{
-		if (hexPosMAVLinkVec.size() == 0)
+		for (int i = 0; i < hexPos_cloud->size(); i++)
 		{
-			ifstream data_file;
-			data_t hexPosMAVLink_data;
-			data_file.open(hexPosMAVLinkfilename);
-			data_file >> hexPosMAVLink_data;
-			// Complain if something went wrong.
-			if (!data_file.eof())
-				throw "Exception: Could not open hexPosMAVLinkfilename file!";
-			data_file.close();
-
-			cout << "hexPosMAVLink" << endl;
-			for (int i = 0; i < hexPosMAVLink_data.size(); i++)
-			{
-				pcl::PointXYZRGB hexPosMAVLink;
-				hexPosMAVLink.x = hexPosMAVLink_data[i][0];
-				hexPosMAVLink.y = hexPosMAVLink_data[i][1];
-				hexPosMAVLink.z = hexPosMAVLink_data[i][2];
-				hexPosMAVLinkVec.push_back(hexPosMAVLink);
-			}
+			int rgb = hexPos_cloud->points[i].rgb;
+			uint8_t r = (rgb >> 16);// & 0x0000ff;
+			uint8_t g = (rgb >> 8);//  & 0x0000ff;
+			//uint8_t b = (rgb)     & 0x0000ff;
 			
-			data_t hexPosFM_data;
-			data_file.open(hexPosFMfilename);
-			data_file >> hexPosFM_data;
-			// Complain if something went wrong.
-			if (!data_file.eof())
-				throw "Exception: Could not open hexPosFMfilename file!";
-			data_file.close();
-
-			cout << "\nhexPosFM" << endl;
-			for (int i = 0; i < hexPosFM_data.size(); i++)
-			{
-				pcl::PointXYZRGB hexPosFM;
-				hexPosFM.x = hexPosFM_data[i][0];
-				hexPosFM.y = hexPosFM_data[i][1];
-				hexPosFM.z = hexPosFM_data[i][2];
-				hexPosFMVec.push_back(hexPosFM);
-			}
-
-			data_t hexPosFMFitted_data;
-			data_file.open(hexPosFMFittedfilename);
-			data_file >> hexPosFMFitted_data;
-			// Complain if something went wrong.
-			if (!data_file.eof())
-				throw "Exception: Could not open hexPosFMFittedfilename file!";
-			data_file.close();
-
-			cout << "\nhexPosFMFitted" << endl;
-			for (int i = 0; i < hexPosFMFitted_data.size(); i++)
-			{
-				pcl::PointXYZRGB hexPosFMFitted;
-				hexPosFMFitted.x = hexPosFMFitted_data[i][0];
-				hexPosFMFitted.y = hexPosFMFitted_data[i][1];
-				hexPosFMFitted.z = hexPosFMFitted_data[i][2];
-				hexPosFMFittedVec.push_back(hexPosFMFitted);
-			}
-		}
-		
-		for (int i = 0; i < hexPosMAVLinkVec.size(); i++)
-		{
-			viewer.addSphere(hexPosMAVLinkVec[i], 0.1, 255, 0, 0, "MAVLink"+to_string(i), 0);
-			viewer.addSphere(hexPosFMVec[i], 0.1, 0, 255, 0, "FM"+to_string(i), 0);
-			viewer.addSphere(hexPosFMFittedVec[i], 0.1, 0, 0, 255, "FMFitted"+to_string(i), 0);
+			if(r == 255)
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "MAVLink"+to_string(i), 0);
+			else if(g == 255)
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "FM"+to_string(i), 0);
+			else
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "FMFitted"+to_string(i), 0);
 		}
 	}
 	
@@ -1405,3 +1355,33 @@ void Pose::meshSurface()
 	
 	cout << "Cya!" << endl;
 }
+
+pcl::PointXYZRGB Pose::addPointFromPoseFile(int pose_index)
+{
+	pcl::PointXYZRGB position;
+	position.x = pose_data[pose_index][tx_ind];
+	position.y = pose_data[pose_index][ty_ind];
+	position.z = pose_data[pose_index][tz_ind];
+	uint32_t rgb = (uint32_t)255;	//red
+	position.rgb = *reinterpret_cast<float*>(&rgb);
+	
+	return position;
+}
+
+pcl::PointXYZRGB Pose::transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts)
+{
+	pcl::PointXYZRGB hexPosFM;// = pcl::transformPoint(hexPosMAVLink, T_SVD_matched_pts);
+	hexPosFM.x = static_cast<float> (T_SVD_matched_pts (0, 0) * hexPosMAVLink.x + T_SVD_matched_pts (0, 1) * hexPosMAVLink.y + T_SVD_matched_pts (0, 2) * hexPosMAVLink.z + T_SVD_matched_pts (0, 3));
+	hexPosFM.y = static_cast<float> (T_SVD_matched_pts (1, 0) * hexPosMAVLink.x + T_SVD_matched_pts (1, 1) * hexPosMAVLink.y + T_SVD_matched_pts (1, 2) * hexPosMAVLink.z + T_SVD_matched_pts (1, 3));
+	hexPosFM.z = static_cast<float> (T_SVD_matched_pts (2, 0) * hexPosMAVLink.x + T_SVD_matched_pts (2, 1) * hexPosMAVLink.y + T_SVD_matched_pts (2, 2) * hexPosMAVLink.z + T_SVD_matched_pts (2, 3));
+	uint32_t rgbFM = (uint32_t)255 << 8;	//green
+	hexPosFM.rgb = *reinterpret_cast<float*>(&rgbFM);
+	
+	return hexPosFM;
+}
+
+
+
+
+
+

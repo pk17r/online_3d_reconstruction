@@ -11,12 +11,24 @@
 * */
 
 #include "pose.h"
+#include <boost/filesystem.hpp>
 
 Pose::Pose(int argc, char* argv[])
 {
 	currentDateTimeStr = currentDateTime();
 	cout << "currentDateTime=" << currentDateTimeStr << "\n\n";
-
+	
+	//create directory
+	folder = folder + currentDateTimeStr + "/";
+	boost::filesystem::path dir(folder);
+	if(boost::filesystem::create_directory(dir)) {
+		cout << "Created save directory " << folder << endl;
+	}
+	else {
+		cout << "Could not create save directory!" << folder << endl;
+		return;
+	}
+	
 #if 0
 	cv::setBreakOnError(true);
 #endif
@@ -83,36 +95,37 @@ Pose::Pose(int argc, char* argv[])
 	readPoseFile();
 	readImages();
 	
+	//initialize some variables
+	features = vector<ImageFeatures>(img_numbers.size());
+	
+	//start program
 	int64 app_start_time = getTickCount();
 	int64 t = getTickCount();
 	
+	start_idx = 0;
+	end_idx = min(seq_len-1, (int)(img_numbers.size())-1);
+	
+	cout << "Images " << start_idx << " to " << end_idx << endl;
 	findFeatures();
 	cout << "Finding features, time: " << ((getTickCount() - t) / getTickFrequency()) << " sec" << endl;
 
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_matVec;
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec;
 	
+	//cloud_hexPos will store combined MAVLink and FM_Fitted positions
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	cloud_hexPos->is_dense = true;
+	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink(new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM(new pcl::PointCloud<pcl::PointXYZRGB> ());
 	cloud_hexPos_MAVLink->is_dense = true;
 	cloud_hexPos_FM->is_dense = true;
-	ofstream hexPosMAVLinkfile, hexPosFMfile, hexPosFMFittedfile;
-	hexPosMAVLinkfile.open(hexPosMAVLinkfilename, ios::out);
-	hexPosFMfile.open(hexPosFMfilename, ios::out);
 	
 	for (int i = 0; i < img_numbers.size(); i++)
 	{
 		//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
 		int pose_index = data_index_finder(img_numbers[i]);
-		
-		pcl::PointXYZRGB hexPosMAVLink;
-		hexPosMAVLink.x = pose_data[pose_index][tx_ind];
-		hexPosMAVLink.y = pose_data[pose_index][ty_ind];
-		hexPosMAVLink.z = pose_data[pose_index][tz_ind];
-		uint32_t rgbMAVLink = (uint32_t)255;
-		hexPosMAVLink.rgb = *reinterpret_cast<float*>(&rgbMAVLink);
-		hexPosMAVLinkVec.push_back(hexPosMAVLink);
-		hexPosMAVLinkfile << hexPosMAVLink.x << "," << hexPosMAVLink.y << "," << hexPosMAVLink.z << endl;
+		pcl::PointXYZRGB hexPosMAVLink = addPointFromPoseFile(pose_index);
 		cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
 		
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
@@ -130,19 +143,10 @@ Pose::Pose(int argc, char* argv[])
 		
 		t_FMVec.push_back(T_SVD_matched_pts * t_mat);
 		
-		pcl::PointXYZRGB hexPosFM;// = pcl::transformPoint(hexPosMAVLink, T_SVD_matched_pts);
-		hexPosFM.x = static_cast<float> (T_SVD_matched_pts (0, 0) * hexPosMAVLink.x + T_SVD_matched_pts (0, 1) * hexPosMAVLink.y + T_SVD_matched_pts (0, 2) * hexPosMAVLink.z + T_SVD_matched_pts (0, 3));
-		hexPosFM.y = static_cast<float> (T_SVD_matched_pts (1, 0) * hexPosMAVLink.x + T_SVD_matched_pts (1, 1) * hexPosMAVLink.y + T_SVD_matched_pts (1, 2) * hexPosMAVLink.z + T_SVD_matched_pts (1, 3));
-		hexPosFM.z = static_cast<float> (T_SVD_matched_pts (2, 0) * hexPosMAVLink.x + T_SVD_matched_pts (2, 1) * hexPosMAVLink.y + T_SVD_matched_pts (2, 2) * hexPosMAVLink.z + T_SVD_matched_pts (2, 3));
-		uint32_t rgbFM = (uint32_t)255 << 8;	//green
-		hexPosFM.rgb = *reinterpret_cast<float*>(&rgbFM);
-		hexPosFMVec.push_back(hexPosFM);
-		hexPosFMfile << hexPosFM.x << "," << hexPosFM.y << "," << hexPosFM.z << endl;
+		pcl::PointXYZRGB hexPosFM = transformPoint(hexPosMAVLink, T_SVD_matched_pts);
 		cloud_hexPos_FM->points.push_back(hexPosFM);
 	}
 	cout << "Completed calculating feature matched transformations." << endl;
-	hexPosMAVLinkfile.close();
-	hexPosFMfile.close();
 	
 	//transforming the camera positions using ICP
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
@@ -182,28 +186,18 @@ Pose::Pose(int argc, char* argv[])
 	cout << "Saving point clouds..." << endl;
 	//read_PLY_filename0 = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
 	//save_pt_cloud_to_PLY_File(cloudrgb_MAVLink, read_PLY_filename0);
-	
-	read_PLY_filename1 = "cloudrgb_FeatureMatched_" + currentDateTimeStr + ".ply";
+	read_PLY_filename1 = folder + "cloud.ply";
 	save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched, read_PLY_filename1);
 	
+	//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_Fitted(new pcl::PointCloud<pcl::PointXYZRGB> ());
 	transformPtCloud(cloud_hexPos_FM, cloud_hexPos_Fitted, tf_icp);
-	hexPosFMFittedfile.open(hexPosFMFittedfilename, ios::out);
-	for (int i = 0; i < cloud_hexPos_Fitted->points.size(); i++)
-	{
-		uint32_t rgbFitted = (uint32_t)255 << 16;	//blue
-		cloud_hexPos_Fitted->points[i].rgb = *reinterpret_cast<float*>(&rgbFitted);
-		hexPosFMFittedVec.push_back(cloud_hexPos_Fitted->points[i]);
-		hexPosFMFittedfile << cloud_hexPos_Fitted->points[i].x << "," << cloud_hexPos_Fitted->points[i].y << "," << cloud_hexPos_Fitted->points[i].z << endl;
-	}
-	hexPosFMFittedfile.close();
-	cloud_hexPos_Fitted->insert(cloud_hexPos_Fitted->end(),cloud_hexPos_FM->begin(),cloud_hexPos_FM->end());
-	cloud_hexPos_Fitted->insert(cloud_hexPos_Fitted->end(),cloud_hexPos_MAVLink->begin(),cloud_hexPos_MAVLink->end());
 	
-	//rectifying Feature Matched Pt Cloud
-	//cout << "rectifying Feature Matched Pt Cloud using ICP result..." << endl;
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FM_Fitted(new pcl::PointCloud<pcl::PointXYZRGB> ());
-	//transformPtCloud(cloudrgb_FeatureMatched, cloudrgb_FM_Fitted, tf_icp);
+	//update cloud_hexPos with all camera positions
+	cloud_hexPos_FM = cloud_hexPos_Fitted;
+	cloud_hexPos->clear();
+	copyPointCloud(*cloud_hexPos_FM,*cloud_hexPos);
+	cloud_hexPos->insert(cloud_hexPos->end(),cloud_hexPos_MAVLink->begin(),cloud_hexPos_MAVLink->end());
 	
 	//downsampling
 	cout << "downsampling..." << endl;
@@ -212,12 +206,13 @@ Pose::Pose(int argc, char* argv[])
 	//save_pt_cloud_to_PLY_File(cloudrgb_MAVLink_downsamp, read_PLY_filename0);
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched_downsamp = downsamplePtCloud(cloudrgb_FeatureMatched);
-	read_PLY_filename1 = "downsampled_rectified_" + read_PLY_filename1;
+	read_PLY_filename1 = folder + "downsampled_cloud.ply";
 	save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched_downsamp, read_PLY_filename1);
 	
 	if(preview)
 	{
 		displayCamPositions = true;
+		hexPos_cloud = cloud_hexPos;
 		pcl::PolygonMesh mesh;
 		visualize_pt_cloud(true, cloud_hexPos_Fitted, false, mesh, "hexPos_Fitted red:MAVLink green:FeatureMatched blue:FM_Fitted");
 		visualize_pt_cloud(true, cloudrgb_FeatureMatched_downsamp, false, mesh, "cloudrgb_FM_Fitted_downsampled");

@@ -51,6 +51,7 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 int jump_pixels = 1;
+int start_idx = 0, end_idx = 0, seq_len = 30;
 
 bool mesh_surface = false;
 bool smooth_surface = false;
@@ -80,6 +81,7 @@ const string heading_data_file = "hdg.txt";
 const string imagePrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/left_rect/";
 const string disparityPrefix = "/mnt/win/WORK/kentland19jul/22m_extracted_data/disparities/";
 const string segmentlblPrefix = "segmentlabels/";
+string folder = "/mnt/win/WORK/pose_estimation_output/";
 
 //indices in pose and heading data files
 const int tx_ind=3,ty_ind=4,tz_ind=5,qx_ind=6,qy_ind=7,qz_ind=8,qw_ind=9;//,hdg_ind=3;
@@ -129,6 +131,8 @@ vector<vector<KeyPoint>> keypointsVec;
 vector<cuda::GpuMat> descriptorsVec;
 Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
 
+//dumb variables
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr hexPos_cloud;
 
 //declaring functions
 void readCalibFile();
@@ -162,6 +166,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::Po
 void orbcudaPairwiseMatching();
 void smoothPtCloud();
 void meshSurface();
-
+pcl::PointXYZRGB addPointFromPoseFile(int pose_index);
+pcl::PointXYZRGB transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts);
 
 };
