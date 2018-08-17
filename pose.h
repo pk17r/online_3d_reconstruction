@@ -51,7 +51,7 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 int jump_pixels = 1;
-int start_idx = 0, end_idx = 0, seq_len = 30;
+int start_idx = 0, end_idx = 0, seq_len = 50;
 
 bool mesh_surface = false;
 bool smooth_surface = false;
@@ -133,7 +133,7 @@ void printUsage();
 string type2str(int type);
 int parseCmdArgs(int argc, char** argv);
 void readPoseFile();
-void readImages();
+void populateData();
 void findFeatures();
 void pairWiseMatching();
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
@@ -152,8 +152,8 @@ void visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
-(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
+	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
 void orbcudaPairwiseMatching();
@@ -161,6 +161,13 @@ void smoothPtCloud();
 void meshSurface();
 pcl::PointXYZRGB addPointFromPoseFile(int pose_index);
 pcl::PointXYZRGB transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts);
+void populateDisparityImages(int start_index, int end_index);
+void readDisparityImage(int i);
+void populateSegmentLabelMaps(int start_index, int end_index);
+void readSegmentLabelMap(int i);
+void populateImages(int start_index, int end_index);
+void readImage(int i);
+void populateDoubleDispImages(int start_index, int end_index);
 
 };
 

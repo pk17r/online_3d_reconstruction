@@ -423,80 +423,175 @@ int Pose::data_index_finder(int image_number)
 	return pose_index;
 }
 
-void Pose::readImages()
+void Pose::readImage(int i)
+{
+	full_images[i] = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
+	if(full_images[i].empty())
+		throw "Exception: cannot read full_img " + to_string(img_numbers[i]) + "!";
+	//full_images[i] = full_image;
+	cout << " i" << to_string(img_numbers[i]) << " " << std::flush;
+}
+
+void Pose::populateImages(int start_index, int end_index)
+{
+	for (int i = start_index; i <= end_index; i++)
+	{
+		readImage(i);
+	}
+}
+
+void Pose::readDisparityImage(int i)
+{
+	disparity_images[i] = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	if(disparity_images[i].empty())
+		throw "Exception: cannot read disp_image " + to_string(img_numbers[i]) + "!";
+	
+	if (release)
+	{
+		double disp_img_var = getVariance(disparity_images[i], false);
+		//cout << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
+		//log_file << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
+		if (disp_img_var > 5)
+			throw "Exception: disp_image " + to_string(img_numbers[i]) + " > 5. Unacceptable disparity image.";
+	}
+	
+	cout << " d" << to_string(img_numbers[i]) << " " << std::flush;
+}
+
+void Pose::populateDisparityImages(int start_index, int end_index)
+{
+	for (int i = start_index; i <= end_index; i++)
+	{
+		readDisparityImage(i);
+	}
+}
+
+void Pose::readSegmentLabelMap(int i)
+{
+	segment_maps[i] = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	if(segment_maps[i].empty())
+		throw "Exception: cannot read segment_label_map " + to_string(img_numbers[i]) + "!";
+	
+	cout << " s" << to_string(img_numbers[i]) << " " << std::flush;
+}
+
+void Pose::populateSegmentLabelMaps(int start_index, int end_index)
+{
+	for (int i = start_index; i <= end_index; i++)
+	{
+		readSegmentLabelMap(i);
+	}
+}
+
+void Pose::populateDoubleDispImages(int start_index, int end_index)
+{
+	for (int i = start_index; i <= end_index; i++)
+	{
+		createPlaneFittedDisparityImages(i);
+	}
+}
+
+void Pose::populateData()
 {
 	full_images = vector<Mat>(img_numbers.size());
 	disparity_images = vector<Mat>(img_numbers.size());
-	if(use_segment_labels)
-		segment_maps = vector<Mat>(img_numbers.size());
 	
 	//logging stuff
 	if(log_stuff)
 		log_file.open(save_log_to.c_str(), ios::out);
 	
-	Mat full_img;
-	cout << "\nReading image number";
-	for (int i = 0; i < img_numbers.size(); ++i)
+	const int divisions = 7;
+	const int imgs_per_division = ceil(1.0 * img_numbers.size() / divisions);
+	int i = 0;
+	cout << "\nReading images using multithreading" << endl;
+	boost::thread img_thread1(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread img_thread2(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread img_thread3(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread img_thread4(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread img_thread5(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread img_thread6(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread img_thread7(&Pose::populateImages, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1));
+	
+	//cout << "\nReading disparity images using multithreading" << endl;
+	i = 0;
+	boost::thread disp_thread1(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread disp_thread2(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread disp_thread3(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread disp_thread4(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread disp_thread5(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread disp_thread6(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
+	boost::thread disp_thread7(&Pose::populateDisparityImages, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1));
+	
+	if(use_segment_labels)
 	{
-		cout << " " << img_numbers[i] << std::flush;
-		full_img = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
-		if(full_img.empty())
-			throw "Exception: cannot read full_img!";
-		
-		//imshow( "Display window", full_img );                   // Show our image inside it.
-		//waitKey(0);                                          // Wait for a keystroke in the window
-		if (i == 0)
-		{
-			rows = full_img.rows;
-			cols = full_img.cols;
-			cols_start_aft_cutout = (int)(cols/cutout_ratio);
-		}
-		full_images[i] = full_img;
-		
-		//read labelled segment maps
-		if(use_segment_labels)
-		{
-			//read segmentation map
-			Mat segment_img(rows,cols, CV_8UC1);
-			segment_img = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-			segment_maps[i] = segment_img;
-			if(segment_img.empty())
-				throw "Exception: cannot read segment map!";
-			
-			//read disparity image
-			Mat disp_img(rows,cols, CV_8UC1);
-			disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-			
-			if(disp_img.empty())
-				throw "Exception: Cannot read disparity image!";
-			
-			if (release)
-			{
-				double disp_img_var = getVariance(disp_img, false);
-				cout << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
-				log_file << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
-				if (disp_img_var > 5)
-					throw "Exception: disp_img_var > 5. Unacceptable disparity image.";
-			}
-			disparity_images[i] = disp_img;
-			//imshow( "Display window", disp_img );                   // Show our image inside it.
-			//waitKey(0);                                          // Wait for a keystroke in the window
-			
-			createPlaneFittedDisparityImages(i);
-		}
-		else
-		{
-			//read disparity image
-			Mat disp_img(rows,cols, CV_8UC1);
-			disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-			disparity_images[i] = disp_img;
-		}
-		
-		if (full_img.empty())
-			throw "Exception: Can't read image!";
+		segment_maps = vector<Mat>(img_numbers.size());
+		//cout << "\nReading segment label map images using multithreading" << endl;
+		i = 0;
+		boost::thread segment_map_thread1(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread segment_map_thread2(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread segment_map_thread3(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread segment_map_thread4(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread segment_map_thread5(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread segment_map_thread6(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread segment_map_thread7(&Pose::populateSegmentLabelMaps, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1));
+		segment_map_thread1.join();
+		segment_map_thread2.join();
+		segment_map_thread3.join();
+		segment_map_thread4.join();
+		segment_map_thread5.join();
+		segment_map_thread6.join();
+		segment_map_thread7.join();
 	}
-	cout << endl;
-	full_img.release();
+	img_thread1.join();
+	img_thread2.join();
+	img_thread3.join();
+	img_thread4.join();
+	img_thread5.join();
+	img_thread6.join();
+	img_thread7.join();
+	disp_thread1.join();
+	disp_thread2.join();
+	disp_thread3.join();
+	disp_thread4.join();
+	disp_thread5.join();
+	disp_thread6.join();
+	disp_thread7.join();
+	
+	if(use_segment_labels)
+	{
+		double_disparity_images = vector<Mat>(img_numbers.size());
+		cout << "\n\nPopulating Double Disp Images using multithreading" << endl;
+		i = 0;
+		boost::thread double_disp_thread1(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread double_disp_thread2(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread double_disp_thread3(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread double_disp_thread4(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread double_disp_thread5(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread double_disp_thread6(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
+		boost::thread double_disp_thread7(&Pose::populateDoubleDispImages, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1)); i++;
+		double_disp_thread1.join();
+		double_disp_thread2.join();
+		double_disp_thread3.join();
+		double_disp_thread4.join();
+		double_disp_thread5.join();
+		double_disp_thread6.join();
+		double_disp_thread7.join();
+		cout << endl;
+		
+		//cout << "min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1) "  << min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1) << endl;
+	}
+	
+	//for (int i = 0; i < 2; i++)
+	//{
+	//	imshow( "full_images", full_images[i] );                   // Show our image inside it.
+	//	waitKey(0);                                          // Wait for a keystroke in the window
+	//	imshow( "disparity_images", disparity_images[i] );                   // Show our image inside it.
+	//	waitKey(0);                                          // Wait for a keystroke in the window
+	//	imshow( "segment_maps", segment_maps[i] );                   // Show our image inside it.
+	//	waitKey(0);                                          // Wait for a keystroke in the window
+	//	imshow( "double_disparity_images", double_disparity_images[i] );                   // Show our image inside it.
+	//	waitKey(0);                                          // Wait for a keystroke in the window
+	//}
 }
 
 void Pose::findFeatures()
@@ -646,7 +741,7 @@ void Pose::createPlaneFittedDisparityImages(int i)
 	Mat disp_img = disparity_images[i];
 	Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
 	
-	for (int cluster = 1; cluster < 256; cluster++)
+	for (int cluster = 1; cluster < 1024; cluster++)
 	{
 		//find pixels in this segment
 		vector<int> Xc, Yc;
@@ -712,16 +807,17 @@ void Pose::createPlaneFittedDisparityImages(int i)
 			new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,0) * Xc[p] + 1.0 * x.at<double>(0,1) * Yc[p] + 1.0 * x.at<double>(0,2);
 		}
 	}
-	double_disparity_images.push_back(new_disp_img);
+	double_disparity_images[i] = new_disp_img;
 	
 	if (release)
 	{
 		double plane_fitted_disp_img_var = getVariance(new_disp_img, true);
-		cout << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
-		log_file << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+		//cout << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+		//log_file << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
 		if (plane_fitted_disp_img_var > 3)
-			throw "Exception: plane_fitted_disp_img_var > 3. Unacceptable disparity image.";
+			throw "Exception: plane_fitted_disp_img_var " + to_string(i) + " > 3. Unacceptable disparity image.";
 	}
+	cout << " dd" << img_numbers[i] << std::flush;
 }
 
 double Pose::getMean(Mat disp_img, bool planeFitted)
@@ -815,9 +911,9 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 			}
 		}
 	}
-	cout << " points " << cloudrgb->points.size() << "\t";
+	cout << " pts " << cloudrgb->points.size() << "\t";
 	if(log_stuff)
-		log_file << " points " << cloudrgb->points.size() << endl;
+		log_file << " pts " << cloudrgb->points.size() << endl;
 }
 
 void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
@@ -900,9 +996,9 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 		}
 		y += jump_pixels;
 	}
-	cout << " points " << cloudrgb->points.size() << "\t";
+	cout << " pts " << cloudrgb->points.size() << "\t";
 	if(log_stuff)
-		log_file << " points " << cloudrgb->points.size() << endl;
+		log_file << " pts " << cloudrgb->points.size() << endl;
 }
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
