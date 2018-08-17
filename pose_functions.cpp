@@ -20,8 +20,6 @@ void Pose::printUsage()
 		"\n  - left cam images will be read from " << imagePrefix <<
 		"\n  - disparity images will be read from " << disparityPrefix <<
 		"\n  - segmented label maps will be read from " << segmentlblPrefix <<
-		"\n  - hexacopter positions recorded, feature match calculated and feature match positions ICP fitted over recorded positions"
-		" will be stored in " << hexPosMAVLinkfilename << ", " << hexPosFMfilename << " & " << hexPosFMFittedfilename << ", respectively"
 		"\n\nFlags:"
 		"\n  --use_segment_labels"
 		"\n      Use pre-made segmented labels for every image to improve resolution of disparity images"
@@ -574,35 +572,35 @@ void Pose::pairWiseMatching()
 
 void Pose::orbcudaPairwiseMatching()
 {
-	unsigned long t_AAtime=0, t_BBtime=0, t_CCtime=0;
-	float t_pt;
-	float t_fpt;
-	t_AAtime = getTickCount(); 
-	cout << "\nOrb cuda Features Finding start.." << endl;
-	
-	Ptr<cuda::ORB> orb = cuda::ORB::create();
-	
-	for (int i = 0; i < img_numbers.size(); i++)
-	{
-		cv::Mat grayImg;
-		cv::cvtColor(full_images[i], grayImg, CV_BGR2GRAY);
-		cuda::GpuMat grayImg_gpu(grayImg);
-		
-		vector<KeyPoint> keypoints;
-		cuda::GpuMat descriptors;
-		orb->detectAndCompute(grayImg_gpu, cuda::GpuMat(), keypoints, descriptors);
-		
-		keypointsVec.push_back(keypoints);
-		descriptorsVec.push_back(descriptors);
-		cout << " " << keypoints.size() << std::flush;
-	}
-	cout << endl;
-	
-	t_BBtime = getTickCount();
-	t_pt = (t_BBtime - t_AAtime)/getTickFrequency();
-	t_fpt = img_numbers.size()/t_pt;
-	printf("orb cuda features %.4lf sec/ %.4lf fps\n",  t_pt, t_fpt );
-	
+	//unsigned long t_AAtime=0, t_BBtime=0, t_CCtime=0;
+	//float t_pt;
+	//float t_fpt;
+	//t_AAtime = getTickCount(); 
+	//cout << "\nOrb cuda Features Finding start.." << endl;
+	//
+	//Ptr<cuda::ORB> orb = cuda::ORB::create();
+	//
+	//for (int i = 0; i < img_numbers.size(); i++)
+	//{
+	//	cv::Mat grayImg;
+	//	cv::cvtColor(full_images[i], grayImg, CV_BGR2GRAY);
+	//	cuda::GpuMat grayImg_gpu(grayImg);
+	//	
+	//	vector<KeyPoint> keypoints;
+	//	cuda::GpuMat descriptors;
+	//	orb->detectAndCompute(grayImg_gpu, cuda::GpuMat(), keypoints, descriptors);
+	//	
+	//	keypointsVec.push_back(keypoints);
+	//	descriptorsVec.push_back(descriptors);
+	//	cout << " " << keypoints.size() << std::flush;
+	//}
+	//cout << endl;
+	//
+	//t_BBtime = getTickCount();
+	//t_pt = (t_BBtime - t_AAtime)/getTickFrequency();
+	//t_fpt = img_numbers.size()/t_pt;
+	//printf("orb cuda features %.4lf sec/ %.4lf fps\n",  t_pt, t_fpt );
+	//
 	//cout << "\ncuda pairwise matching start..." ;
 	//vector<vector<vector<DMatch>>> good_matchesVecVec;
 	//for (int i = (range_width > 0 ? range_width : 0); i < img_numbers.size(); i++)
@@ -1124,17 +1122,19 @@ void Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>:
 	{
 		for (int i = 0; i < hexPos_cloud->size(); i++)
 		{
-			int rgb = hexPos_cloud->points[i].rgb;
-			uint8_t r = (rgb >> 16);// & 0x0000ff;
-			uint8_t g = (rgb >> 8);//  & 0x0000ff;
-			//uint8_t b = (rgb)     & 0x0000ff;
-			
-			if(r == 255)
+			//uint32_t rgb = hexPos_cloud->points[i].rgb;
+			//uint32_t r = rgb & 0xff0000;
+			//uint32_t g = (rgb >> 8) & 0x00ff00;
+			////uint8_t b = (rgb)     & 0x0000ff;
+			//cout << rgb << " ";
+			if(hexPos_cloud->points[i].r == 255)
 				viewer.addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "MAVLink"+to_string(i), 0);
-			else if(g == 255)
+			else if(hexPos_cloud->points[i].g == 255)
 				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "FM"+to_string(i), 0);
-			else
+			else if(hexPos_cloud->points[i].b == 255)
 				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "FMFitted"+to_string(i), 0);
+			else
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, "FMFittedaa"+to_string(i), 0);
 		}
 	}
 	
@@ -1362,7 +1362,7 @@ pcl::PointXYZRGB Pose::addPointFromPoseFile(int pose_index)
 	position.x = pose_data[pose_index][tx_ind];
 	position.y = pose_data[pose_index][ty_ind];
 	position.z = pose_data[pose_index][tz_ind];
-	uint32_t rgb = (uint32_t)255;	//red
+	uint32_t rgb = (uint32_t)255 << 16;	//red
 	position.rgb = *reinterpret_cast<float*>(&rgb);
 	
 	return position;

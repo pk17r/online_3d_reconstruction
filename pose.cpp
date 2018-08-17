@@ -28,6 +28,7 @@ Pose::Pose(int argc, char* argv[])
 		cout << "Could not create save directory!" << folder << endl;
 		return;
 	}
+	save_log_to = folder + "log.txt";
 	
 #if 0
 	cv::setBreakOnError(true);
@@ -206,8 +207,23 @@ Pose::Pose(int argc, char* argv[])
 	//save_pt_cloud_to_PLY_File(cloudrgb_MAVLink_downsamp, read_PLY_filename0);
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched_downsamp = downsamplePtCloud(cloudrgb_FeatureMatched);
-	read_PLY_filename1 = folder + "downsampled_cloud.ply";
+	read_PLY_filename1 = folder + "cloud_downsampled.ply";
 	save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched_downsamp, read_PLY_filename1);
+	
+	string hexpos_filename = folder + "cloud_hexpos.ply";
+	save_pt_cloud_to_PLY_File(cloud_hexPos, hexpos_filename);
+	
+	//save settings for future reference
+	string settings_filename = folder + "sttings.xml";
+	cout << settings_filename << endl; 
+	FileStorage fs(settings_filename, FileStorage::WRITE);
+	fs << "range_width"  << range_width
+	   << "voxel_size" << voxel_size
+	   << "jump_pixels" << jump_pixels
+	   << "focallength" << focallength
+	   << "baseline" << baseline
+	;
+	fs.release();	// close Settings file
 	
 	if(preview)
 	{

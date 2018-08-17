@@ -56,7 +56,7 @@ int start_idx = 0, end_idx = 0, seq_len = 30;
 bool mesh_surface = false;
 bool smooth_surface = false;
 int polynomial_order = 2;
-double search_radius = 0.02, sqr_gauss_param = 0.02;
+double search_radius = 0.02;//, sqr_gauss_param = 0.02;
 bool downsample = false;
 bool downsample_transform = false;
 string downsample_transform_file = "";
@@ -102,20 +102,13 @@ vector<double> images_times_seq;
 vector<double> pose_times_seq;
 //vector<double> heading_times_seq;
 
-	vector<pcl::PointXYZRGB> hexPosMAVLinkVec;
-	vector<pcl::PointXYZRGB> hexPosFMVec;
-	vector<pcl::PointXYZRGB> hexPosFMFittedVec;
-	bool displayCamPositions = false;
-	string hexPosMAVLinkfilename = "output/hexPosMAVLink.txt";
-	string hexPosFMfilename = "output/hexPosFM.txt";
-	string hexPosFMFittedfilename = "output/hexPosFMFitted.txt";
-
+bool displayCamPositions = false;
 bool log_stuff = false;
 bool preview = false;
 bool try_cuda = true;
 string features_type = "orb";
 float match_conf = 0.3f;
-const string save_log_to = "output/log.txt";
+string save_log_to = "";
 int range_width = 20;		//matching will be done between range_width number of sequential images.
 bool use_segment_labels = false;
 bool release = true;
@@ -128,7 +121,7 @@ ofstream log_file;	//logging stuff
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
 vector<vector<KeyPoint>> keypointsVec;
-vector<cuda::GpuMat> descriptorsVec;
+//vector<cuda::GpuMat> descriptorsVec;
 Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
 
 //dumb variables
@@ -170,3 +163,5 @@ pcl::PointXYZRGB addPointFromPoseFile(int pose_index);
 pcl::PointXYZRGB transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts);
 
 };
+
+
