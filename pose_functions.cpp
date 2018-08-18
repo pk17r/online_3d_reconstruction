@@ -108,8 +108,9 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		{
 			displayCamPositions = true;
 			n_imgs = 1;		//just to stop program from reading images.txt file
-			cout << "displayCamPositions" << endl;
+			read_PLY_filename1 = string(argv[i + 1]);
 			i++;
+			cout << "displayCamPositions " << read_PLY_filename1 << endl;
 		}
 		else if (string(argv[i]) == "--downsample_transform")
 		{

@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
 		"\n"
 		<< endl;
 	
-	plotMatches("images/1248.png","images/1251.png");
+	//plotMatches("images/1248.png","images/1251.png");
 	//plotMatches("images/1248.png","images/1258.png");
 	
 	try

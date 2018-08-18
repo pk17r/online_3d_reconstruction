@@ -15,6 +15,19 @@
 
 Pose::Pose(int argc, char* argv[])
 {
+	if (parseCmdArgs(argc, argv) == -1) return;
+	
+	if (visualize)
+	{
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
+		if(displayCamPositions)
+			hexPos_cloud = read_PLY_File(read_PLY_filename1);
+		pcl::PolygonMesh mesh;
+		visualize_pt_cloud(true, cloudrgb, false, mesh, read_PLY_filename0);
+		cout << "Cya!" << endl;
+		return;
+	}
+	
 	currentDateTimeStr = currentDateTime();
 	cout << "currentDateTime=" << currentDateTimeStr << "\n\n";
 	
@@ -33,7 +46,6 @@ Pose::Pose(int argc, char* argv[])
 #if 0
 	cv::setBreakOnError(true);
 #endif
-	if (parseCmdArgs(argc, argv) == -1) return;
 	
 	if (downsample)
 	{
@@ -62,15 +74,6 @@ Pose::Pose(int argc, char* argv[])
 	if(mesh_surface)
 	{
 		void meshSurface();
-		return;
-	}
-	
-	if (visualize)
-	{
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
-		pcl::PolygonMesh mesh;
-		visualize_pt_cloud(true, cloudrgb, false, mesh, read_PLY_filename0);
-		cout << "Cya!" << endl;
 		return;
 	}
 	
