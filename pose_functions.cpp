@@ -25,6 +25,8 @@ void Pose::printUsage()
 		"\n      Use pre-made segmented labels for every image to improve resolution of disparity images"
 		"\n  --jump_pixels [int]"
 		"\n      number of pixels to jump on in each direction to make 3D reconstruction. Make it 5 for faster but sparcer 3D reconstruction"
+		"\n  --seq_len [int]"
+		"\n      number of images to consider during online visualization cycles. Enter -1 to have a single cycle run"
 		"\n  --range_width [int]"
 		"\n      Number of nearby images to do pairwise matching on for every image"
 		"\n  --preview"
@@ -127,6 +129,12 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		{
 			search_radius = atof(argv[i + 1]);
 			cout << "search_radius " << search_radius << endl;
+			i++;
+		}
+		else if (string(argv[i]) == "--seq_len")
+		{
+			seq_len = atoi(argv[i + 1]);
+			cout << "seq_len " << seq_len << endl;
 			i++;
 		}
 		else if (string(argv[i]) == "--jump_pixels")
@@ -500,40 +508,58 @@ void Pose::populateData()
 	if(log_stuff)
 		log_file.open(save_log_to.c_str(), ios::out);
 	
+	//test load an image to fix rows, cols and cols_start_aft_cutout
+	Mat test_load_img = imread(imagePrefix + to_string(img_numbers[0]) + ".png");
+	rows = test_load_img.rows;
+	cols = test_load_img.cols;
+	cols_start_aft_cutout = (int)(cols/cutout_ratio);
+	
+	//4 cores, 2 threads per core, total 8 threads, 1 thread being used by main program, 7 addditional threads can be used here
 	const int divisions = 7;
 	const int imgs_per_division = ceil(1.0 * img_numbers.size() / divisions);
 	int i = 0;
+	cout << "\nMulti-threading sequences:" << endl;
+	cout << "divisions " << divisions << " imgs_per_division " << imgs_per_division << endl;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << (i+1) * imgs_per_division - 1 << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << (i+1) * imgs_per_division - 1 << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << (i+1) * imgs_per_division - 1 << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << (i+1) * imgs_per_division - 1 << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << (i+1) * imgs_per_division - 1 << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << (i+1) * imgs_per_division - 1 << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl;
+	
 	cout << "\nReading images using multithreading" << endl;
-	boost::thread img_thread1(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread img_thread2(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread img_thread3(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread img_thread4(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread img_thread5(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread img_thread6(&Pose::populateImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread img_thread7(&Pose::populateImages, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1));
+	i = 0;
+	boost::thread img_thread1(&Pose::populateImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread img_thread2(&Pose::populateImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread img_thread3(&Pose::populateImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread img_thread4(&Pose::populateImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread img_thread5(&Pose::populateImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread img_thread6(&Pose::populateImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread img_thread7(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1));
 	
 	//cout << "\nReading disparity images using multithreading" << endl;
 	i = 0;
-	boost::thread disp_thread1(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread disp_thread2(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread disp_thread3(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread disp_thread4(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread disp_thread5(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread disp_thread6(&Pose::populateDisparityImages, this, i * divisions, (i+1) * divisions - 1); i++;
-	boost::thread disp_thread7(&Pose::populateDisparityImages, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1));
+	boost::thread disp_thread1(&Pose::populateDisparityImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread disp_thread2(&Pose::populateDisparityImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread disp_thread3(&Pose::populateDisparityImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread disp_thread4(&Pose::populateDisparityImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread disp_thread5(&Pose::populateDisparityImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread disp_thread6(&Pose::populateDisparityImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+	boost::thread disp_thread7(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1));
 	
 	if(use_segment_labels)
 	{
 		segment_maps = vector<Mat>(img_numbers.size());
 		//cout << "\nReading segment label map images using multithreading" << endl;
 		i = 0;
-		boost::thread segment_map_thread1(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread segment_map_thread2(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread segment_map_thread3(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread segment_map_thread4(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread segment_map_thread5(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread segment_map_thread6(&Pose::populateSegmentLabelMaps, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread segment_map_thread7(&Pose::populateSegmentLabelMaps, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1));
+		boost::thread segment_map_thread1(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread segment_map_thread2(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread segment_map_thread3(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread segment_map_thread4(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread segment_map_thread5(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread segment_map_thread6(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread segment_map_thread7(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1));
 		segment_map_thread1.join();
 		segment_map_thread2.join();
 		segment_map_thread3.join();
@@ -562,13 +588,13 @@ void Pose::populateData()
 		double_disparity_images = vector<Mat>(img_numbers.size());
 		cout << "\n\nPopulating Double Disp Images using multithreading" << endl;
 		i = 0;
-		boost::thread double_disp_thread1(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread double_disp_thread2(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread double_disp_thread3(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread double_disp_thread4(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread double_disp_thread5(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread double_disp_thread6(&Pose::populateDoubleDispImages, this, i * divisions, (i+1) * divisions - 1); i++;
-		boost::thread double_disp_thread7(&Pose::populateDoubleDispImages, this, i * divisions, min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1)); i++;
+		boost::thread double_disp_thread1(&Pose::populateDoubleDispImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread double_disp_thread2(&Pose::populateDoubleDispImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread double_disp_thread3(&Pose::populateDoubleDispImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread double_disp_thread4(&Pose::populateDoubleDispImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread double_disp_thread5(&Pose::populateDoubleDispImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread double_disp_thread6(&Pose::populateDoubleDispImages, this, i * imgs_per_division, (i+1) * imgs_per_division - 1); i++;
+		boost::thread double_disp_thread7(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
 		double_disp_thread1.join();
 		double_disp_thread2.join();
 		double_disp_thread3.join();
@@ -578,7 +604,7 @@ void Pose::populateData()
 		double_disp_thread7.join();
 		cout << endl;
 		
-		//cout << "min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1) "  << min((i+1) * divisions - 1, (int)(img_numbers.size()) - 1) << endl;
+		//cout << "min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) "  << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl;
 	}
 	
 	//for (int i = 0; i < 2; i++)
@@ -596,33 +622,6 @@ void Pose::populateData()
 
 void Pose::findFeatures()
 {
-	Ptr<FeaturesFinder> finder;
-	if (features_type == "surf")
-	{
-#ifdef HAVE_OPENCV_XFEATURES2D
-		if (try_cuda && cuda::getCudaEnabledDeviceCount() > 0)
-			finder = makePtr<SurfFeaturesFinderGpu>();
-		else
-#endif
-			finder = makePtr<SurfFeaturesFinder>();
-	}
-	else if (features_type == "orb")
-	{
-		finder = makePtr<OrbFeaturesFinder>();
-	}
-	else if (features_type == "fast")
-	{
-		finder = makePtr<OrbFeaturesFinder>();
-	}
-	else
-	{
-		cout << "Unknown 2D features type: '" << features_type << "'.\n";
-		throw "Exception: Unknown 2D features type!";
-	}
-
-	//Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
-	//features = vector<ImageFeatures>(img_numbers.size());		//moved to main()
-	
 	cout << "\nFeatures";
 	for (int i = start_idx; i < end_idx + 1; ++i)
 	{
@@ -631,7 +630,7 @@ void Pose::findFeatures()
 		//detector->detect(img,keypointsD,Mat());
 		features[i].img_idx = i;
 		//features[i].keypoints = keypointsD;
-		cout << " " << features[i].keypoints.size() << std::flush;
+		cout << " " << img_numbers[i] << "/" << features[i].keypoints.size() << std::flush;
 	}
 	cout << endl;
 	finder->collectGarbage();
@@ -865,7 +864,7 @@ double Pose::getVariance(Mat disp_img, bool planeFitted)
 
 void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
-	cout << "Pt Cloud #" << img_index;
+	//cout << "Pt Cloud #" << img_index;
 	cloudrgb->is_dense = true;
 	
 	cv::Mat_<double> vec_tmp(4,1);
@@ -911,14 +910,14 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 			}
 		}
 	}
-	cout << " pts " << cloudrgb->points.size() << "\t";
+	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
 	if(log_stuff)
-		log_file << " pts " << cloudrgb->points.size() << endl;
+		log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
 }
 
 void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
-	cout << "Pt Cloud #" << img_index;
+	//cout << "Pt Cloud #" << img_index;
 	cloudrgb->is_dense = true;
 	
 	vector<KeyPoint> keypoints = features[img_index].keypoints;
@@ -996,9 +995,9 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 		}
 		y += jump_pixels;
 	}
-	cout << " pts " << cloudrgb->points.size() << "\t";
+	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
 	if(log_stuff)
-		log_file << " pts " << cloudrgb->points.size() << endl;
+		log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
 }
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
@@ -1194,7 +1193,7 @@ void area_picking_get_points (const pcl::visualization::AreaPickingEvent &event,
 		cout<<"No valid points selected!"<<std::endl; 
 }
 
-void Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name)
+boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name)
 {
 	cout << "Starting Visualization..." << endl;
 	
@@ -1203,44 +1202,42 @@ void Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>:
 	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
 	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
 	
-	pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer " + pt_cloud_name));
+	//pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
+	//pcl::visualization::PCLVisualizer *viewerPtr = &viewer;
 	if(showcloud)
 	{
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
-		viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+		viewer->addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
 	}
 	if(showmesh)
 	{
-		viewer.addPolygonMesh(mesh,"meshes",0);
+		viewer->addPolygonMesh(mesh,"meshes",0);
 	}
 	
 	if(displayCamPositions)
 	{
+		last_hexPos_cloud_points = hexPos_cloud->size();
 		for (int i = 0; i < hexPos_cloud->size(); i++)
 		{
-			//uint32_t rgb = hexPos_cloud->points[i].rgb;
-			//uint32_t r = rgb & 0xff0000;
-			//uint32_t g = (rgb >> 8) & 0x00ff00;
-			////uint8_t b = (rgb)     & 0x0000ff;
-			//cout << rgb << " ";
 			if(hexPos_cloud->points[i].r == 255)
-				viewer.addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "MAVLink"+to_string(i), 0);
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i), 0);
 			else if(hexPos_cloud->points[i].g == 255)
-				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "FM"+to_string(i), 0);
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i), 0);
 			else if(hexPos_cloud->points[i].b == 255)
-				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "FMFitted"+to_string(i), 0);
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
 			else
-				viewer.addSphere(hexPos_cloud->points[i], 0.1, "FMFittedaa"+to_string(i), 0);
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
 		}
 	}
 	
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
+	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
 
 	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 	
-	viewer.addCoordinateSystem (1.0, 0, 0, 0);
-	viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-	viewer.setPosition(1280/2, 720/2); // Setting visualiser window position
+	viewer->addCoordinateSystem (1.0, 0, 0, 0);
+	viewer->setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+	viewer->setPosition(0, 540); // Setting visualiser window position
 	
 	if(showcloud)
 	{
@@ -1251,15 +1248,68 @@ void Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>:
 		pointSelectors.point_indicies = point_indicies;
 		CloudandIndices *pointSelectorsPtr = &pointSelectors;
 		//reference http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
-		viewer.registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
+		viewer->registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
 	}
 
-	while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-		viewer.spinOnce();
+	if(wait_at_visualizer)
+	{
+		while (!viewer->wasStopped ()) { // Display the visualiser until 'q' key is pressed
+			viewer->spinOnce();
+		}
+		cout << "Cya!" << endl;
 	}
-	viewer.close();
+	else
+	{
+		viewer->spinOnce(1,true);
+	}
 	
-	cout << "Cya!" << endl;
+	return (viewer);
+}
+
+void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
+{
+	cout << "Visualization:" << endl;
+	
+	cout << "NOTE:" << endl;
+	cout << "- use h for help" << endl;
+	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
+	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
+	
+	//pcl::visualization::PCLVisualizer viewer = *viewerPtr;
+	
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
+	viewer->updatePointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+	
+	if(displayCamPositions)
+	{
+		//update old points
+		for (int i = 0; i < last_hexPos_cloud_points; i++)
+		{
+			if(hexPos_cloud->points[i].r == 255)
+				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i));
+			else if(hexPos_cloud->points[i].g == 255)
+				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i));
+			else if(hexPos_cloud->points[i].b == 255)
+				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i));
+			//else
+			//	viewer->updateSphere(hexPos_cloud->points[i], 0.1, "FMFittedaa"+to_string(i));
+		}
+		//add new points
+		for (int i = last_hexPos_cloud_points; i < hexPos_cloud->size(); i++)
+		{
+			if(hexPos_cloud->points[i].r == 255)
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i), 0);
+			else if(hexPos_cloud->points[i].g == 255)
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i), 0);
+			else if(hexPos_cloud->points[i].b == 255)
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
+			else
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
+		}
+		//update point counts
+		last_hexPos_cloud_points = hexPos_cloud->size();
+	}
+	viewer->spinOnce(1,true);
 }
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::read_PLY_File(string point_cloud_filename)
@@ -1342,7 +1392,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	for (int i = 0; i < cloudrgb_filtered->size(); i++)
 		cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
 	
-	cerr << "PointCloud after filtering: " << cloudrgb_filtered->width * cloudrgb_filtered->height 
+	cerr << "\nPointCloud after filtering: " << cloudrgb_filtered->width * cloudrgb_filtered->height 
 		<< " data points (" << pcl::getFieldsList (*cloudrgb_filtered) << ")." << endl;
 	
 	return cloudrgb_filtered;

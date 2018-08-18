@@ -51,7 +51,7 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 int jump_pixels = 1;
-int start_idx = 0, end_idx = 0, seq_len = 50;
+int start_idx = 0, end_idx = 0, seq_len = 30;
 
 bool mesh_surface = false;
 bool smooth_surface = false;
@@ -103,6 +103,7 @@ vector<double> pose_times_seq;
 //vector<double> heading_times_seq;
 
 bool displayCamPositions = false;
+bool wait_at_visualizer = true;
 bool log_stuff = false;
 bool preview = false;
 bool try_cuda = true;
@@ -118,14 +119,17 @@ vector<Mat> disparity_images;
 vector<Mat> segment_maps;
 vector<Mat> double_disparity_images;
 ofstream log_file;	//logging stuff
+Ptr<FeaturesFinder> finder;
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
 vector<vector<KeyPoint>> keypointsVec;
 //vector<cuda::GpuMat> descriptorsVec;
 Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
 
-//dumb variables
+//dumb variables -> try to remove them
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr hexPos_cloud;
+int last_hexPos_cloud_points = 0;
+boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer_online;
 
 //declaring functions
 void readCalibFile();
@@ -148,7 +152,8 @@ void printPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int num);
 const string currentDateTime();
 double getMean(Mat disp_img, bool planeFitted);
 double getVariance(Mat disp_img, bool planeFitted);
-void visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name);
+boost::shared_ptr<pcl::visualization::PCLVisualizer> visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name);
+void visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
@@ -168,6 +173,9 @@ void readSegmentLabelMap(int i);
 void populateImages(int start_index, int end_index);
 void readImage(int i);
 void populateDoubleDispImages(int start_index, int end_index);
+void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched, 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink, int cycle);
+
 
 };
 

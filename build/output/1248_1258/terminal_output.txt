@@ -1,0 +1,12 @@
+read images
+time start..
+converted images to grayscale
+created orb ptrs
+FOUND 500 keypoints on first image
+FOUND 500 keypoints on second image
+created matcher
+matched descriptors! matches: 500
+0.0264 sec/ 37.9505 fps
+matches 500 good_matches1 0 good_matches2 0
+currentDateTime=2018-08-16.14:37:45
+
