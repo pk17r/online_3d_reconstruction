@@ -61,13 +61,12 @@ bool downsample = false;
 bool downsample_transform = false;
 string downsample_transform_file = "";
 
-double voxel_size = 0.01; //in meters
+double voxel_size = 0.05; //in meters
 bool visualize = false;
 bool align_point_cloud = false;
 string read_PLY_filename0 = "";
 string read_PLY_filename1 = "";
 string currentDateTimeStr;
-//double reduction_ratio = 1;
 double focallength = 16.0 / 1000 / 3.75 * 1000000;
 double baseline = 600.0 / 1000;
 int cutout_ratio = 8;	//how much ratio of masking is to be done on left side of image as this area is not covered in stereo disparity images.
@@ -174,7 +173,7 @@ void populateImages(int start_index, int end_index);
 void readImage(int i);
 void populateDoubleDispImages(int start_index, int end_index);
 void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched, 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink, int cycle);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink, int cycle, int n_cycle);
 
 
 };
