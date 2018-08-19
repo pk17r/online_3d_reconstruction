@@ -174,7 +174,9 @@ void readImage(int i);
 void populateDoubleDispImages(int start_index, int end_index);
 void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched, 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink, int cycle, int n_cycle);
-
+void createAndTransformPtCloud(int img_index, 
+	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &transformed_cloudrgb);
 
 };
 

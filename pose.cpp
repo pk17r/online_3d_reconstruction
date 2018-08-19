@@ -198,24 +198,49 @@ Pose::Pose(int argc, char* argv[])
 		//adding new points to point cloud
 		cout << "Adding Point Cloud number/points ";
 		log_file << "Adding Point Cloud number/points ";
-		for (int i = start_idx; i < end_idx + 1; i++)
+		//for (int i = start_idx; i < end_idx + 1; i++)
+		int i = start_idx;
+		while(i < end_idx + 1)
 		{
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb ( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			int i0 = i;
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb2 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb3 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb4 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb5 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb6 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb7 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
 			
-			if(jump_pixels == 1)
-				createPtCloud(i, cloudrgb);
-			else
-				createFeaturePtCloud(i, cloudrgb);
-			//cout << "Created point cloud " << i << endl;
+			boost::thread pt_cloud_thread1, pt_cloud_thread2, pt_cloud_thread3, pt_cloud_thread4, pt_cloud_thread5, pt_cloud_thread6, pt_cloud_thread7;
 			
-			transformPtCloud(cloudrgb, transformed_cloudrgb, t_FMVec[i]);
+			pt_cloud_thread1 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb1);
+			if(++i < end_idx + 1) pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb2);
+			if(++i < end_idx + 1) pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb3);
+			if(++i < end_idx + 1) pt_cloud_thread4 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb4);
+			if(++i < end_idx + 1) pt_cloud_thread5 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb5);
+			if(++i < end_idx + 1) pt_cloud_thread6 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb6);
+			if(++i < end_idx + 1) pt_cloud_thread7 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb7);
+			
 			
 			//generating the bigger point cloud
+			pt_cloud_thread1.join();
+			i = i0;
 			if (i == 0)
-				copyPointCloud(*transformed_cloudrgb,*cloudrgb_FeatureMatched);
+				copyPointCloud(*transformed_cloudrgb1,*cloudrgb_FeatureMatched);
 			else
-				cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb->begin(),transformed_cloudrgb->end());
+				cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb1->begin(),transformed_cloudrgb1->end());
+			pt_cloud_thread2.join();
+			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb2->begin(),transformed_cloudrgb2->end());
+			pt_cloud_thread3.join();
+			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb3->begin(),transformed_cloudrgb3->end());
+			pt_cloud_thread4.join();
+			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb4->begin(),transformed_cloudrgb4->end());
+			pt_cloud_thread5.join();
+			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb5->begin(),transformed_cloudrgb5->end());
+			pt_cloud_thread6.join();
+			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb6->begin(),transformed_cloudrgb6->end());
+			pt_cloud_thread7.join();
+			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb7->begin(),transformed_cloudrgb7->end());
 			//cout << "Transformed and added." << endl;
 		}
 		log_file << endl;
@@ -223,20 +248,26 @@ Pose::Pose(int argc, char* argv[])
 		cout << "\nPoint Cloud Creation time: " << ((t1 - t0) / getTickFrequency()) << " sec" << endl;
 		log_file << "\nPoint Cloud Creation time: " << ((t1 - t0) / getTickFrequency()) << " sec" << endl;
 		
+		//downsample
+		wait_at_visualizer = false;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FM_Fitted_downsampled_Online = downsamplePtCloud(cloudrgb_FeatureMatched);
+		
+		//adding the new downsampled points to old downsampled cloud
+		cout << "downsampling..." << endl;
+		cloud_downsampled->insert(cloud_downsampled->end(),cloudrgb_FM_Fitted_downsampled_Online->begin(),cloudrgb_FM_Fitted_downsampled_Online->end());
+		cout << "downsampled." << endl;
+		//downsampling again to clean joining areas
+		cloud_downsampled = downsamplePtCloud(cloud_downsampled);
+		cout << "clouds combined." << endl;
+		
+		int64 t2 = getTickCount();
+		
+		cout << "\nDownsampling time: " << ((t2 - t1) / getTickFrequency()) << " sec" << endl;
+		log_file << "\nDownsampling time: " << ((t2 - t1) / getTickFrequency()) << " sec" << endl;
+		
 		//visualize
-		if(preview && seq_len != -1)
-		{
-			wait_at_visualizer = false;
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FM_Fitted_downsampled_Online = downsamplePtCloud(cloudrgb_FeatureMatched);
-			
-			//adding the new downsampled points to old downsampled cloud
-			cout << "downsampling..." << endl;
-			cloud_downsampled->insert(cloud_downsampled->end(),cloudrgb_FM_Fitted_downsampled_Online->begin(),cloudrgb_FM_Fitted_downsampled_Online->end());
-			cout << "downsampled." << endl;
-			//downsampling again to clean joining areas
-			cloud_downsampled = downsamplePtCloud(cloud_downsampled);
-			cout << "clouds combined." << endl;
-			
+		if(preview)
+		{		
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_downsampled_copy (new pcl::PointCloud<pcl::PointXYZRGB>());
 			copyPointCloud(*cloud_downsampled, *cloud_downsampled_copy);
 			
@@ -245,11 +276,11 @@ Pose::Pose(int argc, char* argv[])
 			
 			the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_downsampled_copy, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, n_cycle);
 		}
-		int64 t2 = getTickCount();
-		cout << "\nDownsampling time: " << ((t2 - t1) / getTickFrequency()) << " sec" << endl;
-		log_file << "\nDownsampling time: " << ((t2 - t1) / getTickFrequency()) << " sec" << endl;
-		cout << "\nCycle time: " << ((t2 - t0) / getTickFrequency()) << " sec" << endl;
-		log_file << "\nCycle time: " << ((t2 - t0) / getTickFrequency()) << " sec" << endl;
+		
+		int64 t3 = getTickCount();
+		
+		cout << "\nCycle time: " << ((t3 - t0) / getTickFrequency()) << " sec" << endl;
+		log_file << "\nCycle time: " << ((t3 - t0) / getTickFrequency()) << " sec" << endl;
 	}
 	
 	int64 tend = getTickCount();
@@ -301,19 +332,26 @@ Pose::Pose(int argc, char* argv[])
 	log_file.close();
 	//t1.join();
 	
-	if(preview && seq_len != -1)
+	if(preview)
 		the_visualization_thread.join();
+}
+
+void Pose::createAndTransformPtCloud(int img_index, 
+	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &downsampled_cloudrgb)
+{
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	
-	if(preview && seq_len == -1)
-	{
-		wait_at_visualizer = true;
-		displayCamPositions = true;
-		hexPos_cloud = cloud_hexPos_FM;
-		pcl::PolygonMesh mesh;
-		//visualize_pt_cloud(true, cloud_hexPos_FM, false, mesh, "cloud_hexPos red:MAVLink green:FeatureMatched");
-		visualize_pt_cloud(true, cloud_downsampled, false, mesh, "cloudrgb_visualization");
-	}
+	if(jump_pixels == 1)
+		createPtCloud(img_index, cloudrgb);
+	else
+		createFeaturePtCloud(img_index, cloudrgb);
+	//cout << "Created point cloud " << i << endl;
 	
+	transformPtCloud(cloudrgb, cloudrgb, t_FMVec[img_index]);
+	
+	cloudrgb = downsamplePtCloud(cloudrgb);
+	copyPointCloud(*cloudrgb, *downsampled_cloudrgb);
 }
 
 void Pose::displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FM_Fitted_downsampled_Online, 
