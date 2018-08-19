@@ -62,6 +62,8 @@ bool downsample_transform = false;
 string downsample_transform_file = "";
 
 double voxel_size = 0.05; //in meters
+double max_depth = 2; //in meters
+double max_height = 4; //in meters
 bool visualize = false;
 bool align_point_cloud = false;
 string read_PLY_filename0 = "";
