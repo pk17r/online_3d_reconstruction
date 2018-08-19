@@ -179,6 +179,8 @@ void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_Fea
 void createAndTransformPtCloud(int img_index, 
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &transformed_cloudrgb);
+void findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+
 
 };
 

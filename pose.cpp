@@ -179,6 +179,11 @@ Pose::Pose(int argc, char* argv[])
 		cout << "Completed calculating feature matched transformations." << endl;
 		log_file << "Completed calculating feature matched transformations." << endl;
 		
+		//cout << "cloud_hexPos_FM: ";
+		//findNormalOfPtCloud(cloud_hexPos_FM);
+		//cout << "cloud_hexPos_MAVLink: ";
+		//findNormalOfPtCloud(cloud_hexPos_MAVLink);
+		
 		//transforming the camera positions using ICP
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
 		
@@ -333,6 +338,35 @@ Pose::Pose(int argc, char* argv[])
 	
 	if(preview)
 		the_visualization_thread.join();
+}
+
+void Pose::findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+{
+	// Create the normal estimation class, and pass the input dataset to it
+	pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+	ne.setInputCloud (cloud);
+
+	// Create an empty kdtree representation, and pass it to the normal estimation object.
+	// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+	ne.setSearchMethod (tree);
+
+	// Output datasets
+	pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+
+	// Use all neighbors in a sphere of radius 3cm
+	ne.setRadiusSearch (1000);
+
+	// Compute the features
+	ne.compute (*cloud_normals);
+
+	// cloud_normals->points.size () should have the same size as the input cloud->points.size ()*
+	cout << "cloud_normals->size() " << cloud_normals->size() << endl;
+	for (int i = 0; i < cloud_normals->size(); i++)
+	{
+		cout << cloud_normals->points[i].normal_x << " " << cloud_normals->points[i].normal_y << " " << cloud_normals->points[i].normal_z << " " << endl;
+	}
+	
 }
 
 void Pose::createAndTransformPtCloud(int img_index, 
