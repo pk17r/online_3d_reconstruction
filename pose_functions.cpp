@@ -1169,12 +1169,19 @@ struct CloudandIndices
 	pcl::PointIndices::Ptr point_indicies; 
 }; 
 
+double x_last_pt = 0;
+double y_last_pt = 0;
+double z_last_pt = 0;
+bool calc_height = false;
 //This gets all of the indices that you box out.   
 void area_picking_get_points (const pcl::visualization::AreaPickingEvent &event, void* cloudStruct)
-{ 
+{
+	cout << "inside area_picking_get_points" << endl;
 	struct CloudandIndices *cloudInfoStruct = (struct CloudandIndices*) cloudStruct;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tempCloud = cloudInfoStruct->cloud_ptr;
 	pcl::PointIndices::Ptr point_indices_ = cloudInfoStruct->point_indicies;
+	//cout << "points in tempCloud " << tempCloud->size() << endl;
+	//cout << "points in point_indices_ " << point_indices_->indices.size() << endl;
 	
 	if (event.getPointsIndices (point_indices_->indices)) 
 	{ 
@@ -1205,6 +1212,23 @@ void area_picking_get_points (const pcl::visualization::AreaPickingEvent &event,
 		var_z /= (point_indices_->indices.size() - 1);
 		
 		cout << " mean (" << x << "," << y << "," << z << ")" << " std (" << sqrt(var_x) << "," << sqrt(var_y) << "," << sqrt(var_z) << ")" << endl;
+		
+		if (calc_height)
+		{
+			double height = z - z_last_pt;
+			double distange = sqrt((x - x_last_pt)*(x - x_last_pt) + (y - y_last_pt)*(y - y_last_pt));
+			cout << "difference between last two points: height " << height << " distance: " << distange << endl;
+			calc_height = false;
+		}
+		else
+		{
+			x_last_pt = x;
+			y_last_pt = y;
+			z_last_pt = z;
+			calc_height = true;
+		}
+		
+		
 	}
 	else 
 		cout<<"No valid points selected!"<<std::endl; 
@@ -1218,6 +1242,7 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 	cout << "- use h for help" << endl;
 	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
 	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
+	cout << "visualizing cloud with " << cloudrgb->size() << " points" << endl;
 	
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer " + pt_cloud_name));
 	//pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
@@ -1256,18 +1281,6 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 	viewer->setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
 	viewer->setPosition(0, 540); // Setting visualiser window position
 	
-	if(showcloud)
-	{
-		// Struct Pointers for Passing Cloud to Events/Callbacks ----------- some of this may be redundant 
-		pcl::PointIndices::Ptr point_indicies (new pcl::PointIndices());
-		struct CloudandIndices pointSelectors;
-		pointSelectors.cloud_ptr = cloudrgb;
-		pointSelectors.point_indicies = point_indicies;
-		CloudandIndices *pointSelectorsPtr = &pointSelectors;
-		//reference http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
-		viewer->registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
-	}
-
 	if(wait_at_visualizer)
 	{
 		while (!viewer->wasStopped ()) { // Display the visualiser until 'q' key is pressed
@@ -1281,6 +1294,46 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 	}
 	
 	return (viewer);
+}
+
+//another visualization function made just for noting height difference and location
+void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name)
+{
+	cout << "Starting Visualization..." << endl;
+	
+	cout << "NOTE:" << endl;
+	cout << "- use h for help" << endl;
+	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
+	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
+	cout << "visualizing cloud with " << cloudrgb->size() << " points" << endl;
+	
+	//boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer " + pt_cloud_name));
+	pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
+	//pcl::visualization::PCLVisualizer *viewerPtr = &viewer;
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
+	viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+	
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, pt_cloud_name);
+
+	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
+	
+	viewer.addCoordinateSystem (1.0, 0, 0, 0);
+	viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+	viewer.setPosition(0, 540); // Setting visualiser window position
+	
+	// Struct Pointers for Passing Cloud to Events/Callbacks ----------- some of this may be redundant 
+	pcl::PointIndices::Ptr point_indicies (new pcl::PointIndices());
+	struct CloudandIndices pointSelectors;
+	pointSelectors.cloud_ptr = cloudrgb;
+	pointSelectors.point_indicies = point_indicies;
+	CloudandIndices *pointSelectorsPtr = &pointSelectors;
+	//reference http://www.pcl-users.org/Select-set-of-points-using-mouse-td3424113.html
+	viewer.registerAreaPickingCallback (area_picking_get_points, (void*)pointSelectorsPtr);
+	cout << "registered viewer" << endl;
+
+	while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
+		viewer.spinOnce();
+	}
 }
 
 void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)

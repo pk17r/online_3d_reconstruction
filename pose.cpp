@@ -23,8 +23,8 @@ Pose::Pose(int argc, char* argv[])
 		if(displayCamPositions)
 			hexPos_cloud = read_PLY_File(read_PLY_filename1);
 		pcl::PolygonMesh mesh;
-		visualize_pt_cloud(true, cloudrgb, false, mesh, read_PLY_filename0);
-		cout << "Cya!" << endl;
+		//visualize_pt_cloud(true, cloudrgb, false, mesh, read_PLY_filename0);
+		visualize_pt_cloud(cloudrgb, read_PLY_filename0);
 		return;
 	}
 	
@@ -108,11 +108,11 @@ Pose::Pose(int argc, char* argv[])
 	
 	//main point clouds
 	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched_big (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_downsampled (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	cloud_downsampled->is_dense = true;
 	//cloudrgb_MAVLink->is_dense = true;
-	//cloudrgb_FeatureMatched->is_dense = true;
+	cloudrgb_FeatureMatched_big->is_dense = true;
 	
 	//vectors to store transformations of point clouds
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_matVec;
@@ -148,8 +148,9 @@ Pose::Pose(int argc, char* argv[])
 		cout << "\nImages " << start_idx << " to " << end_idx << endl;
 		log_file << "\nImages " << start_idx << " to " << end_idx << endl;
 		findFeatures();
-		cout << "\nFinding features, time: " << ((getTickCount() - t0) / getTickFrequency()) << " sec\n" << endl;
-		log_file << "\nFinding features, time: " << ((getTickCount() - t0) / getTickFrequency()) << " sec\n" << endl;
+		int64 t1 = getTickCount();
+		cout << "\nFinding features, time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
+		log_file << "\nFinding features, time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
 
 		for (int i = start_idx; i < end_idx + 1; i++)
 		{
@@ -176,8 +177,9 @@ Pose::Pose(int argc, char* argv[])
 			pcl::PointXYZRGB hexPosFM = transformPoint(hexPosMAVLink, T_SVD_matched_pts);
 			cloud_hexPos_FM->points.push_back(hexPosFM);
 		}
-		cout << "Completed calculating feature matched transformations." << endl;
-		log_file << "Completed calculating feature matched transformations." << endl;
+		int64 t2 = getTickCount();
+		cout << "\nMatching features and finding transformations time: " << (t2 - t1) / getTickFrequency() << " sec\n" << endl;
+		log_file << "\nMatching features and finding transformations time: " << (t2 - t1) / getTickFrequency() << " sec\n" << endl;
 		
 		//cout << "cloud_hexPos_FM: ";
 		//findNormalOfPtCloud(cloud_hexPos_FM);
@@ -200,10 +202,15 @@ Pose::Pose(int argc, char* argv[])
 		//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
 		transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, tf_icp);
 		
+		int64 t3 = getTickCount();
+		cout << "\nICP alignment and point cloud correction time: " << (t3 - t2) / getTickFrequency() << " sec\n" << endl;
+		log_file << "\nICP alignment and point cloud correction time: " << (t3 - t2) / getTickFrequency() << " sec\n" << endl;
+		
 		//adding new points to point cloud
 		cout << "Adding Point Cloud number/points ";
 		log_file << "Adding Point Cloud number/points ";
 		//for (int i = start_idx; i < end_idx + 1; i++)
+		voxel_size /= 10;
 		int i = start_idx;
 		while(i < end_idx + 1)
 		{
@@ -248,10 +255,12 @@ Pose::Pose(int argc, char* argv[])
 			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb7->begin(),transformed_cloudrgb7->end());
 			//cout << "Transformed and added." << endl;
 		}
+		voxel_size *= 10;
 		log_file << endl;
-		int64 t1 = getTickCount();
-		cout << "\n\nPoint Cloud Creation time: " << ((t1 - t0) / getTickFrequency()) << " sec" << endl;
-		log_file << "\n\nPoint Cloud Creation time: " << ((t1 - t0) / getTickFrequency()) << " sec" << endl;
+		
+		int64 t4 = getTickCount();
+		cout << "\n\nPoint Cloud Creation time: " << (t4 - t3) / getTickFrequency() << " sec" << endl;
+		log_file << "\n\nPoint Cloud Creation time: " << (t4 - t3) / getTickFrequency() << " sec" << endl;
 		
 		//downsample
 		wait_at_visualizer = false;
@@ -262,12 +271,12 @@ Pose::Pose(int argc, char* argv[])
 		cout << "downsampled." << endl;
 		//downsampling again to clean joining areas
 		cloud_downsampled = downsamplePtCloud(cloud_downsampled);
-		cout << "clouds combined." << endl;
+		cout << "clouds combined and downsampled again to clean edges." << endl;
 		
-		int64 t2 = getTickCount();
+		int64 t5 = getTickCount();
 		
-		cout << "\nDownsampling time: " << ((t2 - t1) / getTickFrequency()) << " sec" << endl;
-		log_file << "\nDownsampling time: " << ((t2 - t1) / getTickFrequency()) << " sec" << endl;
+		cout << "\nDownsampling time: " << (t5 - t4) / getTickFrequency() << " sec" << endl;
+		log_file << "\nDownsampling time: " << (t5 - t4) / getTickFrequency() << " sec" << endl;
 		
 		//visualize
 		if(preview)
@@ -281,10 +290,16 @@ Pose::Pose(int argc, char* argv[])
 			the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_downsampled_copy, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, n_cycle);
 		}
 		
-		int64 t3 = getTickCount();
+		int64 t6 = getTickCount();
 		
-		cout << "\nCycle time: " << ((t3 - t0) / getTickFrequency()) << " sec" << endl;
-		log_file << "\nCycle time: " << ((t3 - t0) / getTickFrequency()) << " sec" << endl;
+		cout << "\nCycle time: " << (t6 - t0) / getTickFrequency() << " sec" << endl;
+		log_file << "\nCycle time: " << (t6 - t0) / getTickFrequency() << " sec" << endl;
+		
+		if(seq_len == -1)
+		{
+			copyPointCloud(*cloudrgb_FeatureMatched,*cloudrgb_FeatureMatched_big);
+			cout << "cloudrgb_FeatureMatched_big->size() " << cloudrgb_FeatureMatched_big->size() << endl;
+		}
 	}
 	
 	int64 tend = getTickCount();
@@ -302,8 +317,9 @@ Pose::Pose(int argc, char* argv[])
 	save_pt_cloud_to_PLY_File(cloud_downsampled, read_PLY_filename0);
 	//read_PLY_filename0 = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
 	//save_pt_cloud_to_PLY_File(cloudrgb_MAVLink, read_PLY_filename0);
-	//read_PLY_filename1 = folder + "cloud.ply";
-	//save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched, read_PLY_filename1);
+	read_PLY_filename1 = folder + "cloud_big.ply";
+	if(seq_len == -1)
+		save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched_big, read_PLY_filename1);
 	//boost::thread t1(&Pose::save_pt_cloud_to_PLY_File, this, cloudrgb_FeatureMatched, read_PLY_filename1);
 	
 	//downsampling
@@ -334,7 +350,8 @@ Pose::Pose(int argc, char* argv[])
 	;
 	fs.release();	// close Settings file
 	log_file.close();
-	//t1.join();
+	//if(seq_len == -1)
+	//	t1.join();
 	
 	if(preview)
 		the_visualization_thread.join();
