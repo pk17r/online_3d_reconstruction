@@ -20,7 +20,7 @@ Pose::Pose(int argc, char* argv[])
 	if (visualize)
 	{
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
-		if(displayCamPositions)
+		if(displayUAVPositions)
 			hexPos_cloud = read_PLY_File(read_PLY_filename1);
 		pcl::PolygonMesh mesh;
 		//visualize_pt_cloud(true, cloudrgb, false, mesh, read_PLY_filename0);
@@ -152,12 +152,14 @@ Pose::Pose(int argc, char* argv[])
 		cout << "\nFinding features, time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
 		log_file << "\nFinding features, time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
 
+		log_file << "\nrecorded hexacopter positions" << endl;
 		for (int i = start_idx; i < end_idx + 1; i++)
 		{
 			//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
 			int pose_index = data_index_finder(img_numbers[i]);
 			pcl::PointXYZRGB hexPosMAVLink = addPointFromPoseFile(pose_index);
 			cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
+			log_file << img_numbers[i] << "," << pose_data[pose_index][tx_ind] << "," << pose_data[pose_index][ty_ind] << "," << pose_data[pose_index][tz_ind] << endl;
 			
 			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
 			t_matVec.push_back(t_mat);
@@ -165,6 +167,7 @@ Pose::Pose(int argc, char* argv[])
 			if (i == 0)
 			{
 				t_FMVec.push_back(t_mat);
+				cloud_hexPos_FM->points.push_back(hexPosMAVLink);
 				continue;
 			}
 			
@@ -186,6 +189,10 @@ Pose::Pose(int argc, char* argv[])
 		//cout << "cloud_hexPos_MAVLink: ";
 		//findNormalOfPtCloud(cloud_hexPos_MAVLink);
 		
+		log_file << "\nfeature matched hexacopter positions" << endl;
+		for (int i = start_idx; i < end_idx + 1; i++)
+			log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
+		
 		//transforming the camera positions using ICP
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
 		
@@ -201,6 +208,10 @@ Pose::Pose(int argc, char* argv[])
 		
 		//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
 		transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, tf_icp);
+		
+		log_file << "\ncorrected hexacopter positions" << endl;
+		for (int i = start_idx; i < end_idx + 1; i++)
+			log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
 		
 		int64 t3 = getTickCount();
 		cout << "\nICP alignment and point cloud correction time: " << (t3 - t2) / getTickFrequency() << " sec\n" << endl;
@@ -317,9 +328,9 @@ Pose::Pose(int argc, char* argv[])
 	save_pt_cloud_to_PLY_File(cloud_downsampled, read_PLY_filename0);
 	//read_PLY_filename0 = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
 	//save_pt_cloud_to_PLY_File(cloudrgb_MAVLink, read_PLY_filename0);
-	read_PLY_filename1 = folder + "cloud_big.ply";
-	if(seq_len == -1)
-		save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched_big, read_PLY_filename1);
+	//read_PLY_filename1 = folder + "cloud_big.ply";
+	//if(seq_len == -1)
+	//	save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched_big, read_PLY_filename1);
 	//boost::thread t1(&Pose::save_pt_cloud_to_PLY_File, this, cloudrgb_FeatureMatched, read_PLY_filename1);
 	
 	//downsampling
@@ -335,7 +346,7 @@ Pose::Pose(int argc, char* argv[])
 	//save_pt_cloud_to_PLY_File(cloudrgb_FeatureMatched_downsamp, read_PLY_filename1);
 	
 	cloud_hexPos_FM->insert(cloud_hexPos_FM->end(),cloud_hexPos_MAVLink->begin(),cloud_hexPos_MAVLink->end());
-	string hexpos_filename = folder + "cloud_hexpos.ply";
+	string hexpos_filename = folder + "cloud_uavpos.ply";
 	save_pt_cloud_to_PLY_File(cloud_hexPos_FM, hexpos_filename);
 	
 	//save settings for future reference
@@ -412,7 +423,7 @@ void Pose::displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudr
 	wait_at_visualizer = false;
 	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FM_Fitted_downsampled_Online = downsamplePtCloud(cloudrgb_FeatureMatched_copy);
 	
-	displayCamPositions = true;
+	displayUAVPositions = true;
 	pcl::PolygonMesh mesh;
 	//visualize_pt_cloud(true, cloudrgb_FeatureMatched_downsampA, false, mesh, "cloudrgb_FM_Fitted_downsampledA");
 	

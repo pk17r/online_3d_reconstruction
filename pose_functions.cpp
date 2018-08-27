@@ -24,7 +24,8 @@ void Pose::printUsage()
 		"\n  --use_segment_labels"
 		"\n      Use pre-made segmented labels for every image to improve resolution of disparity images"
 		"\n  --jump_pixels [int]"
-		"\n      number of pixels to jump on in each direction to make 3D reconstruction. Make it 5 for faster but sparcer 3D reconstruction"
+		"\n      number of pixels to jump on in each direction to make semi-dense 3D reconstruction"
+		"\n      to get sparse 3D reconstruction put this as 0"
 		"\n  --seq_len [int]"
 		"\n      number of images to consider during online visualization cycles. Enter -1 to have a single cycle run"
 		"\n  --max_depth [double]"
@@ -37,13 +38,14 @@ void Pose::printUsage()
 		"\n      visualize generated point cloud at the end"
 		"\n  --visualize [Pt Cloud filename]"
 		"\n      Visualize a given point cloud"
-		"\n  --displayCamPositions [Pt Cloud filename]"
+		"\n  --displayUAVPositions [Pt Cloud filename]"
 		"\n      Display hexacopter positions along with point cloud during visualization"
 		"\n  --align_point_cloud [Pt Cloud 1] [Pt Cloud 2]"
 		"\n      Align point clouds using ICP algorithm"
+		"\n  --voxel_size [float]"
+		"\n      Voxel size in m to find average value of points for downsampling"
 		"\n  --downsample [Pt Cloud file name] (optional)--voxel_size [float]"
 		"\n      Downsample a point cloud along with optional voxel size in meters"
-		"\n      Voxel size in m to find average value of points for downsampling"
 		"\n  --smooth_surface [Pt Cloud file name] (optional)--search_radius [float]"
 		"\n      Smooth surface"
 		"\n  --mesh_surface [Pt Cloud file name]"
@@ -108,13 +110,13 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "Downsample " << read_PLY_filename0 << endl;
 			i++;
 		}
-		else if (string(argv[i]) == "--displayCamPositions")
+		else if (string(argv[i]) == "--displayUAVPositions")
 		{
-			displayCamPositions = true;
+			displayUAVPositions = true;
 			n_imgs = 1;		//just to stop program from reading images.txt file
 			read_PLY_filename1 = string(argv[i + 1]);
 			i++;
-			cout << "displayCamPositions " << read_PLY_filename1 << endl;
+			cout << "displayUAVPositions " << read_PLY_filename1 << endl;
 		}
 		else if (string(argv[i]) == "--downsample_transform")
 		{
@@ -976,41 +978,44 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 			//cout << pt_3d << endl;
 		}
 	}
-	for (int y = boundingBox; y < rows - boundingBox;)
+	if (jump_pixels > 0)
 	{
-		for (int x = cols_start_aft_cutout; x < cols - boundingBox;)
+		for (int y = boundingBox; y < rows - boundingBox;)
 		{
-			double disp_val = 0;
-			//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
-			//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
-			if(use_segment_labels)
-				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
-			else
-				disp_val = (double)disp_img.at<uchar>(y,x);
-			//cout << "disp_val " << disp_val << endl;
-			
-			if (disp_val > minDisparity)
+			for (int x = cols_start_aft_cutout; x < cols - boundingBox;)
 			{
-				//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
-				vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
-				vec_tmp = Q*vec_tmp;
-				vec_tmp /= vec_tmp(3);
+				double disp_val = 0;
+				//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
+				//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
+				if(use_segment_labels)
+					disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+				else
+					disp_val = (double)disp_img.at<uchar>(y,x);
+				//cout << "disp_val " << disp_val << endl;
 				
-				pcl::PointXYZRGB pt_3drgb;
-				pt_3drgb.x = (float)vec_tmp(0);
-				pt_3drgb.y = (float)vec_tmp(1);
-				pt_3drgb.z = (float)vec_tmp(2);
-				Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
-				
-				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
-				
-				cloudrgb->points.push_back(pt_3drgb);
-				//cout << pt_3d << endl;
+				if (disp_val > minDisparity)
+				{
+					//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+					vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
+					vec_tmp = Q*vec_tmp;
+					vec_tmp /= vec_tmp(3);
+					
+					pcl::PointXYZRGB pt_3drgb;
+					pt_3drgb.x = (float)vec_tmp(0);
+					pt_3drgb.y = (float)vec_tmp(1);
+					pt_3drgb.z = (float)vec_tmp(2);
+					Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
+					
+					uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+					pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
+					
+					cloudrgb->points.push_back(pt_3drgb);
+					//cout << pt_3d << endl;
+				}
+				x += jump_pixels;
 			}
-			x += jump_pixels;
+			y += jump_pixels;
 		}
-		y += jump_pixels;
 	}
 	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
 	if(log_stuff)
@@ -1257,7 +1262,7 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 		viewer->addPolygonMesh(mesh,"meshes",0);
 	}
 	
-	if(displayCamPositions)
+	if(displayUAVPositions)
 	{
 		last_hexPos_cloud_points = hexPos_cloud->size();
 		for (int i = 0; i < hexPos_cloud->size(); i++)
@@ -1312,7 +1317,20 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 	//pcl::visualization::PCLVisualizer *viewerPtr = &viewer;
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
 	viewer.addPointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
-	
+	if(displayUAVPositions)
+	{
+		for (int i = 0; i < hexPos_cloud->size(); i++)
+		{
+			if(hexPos_cloud->points[i].r == 255)
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i), 0);
+			else if(hexPos_cloud->points[i].g == 255)
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i), 0);
+			else if(hexPos_cloud->points[i].b == 255)
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
+			else
+				viewer.addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
+		}
+	}
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, pt_cloud_name);
 
 	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
@@ -1350,7 +1368,7 @@ void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
 	viewer->updatePointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
 	
-	if(displayCamPositions)
+	if(displayUAVPositions)
 	{
 		//update old points
 		for (int i = 0; i < last_hexPos_cloud_points; i++)

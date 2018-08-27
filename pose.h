@@ -103,7 +103,7 @@ vector<double> images_times_seq;
 vector<double> pose_times_seq;
 //vector<double> heading_times_seq;
 
-bool displayCamPositions = false;
+bool displayUAVPositions = false;
 bool wait_at_visualizer = true;
 bool log_stuff = false;
 bool preview = false;
