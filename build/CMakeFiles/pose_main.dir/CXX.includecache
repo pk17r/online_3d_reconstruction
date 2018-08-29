@@ -45,6 +45,8 @@ pcl/registration/transformation_estimation.h
 -
 pcl/registration/transformation_estimation_svd.h
 -
+pcl/registration/transformation_estimation_svd_scale.h
+-
 pcl/filters/voxel_grid.h
 -
 pcl/features/normal_3d.h
@@ -2160,6 +2162,8 @@ pcl/cloud_iterator.h
 pcl/common/eigen.h
 -
 
+/usr/include/pcl-1.8/pcl/registration/impl/transformation_estimation_svd_scale.hpp
+
 /usr/include/pcl-1.8/pcl/registration/registration.h
 pcl/pcl_base.h
 -
@@ -2206,6 +2210,12 @@ pcl/registration/transformation_estimation.h
 pcl/cloud_iterator.h
 -
 pcl/registration/impl/transformation_estimation_svd.hpp
+-
+
+/usr/include/pcl-1.8/pcl/registration/transformation_estimation_svd_scale.h
+pcl/registration/transformation_estimation_svd.h
+-
+pcl/registration/impl/transformation_estimation_svd_scale.hpp
 -
 
 /usr/include/pcl-1.8/pcl/registration/warp_point_rigid.h

@@ -44,14 +44,16 @@ void Pose::printUsage()
 		"\n      Align point clouds using ICP algorithm"
 		"\n  --voxel_size [float]"
 		"\n      Voxel size in m to find average value of points for downsampling"
+		"\n  --blur_kernel [int]"
+		"\n      Blur kernel size to blur disparity image to reject outliers. Current implementation is of either median blur or bilateral blur"
 		"\n  --downsample [Pt Cloud file name] (optional)--voxel_size [float]"
 		"\n      Downsample a point cloud along with optional voxel size in meters"
 		"\n  --smooth_surface [Pt Cloud file name] (optional)--search_radius [float]"
 		"\n      Smooth surface"
 		"\n  --mesh_surface [Pt Cloud file name]"
 		"\n      Mesh surface using triangulation"
-		"\n  --log"
-		"\n      log most things in output/log.txt file"
+		"\n  --log 0/1"
+		"\n      log most things in log.txt file. Default true. Enter 0 to stop logging."
 		<< endl;
 }
 
@@ -132,6 +134,12 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "voxel_size " << voxel_size << endl;
 			i++;
 		}
+		else if (string(argv[i]) == "--blur_kernel")
+		{
+			blur_kernel = atoi(argv[i + 1]);
+			cout << "blur_kernel " << blur_kernel << endl;
+			i++;
+		}
 		else if (string(argv[i]) == "--max_depth")
 		{
 			max_depth = atof(argv[i + 1]);
@@ -175,8 +183,11 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		}
 		else if (string(argv[i]) == "--log")
 		{
-			cout << "log" << endl;
-			log_stuff = true;
+			int log_val = atoi(argv[i + 1]);
+			i++;
+			if (log_val == 0) log_stuff = false;
+			else log_stuff = true;
+			cout << "log " << log_stuff << endl;
 		}
 		else if (string(argv[i]) == "--preview")
 		{
@@ -469,10 +480,15 @@ void Pose::populateImages(int start_index, int end_index)
 
 void Pose::readDisparityImage(int i)
 {
-	disparity_images[i] = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-	if(disparity_images[i].empty())
+	Mat disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	if(disp_img.empty())
 		throw "Exception: cannot read disp_image " + to_string(img_numbers[i]) + "!";
 	
+	//blur the disparity image to remove noise
+	Mat disp_img_blurred;
+	//bilateralFilter ( disp_img, disp_img_blurred, blur_kernel, blur_kernel*2, blur_kernel/2 );
+	medianBlur ( disp_img, disp_img_blurred, blur_kernel );
+	disparity_images[i] = disp_img_blurred;
 	if (release)
 	{
 		double disp_img_var = getVariance(disparity_images[i], false);
@@ -930,8 +946,8 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 		}
 	}
 	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
-	if(log_stuff)
-		log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
+	//if(log_stuff)
+	//	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
 }
 
 void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
@@ -1018,8 +1034,8 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 		}
 	}
 	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
-	if(log_stuff)
-		log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
+	//if(log_stuff)
+	//	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
 }
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
@@ -1278,7 +1294,7 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 		}
 	}
 	
-	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, pt_cloud_name);
+	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
 
 	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 	
@@ -1331,7 +1347,7 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 				viewer.addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
 		}
 	}
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, pt_cloud_name);
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
 
 	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 	
@@ -1497,7 +1513,6 @@ void Pose::smoothPtCloud()
 {
 	int64 t0 = getTickCount();
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
-
 	// Create a KD-Tree
 	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
 

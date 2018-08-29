@@ -316,10 +316,12 @@ CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/impl/icp.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/impl/registration.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/impl/transformation_estimation_point_to_plane_lls.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/impl/transformation_estimation_svd.hpp
+CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/impl/transformation_estimation_svd_scale.hpp
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/registration.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/transformation_estimation.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/transformation_estimation_point_to_plane_lls.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/transformation_estimation_svd.h
+CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/transformation_estimation_svd_scale.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/registration/warp_point_rigid.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/sample_consensus/boost.h
 CMakeFiles/pose.dir/main.cpp.o: /usr/include/pcl-1.8/pcl/sample_consensus/eigen.h

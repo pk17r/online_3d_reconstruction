@@ -3,7 +3,34 @@
 using namespace cv;
 using namespace std;
 
-void plotMatches(string img1name, string img2name)
+int DELAY_CAPTION = 1500;
+int DELAY_BLUR = 100;
+int MAX_KERNEL_LENGTH = 31;
+Mat src, dst;
+char window_name[] = "Filter Demo 1";
+
+int display_caption( char* caption )
+ {
+   dst = Mat::zeros( src.size(), src.type() );
+   putText( dst, caption,
+            Point( src.cols/4, src.rows/2),
+            CV_FONT_HERSHEY_COMPLEX, 1, Scalar(255, 255, 255) );
+
+   imshow( window_name, dst );
+   int c = waitKey( DELAY_CAPTION );
+   if( c >= 0 ) { return -1; }
+   return 0;
+  }
+
+  int display_dst( int delay )
+  {
+    imshow( window_name, dst );
+    int c = waitKey ( delay );
+    if( c >= 0 ) { return -1; }
+    return 0;
+  }
+
+int plotMatches(string img1name, string img2name)
 {
 	cv::Mat img1 = imread(img1name);
     cv::Mat img2 = imread(img2name);
@@ -76,6 +103,56 @@ void plotMatches(string img1name, string img2name)
 	//imshow("good_matches1", img_matches1);
 	//imshow("good_matches2", img_matches2);
 	//waitKey(1);
+	src = gray1;
+	namedWindow( window_name, CV_WINDOW_AUTOSIZE );
+	dst = src.clone();
+	//if( display_dst( DELAY_CAPTION ) != 0 ) { return 0; }
+	//
+	///// Applying Homogeneous blur
+	//if( display_caption( "Homogeneous Blur" ) != 0 ) { return 0; }
+    //
+	//for ( int i = 1; i < MAX_KERNEL_LENGTH; i = i + 2 )
+	//	{ blur( src, dst, Size( i, i ), Point(-1,-1) );
+    //     if( display_dst( DELAY_BLUR ) != 0 ) { return 0; } }
+    //
+    ///// Applying Gaussian blur
+    //if( display_caption( "Gaussian Blur" ) != 0 ) { return 0; }
+    //
+    //for ( int i = 1; i < MAX_KERNEL_LENGTH; i = i + 2 )
+    //    { GaussianBlur( src, dst, Size( i, i ), 0, 0 );
+    //      if( display_dst( DELAY_BLUR ) != 0 ) { return 0; } }
+	//
+	///// Applying Median blur
+	//if( display_caption( "Median Blur" ) != 0 ) { return 0; }
+
+	//for ( int i = 1; i < MAX_KERNEL_LENGTH; i = i + 2 )
+	//{
+	//	medianBlur ( src, dst, i );
+	//	if( display_dst( 0 ) != 0 )
+	//	{
+	//		return 0; 
+	//	}
+	//}
+    //
+	//// Applying Bilateral Filter
+	//if( display_caption( "Bilateral Blur" ) != 0 ) { return 0; }
+    //
+    //for ( int i = 1; i < MAX_KERNEL_LENGTH; i = i + 2 )
+	//{
+	//	bilateralFilter ( src, dst, i, i*2, i/2 );
+	//	cout << flush << " " << i;
+	//	if( display_dst( 0 ) != 0 )
+	//	{
+	//		return 0;
+	//	}
+	//}
+	//
+	///// Wait until user press a key
+	//display_caption( "End: Press a key!" );
+    //
+	//waitKey(0);
+	
+	
 	vector<int> compression_params;
     compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
     compression_params.push_back(9);
@@ -84,10 +161,25 @@ void plotMatches(string img1name, string img2name)
         imwrite("output/all_matches.png", img_matches0, compression_params);
         imwrite("output/good_matches1.png", img_matches1, compression_params);
         imwrite("output/good_matches2.png", img_matches2, compression_params);
+        
+        int kernel_len = (MAX_KERNEL_LENGTH - 1)/2;
+        medianBlur ( src, dst, kernel_len );
+		imwrite("output/medianBlurred_" + to_string(kernel_len) + ".png", dst, compression_params);
+		kernel_len = MAX_KERNEL_LENGTH;
+        medianBlur ( src, dst, kernel_len );
+		imwrite("output/medianBlurred_" + to_string(kernel_len) + ".png", dst, compression_params);
+		kernel_len = (MAX_KERNEL_LENGTH - 1)/2;
+        bilateralFilter ( src, dst, kernel_len, kernel_len*2, kernel_len/2 );
+		imwrite("output/bilateralFiltered_" + to_string(kernel_len) + ".png", dst, compression_params);
+		kernel_len = MAX_KERNEL_LENGTH;
+        bilateralFilter ( src, dst, kernel_len, kernel_len*2, kernel_len/2 );
+		imwrite("output/bilateralFiltered_" + to_string(kernel_len) + ".png", dst, compression_params);
     }
     catch (runtime_error& ex) {
         fprintf(stderr, "Exception converting image to PNG format: %s\n", ex.what());
     }
+    
+    return 0;
 }
 
 int main(int argc, char* argv[])

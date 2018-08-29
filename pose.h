@@ -17,6 +17,7 @@
 //#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/registration/transformation_estimation.h>
 #include <pcl/registration/transformation_estimation_svd.h>
+#include <pcl/registration/transformation_estimation_svd_scale.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/registration/icp.h>
@@ -50,8 +51,9 @@ vector<int> img_numbers;
 double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
-int jump_pixels = 1;
+int jump_pixels = 5;
 int start_idx = 0, end_idx = 0, seq_len = 30;
+int blur_kernel = 11;
 
 bool mesh_surface = false;
 bool smooth_surface = false;
@@ -105,7 +107,7 @@ vector<double> pose_times_seq;
 
 bool displayUAVPositions = false;
 bool wait_at_visualizer = true;
-bool log_stuff = false;
+bool log_stuff = true;
 bool preview = false;
 bool try_cuda = true;
 string features_type = "orb";
