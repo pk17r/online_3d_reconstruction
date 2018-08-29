@@ -47,6 +47,8 @@ pcl/registration/transformation_estimation_svd_scale.h
 -
 pcl/filters/voxel_grid.h
 -
+pcl/filters/statistical_outlier_removal.h
+-
 pcl/features/normal_3d.h
 -
 pcl/registration/icp.h
@@ -1548,10 +1550,28 @@ pcl/PointIndices.h
 pcl/filters/impl/filter.hpp
 -
 
+/usr/include/pcl-1.8/pcl/filters/filter_indices.h
+pcl/filters/filter.h
+-
+pcl/filters/impl/filter_indices.hpp
+-
+
 /usr/include/pcl-1.8/pcl/filters/impl/filter.hpp
 pcl/pcl_macros.h
 -
 pcl/filters/filter.h
+-
+
+/usr/include/pcl-1.8/pcl/filters/impl/filter_indices.hpp
+pcl/pcl_macros.h
+-
+pcl/filters/filter_indices.h
+-
+
+/usr/include/pcl-1.8/pcl/filters/impl/statistical_outlier_removal.hpp
+pcl/filters/statistical_outlier_removal.h
+-
+pcl/common/io.h
 -
 
 /usr/include/pcl-1.8/pcl/filters/impl/voxel_grid.hpp
@@ -1562,6 +1582,14 @@ pcl/common/common.h
 pcl/common/io.h
 -
 pcl/filters/voxel_grid.h
+-
+
+/usr/include/pcl-1.8/pcl/filters/statistical_outlier_removal.h
+pcl/filters/filter_indices.h
+-
+pcl/search/pcl_search.h
+-
+pcl/filters/impl/statistical_outlier_removal.hpp
 -
 
 /usr/include/pcl-1.8/pcl/filters/voxel_grid.h

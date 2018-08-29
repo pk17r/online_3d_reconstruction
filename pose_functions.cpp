@@ -1463,15 +1463,30 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	int j = 0;
 	for (int i = 0; i < cloudrgb->size(); i++)
 	{
-		if(cloudrgb->points[i].z > -max_depth && cloudrgb->points[i].z < max_height)
+		//if(cloudrgb->points[i].z > -max_depth && cloudrgb->points[i].z < max_height)
 		{
 			cloudrgb_outlier_removed->points.push_back(cloudrgb->points[i]);
-			cloudrgb_outlier_removed->points[j].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
+			//cloudrgb_outlier_removed->points[j].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
 			j++;
 		}
 	}
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	
+	if (!combinedPtCloud)
+	{
+		cout << " before:" << cloudrgb_outlier_removed->size();
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered_stat (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		//use statistical outlier remover to remove outliers from single image point cloud
+		// Create the filtering object
+		pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor0;
+		sor0.setInputCloud (cloudrgb_outlier_removed);
+		sor0.setMeanK (50);
+		sor0.setStddevMulThresh (1.0);
+		sor0.filter (*cloudrgb_filtered_stat);
+		cloudrgb_outlier_removed = cloudrgb_filtered_stat;
+		cout << " after:" << cloudrgb_outlier_removed->size() << " ";
+	}
 	
 	// Create the filtering object
 	pcl::VoxelGrid<pcl::PointXYZRGB> sor;
@@ -1479,16 +1494,16 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	if (combinedPtCloud)
 	{
 		sor.setMinimumPointsNumberPerVoxel(min_points_per_voxel);
-		sor.setLeafSize (voxel_size,voxel_size,1000);
+		sor.setLeafSize (voxel_size,voxel_size,voxel_size);
 	}
 	else
 	{	//single image point cloud -> go for higher resolution to better create combinedPtCloud later
-		sor.setLeafSize (voxel_size/5,voxel_size/5,1000);
+		sor.setLeafSize (voxel_size/5,voxel_size/5,voxel_size/5);
 	}
 	sor.filter (*cloudrgb_filtered);
 
-	for (int i = 0; i < cloudrgb_filtered->size(); i++)
-		cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
+	//for (int i = 0; i < cloudrgb_filtered->size(); i++)
+	//	cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
 	
 	//cerr << "\nPointCloud after filtering: " << cloudrgb_filtered->width * cloudrgb_filtered->height 
 	//	<< " data points (" << pcl::getFieldsList (*cloudrgb_filtered) << ")." << endl;
