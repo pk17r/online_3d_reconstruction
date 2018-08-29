@@ -46,6 +46,8 @@ void Pose::printUsage()
 		"\n      Align point clouds using ICP algorithm"
 		"\n  --voxel_size [float]"
 		"\n      Voxel size in m to find average value of points for downsampling"
+		"\n  --min_points_per_voxel [int]"
+		"\n      Set minimum number of points required during downsampling a voxel of combined point cloud, not single image point cloud"
 		"\n  --blur_kernel [int]"
 		"\n      Blur kernel size to blur disparity image to reject outliers. Current implementation is of either median blur or bilateral blur"
 		"\n  --downsample [Pt Cloud file name] (optional)--voxel_size [float]"
@@ -126,6 +128,12 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		{
 			voxel_size = atof(argv[i + 1]);
 			cout << "voxel_size " << voxel_size << endl;
+			i++;
+		}
+		else if (string(argv[i]) == "--min_points_per_voxel")
+		{
+			min_points_per_voxel = atoi(argv[i + 1]);
+			cout << "min_points_per_voxel " << min_points_per_voxel << endl;
 			i++;
 		}
 		else if (string(argv[i]) == "--dist_nearby")
@@ -1446,18 +1454,20 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	return tf_icp_main;
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, bool combinedPtCloud)
 {
 	//cerr << "PointCloud before filtering: " << cloudrgb->width * cloudrgb->height 
 	//	<< " data points (" << pcl::getFieldsList (*cloudrgb) << ")." << endl;
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_outlier_removed (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	int j = 0;
 	for (int i = 0; i < cloudrgb->size(); i++)
 	{
 		if(cloudrgb->points[i].z > -max_depth && cloudrgb->points[i].z < max_height)
 		{
-			cloudrgb->points[i].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
 			cloudrgb_outlier_removed->points.push_back(cloudrgb->points[i]);
+			cloudrgb_outlier_removed->points[j].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
+			j++;
 		}
 	}
 	
@@ -1466,7 +1476,15 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	// Create the filtering object
 	pcl::VoxelGrid<pcl::PointXYZRGB> sor;
 	sor.setInputCloud (cloudrgb_outlier_removed);
-	sor.setLeafSize (voxel_size,voxel_size,1000);
+	if (combinedPtCloud)
+	{
+		sor.setMinimumPointsNumberPerVoxel(min_points_per_voxel);
+		sor.setLeafSize (voxel_size,voxel_size,1000);
+	}
+	else
+	{	//single image point cloud -> go for higher resolution to better create combinedPtCloud later
+		sor.setLeafSize (voxel_size/5,voxel_size/5,1000);
+	}
 	sor.filter (*cloudrgb_filtered);
 
 	for (int i = 0; i < cloudrgb_filtered->size(); i++)
