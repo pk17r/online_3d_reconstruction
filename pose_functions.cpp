@@ -34,6 +34,8 @@ void Pose::printUsage()
 		"\n      max height in field. Will remove points above this or outliers."
 		"\n  --range_width [int]"
 		"\n      Number of nearby images to do pairwise matching on for every image"
+		"\n  --dist_nearby [double]"
+		"\n      Max allowable distance of hex position image to check for pairwise matching"
 		"\n  --preview"
 		"\n      visualize generated point cloud at the end"
 		"\n  --visualize [Pt Cloud filename]"
@@ -120,18 +122,16 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			i++;
 			cout << "displayUAVPositions " << read_PLY_filename1 << endl;
 		}
-		else if (string(argv[i]) == "--downsample_transform")
-		{
-			downsample_transform = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
-			downsample_transform_file = string(argv[i + 1]);
-			cout << "downsample_transform " << downsample_transform_file << endl;
-			i++;
-		}
 		else if (string(argv[i]) == "--voxel_size")
 		{
 			voxel_size = atof(argv[i + 1]);
 			cout << "voxel_size " << voxel_size << endl;
+			i++;
+		}
+		else if (string(argv[i]) == "--dist_nearby")
+		{
+			dist_nearby = atof(argv[i + 1]);
+			cout << "dist_nearby " << dist_nearby << endl;
 			i++;
 		}
 		else if (string(argv[i]) == "--blur_kernel")
@@ -162,6 +162,14 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		{
 			seq_len = atoi(argv[i + 1]);
 			cout << "seq_len " << seq_len << endl;
+			if (seq_len == 0 || seq_len < -1)
+				throw "Exception: invalid seq_len value!";
+			
+			if(seq_len != -1)
+			{
+				online = true;
+				cout << "online 3D reconstruction" << endl;
+			}
 			i++;
 		}
 		else if (string(argv[i]) == "--jump_pixels")
@@ -1258,11 +1266,7 @@ void area_picking_get_points (const pcl::visualization::AreaPickingEvent &event,
 boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name)
 {
 	cout << "Starting Visualization..." << endl;
-	
-	cout << "NOTE:" << endl;
 	cout << "- use h for help" << endl;
-	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
-	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
 	cout << "visualizing cloud with " << cloudrgb->size() << " points" << endl;
 	
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer " + pt_cloud_name));
@@ -1296,14 +1300,13 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 	
 	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
 
-	cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
-	
 	viewer->addCoordinateSystem (1.0, 0, 0, 0);
 	viewer->setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
 	viewer->setPosition(0, 540); // Setting visualiser window position
 	
 	if(wait_at_visualizer)
 	{
+		cout << "*** Display the visualiser until 'q' key is pressed ***" << endl;
 		while (!viewer->wasStopped ()) { // Display the visualiser until 'q' key is pressed
 			viewer->spinOnce();
 		}
@@ -1321,8 +1324,6 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name)
 {
 	cout << "Starting Visualization..." << endl;
-	
-	cout << "NOTE:" << endl;
 	cout << "- use h for help" << endl;
 	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
 	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
@@ -1372,13 +1373,6 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 
 void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
 {
-	cout << "Visualization:" << endl;
-	
-	cout << "NOTE:" << endl;
-	cout << "- use h for help" << endl;
-	cout << "- use x to toggle between area selection and pan/rotate/move" << endl;
-	cout << "- use SHIFT + LEFT MOUSE to select area, it will give mean values of pixels along with std div" << endl;
-	
 	//pcl::visualization::PCLVisualizer viewer = *viewerPtr;
 	
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
@@ -1452,33 +1446,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	return tf_icp_main;
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
 {
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp;
-	if(downsample_transform)
-	{
-		Mat tf_icp_mat;
-	
-		cv::FileStorage fs0(downsample_transform_file, cv::FileStorage::READ);
-		fs0["tf_icp"] >> tf_icp_mat;
-		fs0.release();	// close tf values file
-		
-		for (int i = 0; i < 4; i++)
-			for (int j = 0; j < 4; j++)
-				tf_icp(i,j) = tf_icp_mat.at<double>(i,j);
-	}
-	
-	if (downsample_transform)
-	{
-		cout << "Transforming cloud using\n" << tf_icp << endl;
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		
-		pcl::transformPointCloud(*cloudrgb, *cloudrgb_transformed, tf_icp);
-		
-		cloudrgb = cloudrgb_transformed;
-		cout << "cloud transformed." << endl;
-	}
-	
 	//cerr << "PointCloud before filtering: " << cloudrgb->width * cloudrgb->height 
 	//	<< " data points (" << pcl::getFieldsList (*cloudrgb) << ")." << endl;
 	
@@ -1640,7 +1609,6 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink)
 {
-	cout << "matching " << img_numbers[img_index] << " with_img/matches";
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	cloud_current->is_dense = true;
@@ -1658,8 +1626,56 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	cuda::GpuMat descriptor_src(features[img_index].descriptors);
 	//cout << "Read source keypoints." << endl;
 	
+	int pose_index_src = data_index_finder(img_numbers[img_index]);
+	//pose_data[pose_index_src][tx_ind] << "," << pose_data[pose_index_src][ty_ind]
+	
+	//find matches and create matched point clouds
+	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, disp_img_src, keypoints_src, descriptor_src, pose_index_src);
+	if (good_matches_count <= 500)
+	{
+		dist_nearby *= 2;
+		cout << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
+		log_file << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
+		cloud_current->clear();
+		cloud_prior->clear();
+		generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, disp_img_src, keypoints_src, descriptor_src, pose_index_src);
+		dist_nearby /= 2;
+	}
+	cout << endl;
+	log_file << endl;
+	
+	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
+	
+	te2.estimateRigidTransformation(*cloud_current, *cloud_prior, T_SVD_matched_pts);
+	//cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
+	//log_file << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
+	
+	return T_SVD_matched_pts;
+}
+
+int Pose::generate_Matched_Keypoints_Point_Cloud
+(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior,
+Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src, int pose_index_src)
+{
+	cout << "matched " << img_numbers[img_index] << " with_imgs/matches";
+	log_file << "matched " << img_numbers[img_index] << " with_imgs/matches";
+	bool first_match = true;
+	
+	int good_matched_imgs_this_src = 0;
+	int good_matches_count = 0;
+	
 	for (int dst_index = img_index-1; dst_index >= max(img_index - range_width,0); dst_index--)
 	{
+		//check for only with nearby images
+		int pose_index_dst = data_index_finder(img_numbers[dst_index]);
+		double dist = sqrt((pose_data[pose_index_src][tx_ind] - pose_data[pose_index_dst][tx_ind]) * (pose_data[pose_index_src][tx_ind] - pose_data[pose_index_dst][tx_ind])
+			+ (pose_data[pose_index_src][ty_ind] - pose_data[pose_index_dst][ty_ind]) * (pose_data[pose_index_src][ty_ind] - pose_data[pose_index_dst][ty_ind]));
+		if(dist > dist_nearby)
+			continue;
+		
 		//reference https://stackoverflow.com/questions/44988087/opencv-feature-matching-match-descriptors-to-knn-filtered-keypoints
 		//reference https://github.com/opencv/opencv/issues/6130
 		//reference http://study.marearts.com/2014/07/opencv-study-orb-gpu-feature-extraction.html
@@ -1681,10 +1697,17 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 				good_matches.push_back(matches[k][0]);
 			}
 		}
+		
+		//cout << " " << dist << "/" << good_matches.size();
+		
 		if(good_matches.size() < 100)	//less number of matches.. don't bother working on this one. good matches are around 500-600
 			continue;
 		
-		cout << " " << img_numbers[dst_index] << "/" << good_matches.size();
+		good_matched_imgs++;
+		good_matched_imgs_this_src++;
+		good_matches_count += good_matches.size();
+		
+		//cout << " " << img_numbers[dst_index] << "/" << dist << "/" << good_matches.size();
 		
 		Mat disp_img_dst;
 		if(use_segment_labels)
@@ -1802,22 +1825,10 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 		}
 		
 	}
+	cout << " " << good_matched_imgs_this_src << "/" << good_matches_count;
+	log_file << " " << good_matched_imgs_this_src << "/" << good_matches_count;
 	
-	cout << endl;
-	
-	//cout << "cloud_current->size() " << cloud_current->size() << endl;
-	//cout << "cloud_prior->size() " << cloud_prior->size() << endl;
-	
-	//cout << "Finding Rigid Body Transformation..." << endl;
-	
-	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
-	
-	te2.estimateRigidTransformation(*cloud_current, *cloud_prior, T_SVD_matched_pts);
-	//cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
-	//log_file << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
-	
-	return T_SVD_matched_pts;
+	return good_matches_count;
 }
 
 

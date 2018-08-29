@@ -51,19 +51,21 @@ vector<int> img_numbers;
 double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
-int jump_pixels = 5;
-int start_idx = 0, end_idx = 0, seq_len = 30;
-int blur_kernel = 11;
+int jump_pixels = 10;
+int start_idx = 0, end_idx = 0;
+int seq_len = -1;
+bool online = false;
+int blur_kernel = 31;
+double dist_nearby = 2;	//in meters
+int good_matched_imgs = 0;
 
 bool mesh_surface = false;
 bool smooth_surface = false;
 int polynomial_order = 2;
 double search_radius = 0.02;//, sqr_gauss_param = 0.02;
 bool downsample = false;
-bool downsample_transform = false;
-string downsample_transform_file = "";
 
-double voxel_size = 0.05; //in meters
+double voxel_size = 0.1; //in meters
 double max_depth = 2; //in meters
 double max_height = 4; //in meters
 bool visualize = false;
@@ -113,7 +115,7 @@ bool try_cuda = true;
 string features_type = "orb";
 float match_conf = 0.3f;
 string save_log_to = "";
-int range_width = 20;		//matching will be done between range_width number of sequential images.
+int range_width = 30;		//matching will be done between range_width number of sequential images.
 bool use_segment_labels = false;
 bool release = true;
 
@@ -164,7 +166,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out);
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb);
 void orbcudaPairwiseMatching();
 void smoothPtCloud();
 void meshSurface();
@@ -177,13 +179,17 @@ void readSegmentLabelMap(int i);
 void populateImages(int start_index, int end_index);
 void readImage(int i);
 void populateDoubleDispImages(int start_index, int end_index);
-void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched, 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink, int cycle, int n_cycle);
+void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_combined_copy, 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, int cycle, int n_cycle);
 void createAndTransformPtCloud(int img_index, 
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &transformed_cloudrgb);
 void findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-
+int generate_Matched_Keypoints_Point_Cloud
+(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior,
+Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src, int pose_index_src);
 
 };
 

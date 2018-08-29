@@ -184,7 +184,7 @@ int plotMatches(string img1name, string img2name)
 
 int main(int argc, char* argv[])
 {
-	cout << 
+	cout << setprecision(3) << 
 		  "\n**********   Unmanned Systems Lab    **********"
 		"\n\n********** 3D Reconstruction Program **********"
 		"\n\nAuthor: Prashant Kumar"
