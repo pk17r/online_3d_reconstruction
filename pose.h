@@ -131,7 +131,7 @@ Ptr<FeaturesFinder> finder;
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
 vector<vector<KeyPoint>> keypointsVec;
-//vector<cuda::GpuMat> descriptorsVec;
+vector<cuda::GpuMat> descriptorsVec;
 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> keypoints3DVec;
 vector<vector<bool>> keypoints3DGoodnessVec;
 Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
@@ -190,12 +190,11 @@ void createAndTransformPtCloud(int img_index,
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &transformed_cloudrgb);
 void findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-int generate_Matched_Keypoints_Point_Cloud
-(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior,
-Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src, int pose_index_src);
 void findFeaturesActual(int img_idx, int finderIdx);
+int generate_Matched_Keypoints_Point_Cloud (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, 
+pcl::PointXYZRGB>::Matrix4> t_FMVec, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src);
+
 
 };
 
