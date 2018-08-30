@@ -500,11 +500,19 @@ void Pose::readDisparityImage(int i)
 	if(disp_img.empty())
 		throw "Exception: cannot read disp_image " + to_string(img_numbers[i]) + "!";
 	
-	//blur the disparity image to remove noise
-	Mat disp_img_blurred;
-	//bilateralFilter ( disp_img, disp_img_blurred, blur_kernel, blur_kernel*2, blur_kernel/2 );
-	medianBlur ( disp_img, disp_img_blurred, blur_kernel );
-	disparity_images[i] = disp_img_blurred;
+	if(blur_kernel > 1)
+	{
+		//blur the disparity image to remove noise
+		Mat disp_img_blurred;
+		//bilateralFilter ( disp_img, disp_img_blurred, blur_kernel, blur_kernel*2, blur_kernel/2 );
+		medianBlur ( disp_img, disp_img_blurred, blur_kernel );
+		disparity_images[i] = disp_img_blurred;
+	}
+	else
+	{
+		disparity_images[i] = disp_img;
+	}
+	
 	if (release)
 	{
 		double disp_img_var = getVariance(disparity_images[i], false);
@@ -1056,6 +1064,92 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
 {
+	//rotation of image plane to account for camera pitch -> x axis is towards east and y axis is towards south of image
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_xi;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_xi(i,j) = 0;
+	r_xi(0,0) = r_xi(1,1) = r_xi(2,2) = 1.0;
+	r_xi(3,3) = 1.0;
+	r_xi(1,1) = cos(theta_xi);
+	r_xi(1,2) = -sin(theta_xi);
+	r_xi(2,1) = sin(theta_xi);
+	r_xi(2,2) = cos(theta_xi);
+	
+	//rotation of image plane to account for camera roll-> x axis is towards east and y axis is towards south of image
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_yi;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_yi(i,j) = 0;
+	r_yi(0,0) = r_yi(1,1) = r_yi(2,2) = 1.0;
+	r_yi(3,3) = 1.0;
+	r_yi(0,0) = cos(theta_yi);
+	r_yi(0,2) = sin(theta_yi);
+	r_yi(2,0) = -sin(theta_yi);
+	r_yi(2,2) = cos(theta_yi);
+	
+	//rotation of image plane to invert y axis and designate all z points negative -> now x axis is towards east and y axis is towards north of image and image
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_i;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_invert_i(i,j) = 0;
+	r_invert_i(3,3) = 1.0;
+	////invert y and z
+	r_invert_i(0,0) = 1.0;	//x
+	r_invert_i(1,1) = -1.0;	//y
+	r_invert_i(2,2) = -1.0;	//z
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_y;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_invert_y(i,j) = 0;
+	r_invert_y(3,3) = 1.0;
+	r_invert_y(0,0) = 1.0;	//x
+	r_invert_y(1,1) = -1.0;	//y
+	r_invert_y(2,2) = 1.0;	//z
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_z;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_invert_z(i,j) = 0;
+	r_invert_z(3,3) = 1.0;
+	r_invert_z(0,0) = 1.0;	//x
+	r_invert_z(1,1) = 1.0;	//y
+	r_invert_z(2,2) = -1.0;	//z
+	
+	//translation image plane to hexacopter
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_hi;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			t_hi(i,j) = 0;
+	t_hi(0,0) = t_hi(1,1) = t_hi(2,2) = 1.0;
+	t_hi(0,3) = trans_x_hi;
+	t_hi(1,3) = trans_y_hi;
+	t_hi(2,3) = trans_z_hi;
+	t_hi(3,3) = 1.0;
+	
+	//rotation to flip x and y axis-> now x axis is towards north and y axis is towards east of hexacopter
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_flip_xy;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r_flip_xy(i,j) = 0;
+	r_flip_xy(3,3) = 1.0;
+	//flip x and y
+	r_flip_xy(1,0) = 1.0;	//x
+	r_flip_xy(0,1) = 1.0;	//y
+	r_flip_xy(2,2) = 1.0;	//z
+	
+	////rotate to invert y axis I dont know why this correction works!
+	//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_y;
+	//for (int i = 0; i < 4; i++)
+	//	for (int j = 0; j < 4; j++)
+	//		r_invert_y(i,j) = 0;
+	//r_invert_y(3,3) = 1.0;
+	////invert y
+	//r_invert_y(0,0) = 1.0;	//x
+	//r_invert_y(1,1) = -1.0;	//y
+	//r_invert_y(2,2) = 1.0;	//z
+	
+	
+	//converting hexacopter quaternion to rotation matrix
 	double tx = pose[tx_ind];
 	double ty = pose[ty_ind];
 	double tz = pose[tz_ind];
@@ -1095,8 +1189,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	
 	rot = rot.t();
 	
+	//rotation to orient hexacopter coordinates to world coordinates
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_wh;
-	
 	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < 3; j++)
 			r_wh(i,j) = rot.at<double>(i,j);
@@ -1106,6 +1200,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	//t_wh(1,3) = ty - tx * t_wh(1,0) - ty * t_wh(1,1) - tz * t_wh(1,2);
 	//t_wh(2,3) = tz - tx * t_wh(2,0) - ty * t_wh(2,1) - tz * t_wh(2,2);
 	
+	//translation to translate hexacopter coordinates to world coordinates
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_wh;
 	for (int i = 0; i < 4; i++)
 		for (int j = 0; j < 4; j++)
@@ -1116,69 +1211,23 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	t_wh(2,3) = tz;
 	t_wh(3,3) = 1.0;
 	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_xi;
+	//translate hexacopter take off position to base station antenna location origin : Translation: [1.946, 6.634, -1.006]
+	const double antenna_takeoff_offset_x = 1.946;
+	const double antenna_takeoff_offset_y = 6.634;
+	const double antenna_takeoff_offset_z = -1.006;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_ow;
 	for (int i = 0; i < 4; i++)
 		for (int j = 0; j < 4; j++)
-			r_xi(i,j) = 0;
-	r_xi(0,0) = r_xi(1,1) = r_xi(2,2) = 1.0;
-	r_xi(3,3) = 1.0;
-	r_xi(1,1) = cos(-theta_xi);
-	r_xi(1,2) = -sin(-theta_xi);
-	r_xi(2,1) = sin(-theta_xi);
-	r_xi(2,2) = cos(-theta_xi);
-	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_yi;
-	for (int i = 0; i < 4; i++)
-		for (int j = 0; j < 4; j++)
-			r_yi(i,j) = 0;
-	r_yi(0,0) = r_yi(1,1) = r_yi(2,2) = 1.0;
-	r_yi(3,3) = 1.0;
-	r_yi(0,0) = cos(-theta_yi);
-	r_yi(0,2) = sin(-theta_yi);
-	r_yi(2,0) = -sin(-theta_yi);
-	r_yi(2,2) = cos(-theta_yi);
-	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_i;
-	for (int i = 0; i < 4; i++)
-		for (int j = 0; j < 4; j++)
-			r_invert_i(i,j) = 0;
-	r_invert_i(3,3) = 1.0;
-	//invert y and z
-	r_invert_i(0,0) = 1.0;	//x
-	r_invert_i(1,1) = -1.0;	//y
-	r_invert_i(2,2) = -1.0;	//z
-	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_hi;
-	for (int i = 0; i < 4; i++)
-		for (int j = 0; j < 4; j++)
-			t_hi(i,j) = 0;
-	t_hi(0,0) = t_hi(1,1) = t_hi(2,2) = 1.0;
-	t_hi(0,3) = -trans_x_hi;
-	t_hi(1,3) = -trans_y_hi;
-	t_hi(2,3) = -trans_z_hi;
-	t_hi(3,3) = 1.0;
-	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_flip_xy;
-	for (int i = 0; i < 4; i++)
-		for (int j = 0; j < 4; j++)
-			r_flip_xy(i,j) = 0;
-	r_flip_xy(3,3) = 1.0;
-	//flip x and y
-	r_flip_xy(1,0) = 1.0;	//x
-	r_flip_xy(0,1) = 1.0;	//y
-	r_flip_xy(2,2) = 1.0;	//z
-	
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_invert_y;
-	for (int i = 0; i < 4; i++)
-		for (int j = 0; j < 4; j++)
-			r_invert_y(i,j) = 0;
-	r_invert_y(3,3) = 1.0;
-	//invert y
-	r_invert_y(0,0) = 1.0;	//x
-	r_invert_y(1,1) = -1.0;	//y
-	r_invert_y(2,2) = 1.0;	//z
-	
+			t_ow(i,j) = 0;
+	t_ow(0,0) = t_ow(1,1) = t_ow(2,2) = 1.0;
+	t_ow(0,3) = - antenna_takeoff_offset_x;
+	t_ow(1,3) = - antenna_takeoff_offset_y;
+	t_ow(2,3) = - antenna_takeoff_offset_z;
+	t_ow(3,3) = 1.0;
+		
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_wh * r_invert_y * r_flip_xy * t_hi * r_invert_i * r_yi * r_xi;
+	//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_ow * t_wh * r_wh * r_flip_xy * t_hi * r_invert_i * r_yi * r_xi;
+	//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = t_wh * r_wh * r_invert_y * r_flip_xy * t_hi * r_invert_y * r_invert_z * r_yi * r_xi;
 	
 	//cout << "r_xi:\n" << r_xi << endl;
 	//cout << "r_yi:\n" << r_yi << endl;
@@ -1466,7 +1515,8 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 		//if(cloudrgb->points[i].z > -max_depth && cloudrgb->points[i].z < max_height)
 		{
 			cloudrgb_outlier_removed->points.push_back(cloudrgb->points[i]);
-			//cloudrgb_outlier_removed->points[j].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
+			if(combinedPtCloud)
+				cloudrgb_outlier_removed->points[j].z += 500;	//increasing height to place all points at center of voxel of size 1000 m
 			j++;
 		}
 	}
@@ -1494,16 +1544,17 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	if (combinedPtCloud)
 	{
 		sor.setMinimumPointsNumberPerVoxel(min_points_per_voxel);
-		sor.setLeafSize (voxel_size,voxel_size,voxel_size);
+		sor.setLeafSize (voxel_size,voxel_size,1000);
 	}
 	else
 	{	//single image point cloud -> go for higher resolution to better create combinedPtCloud later
 		sor.setLeafSize (voxel_size/5,voxel_size/5,voxel_size/5);
 	}
 	sor.filter (*cloudrgb_filtered);
-
-	//for (int i = 0; i < cloudrgb_filtered->size(); i++)
-	//	cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
+	
+	if(combinedPtCloud)
+		for (int i = 0; i < cloudrgb_filtered->size(); i++)
+			cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
 	
 	//cerr << "\nPointCloud after filtering: " << cloudrgb_filtered->width * cloudrgb_filtered->height 
 	//	<< " data points (" << pcl::getFieldsList (*cloudrgb_filtered) << ")." << endl;

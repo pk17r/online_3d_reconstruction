@@ -56,7 +56,7 @@ int jump_pixels = 10;
 int start_idx = 0, end_idx = 0;
 int seq_len = -1;
 bool online = false;
-int blur_kernel = 31;
+int blur_kernel = 1;	//31 is a good number
 double dist_nearby = 2;	//in meters
 int good_matched_imgs = 0;
 
