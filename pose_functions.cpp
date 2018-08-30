@@ -682,18 +682,111 @@ void Pose::populateData()
 void Pose::findFeatures()
 {
 	cout << "\nFeatures";
+	//int i = start_idx;
+	//while(i < end_idx + 1)
+	//{
+	//	boost::thread featureFinder_thread1, featureFinder_thread2, featureFinder_thread3, featureFinder_thread4, featureFinder_thread5, featureFinder_thread6, featureFinder_thread7;
+	//	//cout << "d0" << endl;
+	//	featureFinder_thread1 = boost::thread(&Pose::findFeaturesActual, this, i, 0);
+	//	//cout << "d1" << endl;
+	//	if(++i < end_idx + 1) featureFinder_thread2 = boost::thread(&Pose::findFeaturesActual, this, i, 1);
+	//	//cout << "d2" << endl;
+	//	if(++i < end_idx + 1) featureFinder_thread3 = boost::thread(&Pose::findFeaturesActual, this, i, 2);
+	//	//cout << "d3" << endl;
+	//	if(++i < end_idx + 1) featureFinder_thread4 = boost::thread(&Pose::findFeaturesActual, this, i, 3);
+	//	//cout << "d4" << endl;
+	//	if(++i < end_idx + 1) featureFinder_thread5 = boost::thread(&Pose::findFeaturesActual, this, i, 4);
+	//	//cout << "d5" << endl;
+	//	if(++i < end_idx + 1) featureFinder_thread6 = boost::thread(&Pose::findFeaturesActual, this, i, 5);
+	//	//cout << "d6" << endl;
+	//	if(++i < end_idx + 1) featureFinder_thread7 = boost::thread(&Pose::findFeaturesActual, this, i, 6);
+	//	//cout << "d7" << endl;
+	//	//sleep(5);
+	//	//cout << "slept enough" << endl;
+	//	featureFinder_thread1.join();
+	//	featureFinder_thread2.join();
+	//	featureFinder_thread3.join();
+	//	featureFinder_thread4.join();
+	//	featureFinder_thread5.join();
+	//	featureFinder_thread6.join();
+	//	featureFinder_thread7.join();
+	//}
 	for (int i = start_idx; i < end_idx + 1; ++i)
 	{
-		(*finder)(full_images[i], features[i]);
-		//vector<KeyPoint> keypointsD;
-		//detector->detect(img,keypointsD,Mat());
-		features[i].img_idx = i;
-		//features[i].keypoints = keypointsD;
-		cout << " " << img_numbers[i] << "/" << features[i].keypoints.size() << std::flush;
+		findFeaturesActual(i, 0);
+		//(*finder)(full_images[i], features[i]);
+		////vector<KeyPoint> keypointsD;
+		////detector->detect(img,keypointsD,Mat());
+		//features[i].img_idx = i;
+		////features[i].keypoints = keypointsD;
+		//cout << " " << img_numbers[i] << "/" << features[i].keypoints.size() << std::flush;
 	}
 	cout << endl;
+	//for (int i = 0; i < 6; i++)
+	//{
+	//	(finderVec[i])->collectGarbage();
+	//}
 	finder->collectGarbage();
-	//free(detector);
+}
+
+void Pose::findFeaturesActual(int img_idx, int finderIdx)
+{
+	//Ptr<FeaturesFinder> finder = makePtr<OrbFeaturesFinder>();
+	(*finder)(full_images[img_idx], features[img_idx]);
+	features[img_idx].img_idx = img_idx;
+	cout << " " << img_numbers[img_idx] << "/" << features[img_idx].keypoints.size() << std::flush;
+	
+	//convert keypoints to 3d for easier estimation of rigid body transform later during pairwise matching
+	Mat disp_img;
+	if(use_segment_labels)
+		disp_img = double_disparity_images[img_idx];
+	else
+		disp_img = disparity_images[img_idx];
+	
+	vector<KeyPoint> keypoints = features[img_idx].keypoints;
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp = keypoints3DVec[img_idx];
+	vector<bool> goodness;
+	
+	//int good = 0, bad = 0;
+	for (int i = 0; i < keypoints.size(); i++)
+	{
+		double disp_value;
+		if(use_segment_labels)
+			disp_value = disp_img.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
+		else
+			disp_value = (double)disp_img.at<char>(keypoints[i].pt.y, keypoints[i].pt.x);
+	
+		cv::Mat_<double> vec_src(4, 1);
+
+		double xs = keypoints[i].pt.x;
+		double ys = keypoints[i].pt.y;
+		
+		vec_src(0) = xs; vec_src(1) = ys; vec_src(2) = disp_value; vec_src(3) = 1;
+		vec_src = Q * vec_src;
+		vec_src /= vec_src(3);
+		
+		pcl::PointXYZRGB pt_3d_src;
+		
+		pt_3d_src.x = vec_src(0);
+		pt_3d_src.y = vec_src(1);
+		pt_3d_src.z = vec_src(2);
+
+		cloud_current_temp->points.push_back(pt_3d_src);
+		
+		if (disp_value > minDisparity && keypoints[i].pt.x >= cols_start_aft_cutout)
+		{
+			//good++;
+			goodness.push_back(true);
+		}
+		else
+		{
+			//bad++;
+			goodness.push_back(false);
+		}
+	}
+	//cout << " g" << good << "/b" << bad << flush;
+	keypoints3DGoodnessVec.push_back(goodness);
 }
 
 void Pose::pairWiseMatching()
@@ -1523,9 +1616,9 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	
-	if (!combinedPtCloud)
+	if (!combinedPtCloud && jump_pixels > 0)
 	{
-		cout << " before:" << cloudrgb_outlier_removed->size();
+		//cout << " before:" << cloudrgb_outlier_removed->size();
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered_stat (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		//use statistical outlier remover to remove outliers from single image point cloud
 		// Create the filtering object
@@ -1535,7 +1628,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 		sor0.setStddevMulThresh (1.0);
 		sor0.filter (*cloudrgb_filtered_stat);
 		cloudrgb_outlier_removed = cloudrgb_filtered_stat;
-		cout << " after:" << cloudrgb_outlier_removed->size() << " ";
+		//cout << " after:" << cloudrgb_outlier_removed->size() << " ";
 	}
 	
 	// Create the filtering object
@@ -1731,12 +1824,15 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
 	
+	//cout << " cloud_current->size():" << cloud_current->size() << " cloud_prior->size():" << cloud_prior->size() << endl;
 	te2.estimateRigidTransformation(*cloud_current, *cloud_prior, T_SVD_matched_pts);
 	//cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
 	//log_file << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
 	
 	return T_SVD_matched_pts;
 }
+
+
 
 int Pose::generate_Matched_Keypoints_Point_Cloud
 (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
@@ -1750,6 +1846,9 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 	
 	int good_matched_imgs_this_src = 0;
 	int good_matches_count = 0;
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_src = keypoints3DVec[img_index];
+	vector<bool> goodness_src = keypoints3DGoodnessVec[img_index];
 	
 	for (int dst_index = img_index-1; dst_index >= max(img_index - range_width,0); dst_index--)
 	{
@@ -1784,7 +1883,108 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 		
 		//cout << " " << dist << "/" << good_matches.size();
 		
-		if(good_matches.size() < 100)	//less number of matches.. don't bother working on this one. good matches are around 500-600
+		if(good_matches.size() < 75)	//less number of matches.. don't bother working on this one. good matches are around 500-600
+			continue;
+		
+		good_matched_imgs++;
+		good_matched_imgs_this_src++;
+		good_matches_count += good_matches.size();
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_dst = keypoints3DVec[dst_index];
+		vector<bool> goodness_dst = keypoints3DGoodnessVec[dst_index];
+		
+		//using sequential matched points to estimate the rigid body transformation between matched 3D points
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		cloud_current_temp->is_dense = true;
+		cloud_prior_temp->is_dense = true;
+		
+		for (int match_index = 0; match_index < good_matches.size(); match_index++)
+		{
+			DMatch match = good_matches[match_index];
+			
+			int dst_Idx = match.trainIdx;	//dst img
+			int src_Idx = match.queryIdx;	//src img
+			
+			if(goodness_src[src_Idx] == true && goodness_dst[dst_Idx] == true)
+			{
+				cloud_current_temp->points.push_back(keypoints3D_src->points[src_Idx]);
+				cloud_prior_temp->points.push_back(keypoints3D_dst->points[dst_Idx]);
+			}
+		}
+		
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_FM = t_FMVec[dst_index];
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		
+		pcl::transformPointCloud(*cloud_current_temp, *cloud_current_t_temp, t_mat_MAVLink);
+		pcl::transformPointCloud(*cloud_prior_temp, *cloud_prior_t_temp, t_FM);
+		
+		//cout << " cloud_current_t_temp->size():" << cloud_current_t_temp->size() << " cloud_prior_t_temp->size():" << cloud_prior_t_temp->size() << flush;
+		
+		cloud_current->insert(cloud_current->end(),cloud_current_t_temp->begin(),cloud_current_t_temp->end());
+		cloud_prior->insert(cloud_prior->end(),cloud_prior_t_temp->begin(),cloud_prior_t_temp->end());
+	}
+	cout << " " << good_matched_imgs_this_src << "/" << good_matches_count;
+	log_file << " " << good_matched_imgs_this_src << "/" << good_matches_count;
+	
+	return good_matches_count;
+}
+
+/*
+
+
+int Pose::generate_Matched_Keypoints_Point_Cloud
+(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior,
+Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src, int pose_index_src)
+{
+	cout << "matched " << img_numbers[img_index] << " with_imgs/matches";
+	log_file << "matched " << img_numbers[img_index] << " with_imgs/matches";
+	bool first_match = true;
+	
+	int good_matched_imgs_this_src = 0;
+	int good_matches_count = 0;
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_srcA = keypoints3DVec[img_index];
+	vector<bool> goodness_src = keypoints3DGoodnessVec[img_index];
+	
+	for (int dst_index = img_index-1; dst_index >= max(img_index - range_width,0); dst_index--)
+	{
+		//check for only with nearby images
+		int pose_index_dst = data_index_finder(img_numbers[dst_index]);
+		double dist = sqrt((pose_data[pose_index_src][tx_ind] - pose_data[pose_index_dst][tx_ind]) * (pose_data[pose_index_src][tx_ind] - pose_data[pose_index_dst][tx_ind])
+			+ (pose_data[pose_index_src][ty_ind] - pose_data[pose_index_dst][ty_ind]) * (pose_data[pose_index_src][ty_ind] - pose_data[pose_index_dst][ty_ind]));
+		if(dist > dist_nearby)
+			continue;
+		
+		//reference https://stackoverflow.com/questions/44988087/opencv-feature-matching-match-descriptors-to-knn-filtered-keypoints
+		//reference https://github.com/opencv/opencv/issues/6130
+		//reference http://study.marearts.com/2014/07/opencv-study-orb-gpu-feature-extraction.html
+		//reference https://docs.opencv.org/3.1.0/d6/d1d/group__cudafeatures2d.html
+		
+		//cout << "image " << img_index << " to " << dst_index << endl;
+		vector<vector<DMatch>> matches;
+		cuda::GpuMat descriptor_dst(features[dst_index].descriptors);
+		matcher->knnMatch(descriptor_src, descriptor_dst, matches, 2);
+		vector<DMatch> good_matches;
+		for(int k = 0; k < matches.size(); k++)
+		{
+			if(matches[k][0].distance < 0.5 * matches[k][1].distance && matches[k][0].distance < 40)
+			{
+				//cout << matches[k][0].distance << "/" << matches[k][1].distance << " " << 
+				//matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << 
+				//matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << 
+				//matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
+				good_matches.push_back(matches[k][0]);
+			}
+		}
+		
+		//cout << " " << dist << "/" << good_matches.size();
+		
+		if(good_matches.size() < 75)	//less number of matches.. don't bother working on this one. good matches are around 500-600
 			continue;
 		
 		good_matched_imgs++;
@@ -1801,6 +2001,10 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 		//cout << "Read destination disparity image." << endl;
 		
 		vector<KeyPoint> keypoints_dst = features[dst_index].keypoints;
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_dstA = keypoints3DVec[dst_index];
+		vector<bool> goodness_dst = keypoints3DGoodnessVec[dst_index];
+		
 		//cout << "Read destination keypoints." << endl;
 		//using sequential matched points to estimate the rigid body transformation between matched 3D points
 		for (int match_index = 0; match_index < good_matches.size(); match_index++)
@@ -1812,31 +2016,31 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 			vector<int> keypoints3D_2D_index_src, keypoints3D_2D_index_dst;
 			
 			//cout << "Converting 2D matches to 3D matches... match.trainIdx " << match.trainIdx << " match.queryIdx " << match.queryIdx << endl;
-			int trainIdx = match.trainIdx;
-			int queryIdx = match.queryIdx;
+			int dst_Idx = match.trainIdx;
+			int src_Idx = match.queryIdx;
 			
 			//*3. convert corresponding features to 3D using disparity image information
-			//cout << "keypoints_src[queryIdx].pt.y " << keypoints_src[queryIdx].pt.y << " keypoints_src[queryIdx].pt.x " << keypoints_src[queryIdx].pt.x << endl;
+			//cout << "keypoints_src[src_Idx].pt.y " << keypoints_src[src_Idx].pt.y << " keypoints_src[src_Idx].pt.x " << keypoints_src[src_Idx].pt.x << endl;
 			double disp_val_src, disp_val_dst;
 			if(use_segment_labels)
 			{
-				disp_val_src = disp_img_src.at<double>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
-				disp_val_dst = disp_img_dst.at<double>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
+				disp_val_src = disp_img_src.at<double>(keypoints_src[src_Idx].pt.y, keypoints_src[src_Idx].pt.x);
+				disp_val_dst = disp_img_dst.at<double>(keypoints_dst[dst_Idx].pt.y, keypoints_dst[dst_Idx].pt.x);
 			}
 			else
 			{
-				disp_val_src = (double)disp_img_src.at<char>(keypoints_src[queryIdx].pt.y, keypoints_src[queryIdx].pt.x);
-				disp_val_dst = (double)disp_img_dst.at<char>(keypoints_dst[trainIdx].pt.y, keypoints_dst[trainIdx].pt.x);
+				disp_val_src = (double)disp_img_src.at<char>(keypoints_src[src_Idx].pt.y, keypoints_src[src_Idx].pt.x);
+				disp_val_dst = (double)disp_img_dst.at<char>(keypoints_dst[dst_Idx].pt.y, keypoints_dst[dst_Idx].pt.x);
 			}
 			//cout << "Read disparity value." << endl;
 		
 			cv::Mat_<double> vec_src(4, 1);
 			cv::Mat_<double> vec_dst(4, 1);
 
-			if (disp_val_src > minDisparity && disp_val_dst > minDisparity && keypoints_src[queryIdx].pt.x >= cols_start_aft_cutout && keypoints_dst[trainIdx].pt.x >= cols_start_aft_cutout)
+			if (disp_val_src > minDisparity && disp_val_dst > minDisparity && keypoints_src[src_Idx].pt.x >= cols_start_aft_cutout && keypoints_dst[dst_Idx].pt.x >= cols_start_aft_cutout)
 			{
-				double xs = keypoints_src[queryIdx].pt.x;
-				double ys = keypoints_src[queryIdx].pt.y;
+				double xs = keypoints_src[src_Idx].pt.x;
+				double ys = keypoints_src[src_Idx].pt.y;
 				
 				vec_src(0) = xs; vec_src(1) = ys; vec_src(2) = disp_val_src; vec_src(3) = 1;
 				vec_src = Q * vec_src;
@@ -1844,8 +2048,8 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 				
 				Point3d src_3D_pt = Point3d(vec_src(0), vec_src(1), vec_src(2));
 
-				double xd = keypoints_dst[trainIdx].pt.x;
-				double yd = keypoints_dst[trainIdx].pt.y;
+				double xd = keypoints_dst[dst_Idx].pt.x;
+				double yd = keypoints_dst[dst_Idx].pt.y;
 
 				vec_dst(0) = xd; vec_dst(1) = yd; vec_dst(2) = disp_val_dst; vec_dst(3) = 1;
 				vec_dst = Q * vec_dst;
@@ -1854,10 +2058,26 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 				Point3d dst_3D_pt = Point3d(vec_dst(0), vec_dst(1), vec_dst(2));
 				
 				keypoints3D_src.push_back(src_3D_pt);
-				keypoints3D_2D_index_src.push_back(queryIdx);
+				keypoints3D_2D_index_src.push_back(src_Idx);
 
 				keypoints3D_dst.push_back(dst_3D_pt);
-				keypoints3D_2D_index_dst.push_back(trainIdx);
+				keypoints3D_2D_index_dst.push_back(dst_Idx);
+				
+				bool a = disp_val_src > minDisparity && keypoints_src[src_Idx].pt.x >= cols_start_aft_cutout;
+				bool b = disp_val_dst > minDisparity && keypoints_dst[dst_Idx].pt.x >= cols_start_aft_cutout;
+				
+				if (!a || !b)
+				{
+					cout << "a:b:" << src_Idx << " " << dst_Idx << endl;
+				}
+				
+			}
+			else
+			{
+				if(goodness_src[src_Idx] && goodness_dst[dst_Idx])
+				{
+					cout << "goodness false positive " << src_Idx << " " << dst_Idx << " " << keypoints3D_srcA->points[src_Idx] << " " << keypoints3D_dstA->points[dst_Idx] << endl;
+				}
 			}
 			
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -1879,7 +2099,15 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 				
 				cloud_current_temp->points.push_back(pt_3d_src);
 				cloud_prior_temp->points.push_back(pt_3d_dst);
+				
+				pcl::PointXYZRGB pt_3d_srcA = keypoints3D_srcA->points[src_Idx];
+				pcl::PointXYZRGB pt_3d_dstA = keypoints3D_dstA->points[dst_Idx];
+				if (pt_3d_src.x != pt_3d_srcA.x || pt_3d_src.y != pt_3d_srcA.y || pt_3d_src.z != pt_3d_srcA.z)
+				{
+					cout << "mismatch " << pt_3d_srcA << ":" << pt_3d_srcA << " " << pt_3d_dst << ":" << pt_3d_dstA << endl;
+				}
 			}
+			
 			//cout << "cloud_current_temp->size() " << cloud_current_temp->size() << endl;
 			//cout << "cloud_prior_temp->size() " << cloud_prior_temp->size() << endl;
 			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_FM = t_FMVec[dst_index];
@@ -1915,7 +2143,7 @@ Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src,
 	return good_matches_count;
 }
 
-
+*/
 
 
 

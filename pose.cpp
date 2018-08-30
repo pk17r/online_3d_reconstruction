@@ -104,7 +104,19 @@ Pose::Pose(int argc, char* argv[])
 	
 	//initialize some variables
 	finder = makePtr<OrbFeaturesFinder>();
+	//for (int i = 0; i < 6; i++)
+	//{
+	//	Ptr<FeaturesFinder> finder = makePtr<OrbFeaturesFinder>();
+	//	finderVec.push_back(finder);
+	//}
+	
 	features = vector<ImageFeatures>(img_numbers.size());
+	for (int i = 0; i < img_numbers.size(); i++)
+	{
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3dptcloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		keypoints3dptcloud->is_dense = true;
+		keypoints3DVec.push_back(keypoints3dptcloud);
+	}
 	
 	//main point clouds
 	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -148,7 +160,9 @@ Pose::Pose(int argc, char* argv[])
 		
 		cout << "\nCycle " << cycle << " : Images " << start_idx << " to " << end_idx << endl;
 		log_file << "\nCycle " << cycle << " : Images " << start_idx << " to " << end_idx << endl;
+		
 		findFeatures();
+		
 		int64 t1 = getTickCount();
 		cout << "\nFinding features time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
 		log_file << "Finding features time:\t\t\t\t" << (t1 - t0) / getTickFrequency() << " sec" << endl;

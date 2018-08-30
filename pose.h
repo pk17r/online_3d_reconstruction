@@ -127,10 +127,13 @@ vector<Mat> segment_maps;
 vector<Mat> double_disparity_images;
 ofstream log_file;	//logging stuff
 Ptr<FeaturesFinder> finder;
+//vector<Ptr<FeaturesFinder>> finderVec;
 vector<ImageFeatures> features;
 vector<MatchesInfo> pairwise_matches;
 vector<vector<KeyPoint>> keypointsVec;
 //vector<cuda::GpuMat> descriptorsVec;
+vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> keypoints3DVec;
+vector<vector<bool>> keypoints3DGoodnessVec;
 Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
 
 //dumb variables -> try to remove them
@@ -192,6 +195,7 @@ int generate_Matched_Keypoints_Point_Cloud
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior,
 Mat &disp_img_src, vector<KeyPoint> keypoints_src, cuda::GpuMat &descriptor_src, int pose_index_src);
+void findFeaturesActual(int img_idx, int finderIdx);
 
 };
 
