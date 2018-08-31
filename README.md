@@ -17,6 +17,7 @@ Current Speeds:
 
 - sparse cloud ~ 22 fps, semi-dense cloud ~ 12 fps
 
+file:///home/pkr/pkr-work/pose_estimation/comparison_with_Agisoft_PhotoScan_results/1.png
 
 Comparision of results (right) with Agisoft PhotoScan results (left)
 [[https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/1.png|alt=octocat]]
