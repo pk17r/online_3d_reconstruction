@@ -1,6 +1,11 @@
-# Online 3D Reconstruction on UAV
+# Online 3D Reconstruction on a UAV
 
 Program to do online 3D reconstruction with pose correction of UAV. Very high localization and object dimensional accuracy
+
+## Dependencies:
+- OpenCV 3.1
+- PCL 1.7
+- CUDA 8.0
 
 ## Inputs:
 - disparity images
