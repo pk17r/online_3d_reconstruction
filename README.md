@@ -13,6 +13,10 @@ Program to do online 3D reconstruction with pose correction of UAV. Very high lo
 ## Accuracy:
 - UAV flying altitude 22m. localization with < 10 cm, object dimension accuracy < 3 cm
 
+## Results:
+![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/6.png)
+![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/7.png)
+
 ## Comparision of results (right) with Agisoft PhotoScan results (left)
 ![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/1.png)
 ![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/2.png)
