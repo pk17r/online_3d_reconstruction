@@ -136,8 +136,8 @@ Pose::Pose(int argc, char* argv[])
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_matVec;
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec;
 	
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink(new pcl::PointCloud<pcl::PointXYZRGB> ());
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM(new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	cloud_hexPos_MAVLink->is_dense = true;
 	cloud_hexPos_FM->is_dense = true;
 	
@@ -156,6 +156,8 @@ Pose::Pose(int argc, char* argv[])
 	int current_idx = 0;
 	int last_idx = img_numbers.size() - 1;
 	int cycle = 0;
+	bool row1_done = false;
+	bool row2_done = false;
 	
 	while(current_idx <= last_idx)
 	{
@@ -171,10 +173,13 @@ Pose::Pose(int argc, char* argv[])
 		//cout << "\nFinding features time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
 		//log_file << "Finding features time:\t\t\t\t" << (t1 - t0) / getTickFrequency() << " sec" << endl;
 
-		bool row1_done = false;
-		bool row2_done = false;
 		bool red_or_blue = true;
 		Eigen::VectorXf model_coefficients;
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr row1_UAV_pos (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr row2_UAV_pos (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr row12_FM_UAV_pos (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		
 		while(current_idx <= last_idx)
 		{
 			//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
@@ -187,8 +192,8 @@ Pose::Pose(int argc, char* argv[])
 				//row line fitting
 				// created RandomSampleConsensus object and compute the appropriated model
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr row_UAV_pos(new pcl::PointCloud<pcl::PointXYZRGB> ());
-				for (int i = min_uav_pos; i > 0; i--)
-					row_UAV_pos->points.push_back(cloud_hexPos_MAVLink->points[current_idx - i]);
+				for (int i = row_start_idx; i < current_idx; i++)
+					row_UAV_pos->points.push_back(cloud_hexPos_MAVLink->points[i]);
 				
 				pcl::SampleConsensusModelLine<pcl::PointXYZRGB>::Ptr model_l (new pcl::SampleConsensusModelLine<pcl::PointXYZRGB> (row_UAV_pos));
 				pcl::RandomSampleConsensus<pcl::PointXYZRGB> ransac (model_l);
@@ -210,10 +215,9 @@ Pose::Pose(int argc, char* argv[])
 					for (int a = 0; a < distances.size(); a++)
 						std::cout << distances[a] << " " << std::flush;
 				}
-			}
 			
-			if (current_idx - row_start_idx >= min_uav_pos)
-			{
+				//check whether new UAV position lies on this row or not
+				
 				// Obtain the line point and direction
 				Eigen::Vector4f line_pt  (model_coefficients[0], model_coefficients[1], model_coefficients[2], 0);
 				Eigen::Vector4f line_dir (model_coefficients[3], model_coefficients[4], model_coefficients[5], 0);
@@ -223,24 +227,43 @@ Pose::Pose(int argc, char* argv[])
 				double distance_new_uav_pos = sqrt ((line_pt - new_pt).cross3 (line_dir).squaredNorm ());
 
 				std::cout << " dist_new_uav_pos: " << distance_new_uav_pos << std::endl;
-				
+				//cout << "current_idx:" << current_idx<< " last_idx:" << last_idx<< endl;
 				if (distance_new_uav_pos > uav_new_row_dist_threshold)
 				{//new row
+					red_or_blue = !red_or_blue;
+					hexPosMAVLink = addPointFromPoseFile(pose_index, red_or_blue);
 					if (!row1_done)
 					{
 						row1_done = true;
 						row_start_idx = current_idx;
 						cout << "New Row!" << endl;
-						red_or_blue = false;
-						hexPosMAVLink = addPointFromPoseFile(pose_index, red_or_blue);
+						copyPointCloud(*row_UAV_pos, *row1_UAV_pos);
+						cout << "row1_UAV_pos->size():" << row1_UAV_pos->size() << endl;
 					}
 					else
 					{
 						row2_done = true;
 						cout << "New Row and Cycle!" << endl;
-						red_or_blue = true;
-						hexPosMAVLink = addPointFromPoseFile(pose_index, red_or_blue);
+						copyPointCloud(*row_UAV_pos, *row2_UAV_pos);
+						cout << "row2_UAV_pos->size():" << row2_UAV_pos->size() << endl;
 						break;
+					}
+				}
+				else if (current_idx == last_idx)	//special handling of last row ending
+				{
+					if (!row1_done)
+					{
+						cout << "Row End!" << endl;
+						row1_done = true;
+						copyPointCloud(*row_UAV_pos, *row1_UAV_pos);
+						cout << "row1_UAV_pos->size():" << row1_UAV_pos->size() << endl;
+					}
+					else
+					{
+						cout << "Row and Cycle End!" << endl;
+						row2_done = true;
+						copyPointCloud(*row_UAV_pos, *row2_UAV_pos);
+						cout << "row2_UAV_pos->size():" << row2_UAV_pos->size() << endl;
 					}
 				}
 			}
@@ -261,6 +284,8 @@ Pose::Pose(int argc, char* argv[])
 			{
 				t_FMVec.push_back(t_mat);
 				cloud_hexPos_FM->points.push_back(hexPosMAVLink);
+				//row12_FM_UAV_pos->points.push_back(hexPosMAVLink);
+				
 				current_idx++;
 				continue;
 			}
@@ -273,9 +298,14 @@ Pose::Pose(int argc, char* argv[])
 			
 			pcl::PointXYZRGB hexPosFM = transformPoint(hexPosMAVLink, T_SVD_matched_pts);
 			cloud_hexPos_FM->points.push_back(hexPosFM);
+			//row12_FM_UAV_pos->points.push_back(hexPosFM);
 			
 			current_idx++;
+			cout << " row12_FM_UAV_pos->size():" << row12_FM_UAV_pos->size() << endl;
 		}
+		
+		cout << "out of loop" << endl;
+		
 		
 		int64 t2 = getTickCount();
 		cout << "\nMatching features and finding transformations time: " << (t2 - t0) / getTickFrequency() << " sec\n" << endl;
@@ -294,11 +324,15 @@ Pose::Pose(int argc, char* argv[])
 				log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
 		}
 		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr row12_MAV_UAV_pos (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		row12_MAV_UAV_pos->insert(row12_MAV_UAV_pos->end(),row1_UAV_pos->begin(),row1_UAV_pos->end());
+		row12_MAV_UAV_pos->insert(row12_MAV_UAV_pos->end(),row2_UAV_pos->begin(),row2_UAV_pos->end());
+		
+		cout << "row12_FM_UAV_pos->size():" << row12_FM_UAV_pos->size() << " row12_MAV_UAV_pos->size():" << row12_MAV_UAV_pos->size() << endl << endl;
+		
 		//transforming the camera positions using ICP
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
-		
-		//correcting old point cloud
-		transformPtCloud(cloud_big, cloud_big, tf_icp);
+		//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(row12_FM_UAV_pos, row12_MAV_UAV_pos);
 		
 		//correcting old tf_mats
 		for (int i = 0; i < current_idx; i++)
@@ -306,17 +340,8 @@ Pose::Pose(int argc, char* argv[])
 		
 		//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
 		transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, tf_icp);
-		
-		if(log_uav_positions)
-		{
-			log_file << "\ncorrected hexacopter positions" << endl;
-			for (int i = cycle_start_idx; i < current_idx + 1; i++)
-				log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
-		}
-		
-		int64 t3 = getTickCount();
-		cout << "\nICP alignment and point cloud correction time: " << (t3 - t2) / getTickFrequency() << " sec\n" << endl;
-		log_file << "ICP point cloud correction time:\t\t" << (t3 - t2) / getTickFrequency() << " sec" << endl;
+		//transformPtCloud(row12_FM_UAV_pos, row12_FM_UAV_pos, tf_icp);
+		//cloud_hexPos_FM->insert(cloud_hexPos_FM->end(),row12_FM_UAV_pos->begin(),row12_FM_UAV_pos->end());
 		
 		//add additional correction for each individual UAV position -> translate back to MAVLink location by a percentage value
 		////find distance and then translate
@@ -345,6 +370,21 @@ Pose::Pose(int argc, char* argv[])
 		//		//cloud_hexPos_FM->points[i].z += K * delz;
 		//	}
 		//}
+		
+		//correcting old point cloud
+		transformPtCloud(cloud_big, cloud_big, tf_icp);
+		
+		if(log_uav_positions)
+		{
+			log_file << "\ncorrected hexacopter positions" << endl;
+			for (int i = cycle_start_idx; i < current_idx + 1; i++)
+				log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
+		}
+		
+		int64 t3 = getTickCount();
+		cout << "\nICP alignment and point cloud correction time: " << (t3 - t2) / getTickFrequency() << " sec\n" << endl;
+		log_file << "ICP point cloud correction time:\t\t" << (t3 - t2) / getTickFrequency() << " sec" << endl;
+		
 		
 		//adding new points to point cloud
 		cout << "Adding Point Cloud number/points ";
@@ -440,6 +480,8 @@ Pose::Pose(int argc, char* argv[])
 		}
 		
 		finder->collectGarbage();
+		cycle_start_idx = current_idx;
+		row_start_idx = current_idx;
 		cycle++;
 		
 		int64 t6 = getTickCount();
