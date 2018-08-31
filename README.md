@@ -18,15 +18,11 @@ Current Speeds:
 - sparse cloud ~ 22 fps, semi-dense cloud ~ 12 fps
 
 Comparision of results (right) with Agisoft PhotoScan results (left)
-
-
-
-[[https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/1.png]]
-[[https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/2.png]]
-[[https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/3.png|alt=octocat]]
-[[https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/4.png|alt=octocat]]
-[[https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/5.png|alt=octocat]]
-
+![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/1.png)
+![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/2.png)
+![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/3.png)
+![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/4.png)
+![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/5.png)
 
 
 Self notes:
