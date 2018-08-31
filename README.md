@@ -7,8 +7,11 @@ Program to do online 3D reconstruction with pose correction of UAV. Very high lo
 - camera images
 - UAV GPS and IMU state estimate pose Quaternion
 
-## Current Speeds:
+## Speeds:
 - sparse cloud ~ 22 fps, semi-dense cloud ~ 12 fps
+
+## Accuracy:
+- UAV flying altitude 22m. localization with < 10 cm, object dimension accuracy < 3 cm
 
 ## Comparision of results (right) with Agisoft PhotoScan results (left)
 ![alt text](https://github.com/pk17r/pose_estimation/blob/master/comparison_with_Agisoft_PhotoScan_results/1.png)
