@@ -1,4 +1,4 @@
-#include "pose.h"
+//#include "pose.h"
 
 void Pose::printUsage()
 {
@@ -711,17 +711,17 @@ void Pose::findFeatures()
 	//	featureFinder_thread6.join();
 	//	featureFinder_thread7.join();
 	//}
-	for (int i = start_idx; i < end_idx + 1; ++i)
-	{
-		findFeaturesActual(i, 0);
-		//(*finder)(full_images[i], features[i]);
-		////vector<KeyPoint> keypointsD;
-		////detector->detect(img,keypointsD,Mat());
-		//features[i].img_idx = i;
-		////features[i].keypoints = keypointsD;
-		//cout << " " << img_numbers[i] << "/" << features[i].keypoints.size() << std::flush;
-	}
-	cout << endl;
+	//for (int i = start_idx; i < end_idx + 1; ++i)
+	//{
+	//	//findFeaturesActual(i, 0);
+	//	//(*finder)(full_images[i], features[i]);
+	//	////vector<KeyPoint> keypointsD;
+	//	////detector->detect(img,keypointsD,Mat());
+	//	//features[i].img_idx = i;
+	//	////features[i].keypoints = keypointsD;
+	//	//cout << " " << img_numbers[i] << "/" << features[i].keypoints.size() << std::flush;
+	//}
+	//cout << endl;
 	//for (int i = 0; i < 6; i++)
 	//{
 	//	(finderVec[i])->collectGarbage();
@@ -729,12 +729,12 @@ void Pose::findFeatures()
 	finder->collectGarbage();
 }
 
-void Pose::findFeaturesActual(int img_idx, int finderIdx)
+void Pose::findFeatures(int img_idx)
 {
 	//Ptr<FeaturesFinder> finder = makePtr<OrbFeaturesFinder>();
 	(*finder)(full_images[img_idx], features[img_idx]);
 	features[img_idx].img_idx = img_idx;
-	cout << " " << img_numbers[img_idx] << "/" << features[img_idx].keypoints.size() << std::flush;
+	cout << img_numbers[img_idx] << " features " << features[img_idx].keypoints.size();
 	
 	cuda::GpuMat descriptor(features[img_idx].descriptors);
 	descriptorsVec.push_back(descriptor);
@@ -1070,7 +1070,7 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 	//	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
 }
 
-void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
+void Pose::createSingleImgPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
 	//cout << "Pt Cloud #" << img_index;
 	cloudrgb->is_dense = true;
@@ -1086,32 +1086,35 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 	else
 		disp_img = disparity_images[img_index];
 	
-	for (int i = 0; i < keypoints.size(); i++)
+	if (jump_pixels != 1)
 	{
-		double disp_val = 0;
-		if(use_segment_labels)
-			disp_val = disp_img.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
-		else
-			disp_val = (double)disp_img.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
-		
-		if (disp_val > minDisparity)
+		for (int i = 0; i < keypoints.size(); i++)
 		{
-			//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
-			vec_tmp(0)=keypoints[i].pt.x; vec_tmp(1)=keypoints[i].pt.y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
-			vec_tmp = Q*vec_tmp;
-			vec_tmp /= vec_tmp(3);
+			double disp_val = 0;
+			if(use_segment_labels)
+				disp_val = disp_img.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
+			else
+				disp_val = (double)disp_img.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
 			
-			pcl::PointXYZRGB pt_3drgb;
-			pt_3drgb.x = (float)vec_tmp(0);
-			pt_3drgb.y = (float)vec_tmp(1);
-			pt_3drgb.z = (float)vec_tmp(2);
-			Vec3b color = full_images[img_index].at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
-			
-			uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-			pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
-			
-			cloudrgb->points.push_back(pt_3drgb);
-			//cout << pt_3d << endl;
+			if (disp_val > minDisparity)
+			{
+				//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+				vec_tmp(0)=keypoints[i].pt.x; vec_tmp(1)=keypoints[i].pt.y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
+				vec_tmp = Q*vec_tmp;
+				vec_tmp /= vec_tmp(3);
+				
+				pcl::PointXYZRGB pt_3drgb;
+				pt_3drgb.x = (float)vec_tmp(0);
+				pt_3drgb.y = (float)vec_tmp(1);
+				pt_3drgb.z = (float)vec_tmp(2);
+				Vec3b color = full_images[img_index].at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
+				
+				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
+				
+				cloudrgb->points.push_back(pt_3drgb);
+				//cout << pt_3d << endl;
+			}
 		}
 	}
 	if (jump_pixels > 0)
@@ -1157,6 +1160,48 @@ void Pose::createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>
 	//if(log_stuff)
 	//	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
 }
+
+//kernel to create point cloud
+//reference:
+//https://stackoverflow.com/questions/24613637/custom-kernel-gpumat-with-float
+//__global__
+//void createSingleImgPtCloudGPU(int img_index, GpuMat disp_img, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
+//{
+//	cloudrgb->is_dense = true;
+//	
+//	cv::Mat_<double> vec_tmp(4,1);
+//	
+//	for (int y = boundingBox; y < rows - boundingBox;)
+//	{
+//		for (int x = cols_start_aft_cutout; x < cols - boundingBox;)
+//		{
+//			double disp_val = (double)disp_img.at<uchar>(y,x);
+//			
+//			if (disp_val > minDisparity)
+//			{
+//				//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+//				vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
+//				vec_tmp = Q*vec_tmp;
+//				vec_tmp /= vec_tmp(3);
+//				
+//				pcl::PointXYZRGB pt_3drgb;
+//				pt_3drgb.x = (float)vec_tmp(0);
+//				pt_3drgb.y = (float)vec_tmp(1);
+//				pt_3drgb.z = (float)vec_tmp(2);
+//				Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
+//				
+//				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+//				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
+//				
+//				cloudrgb->points.push_back(pt_3drgb);
+//				//cout << pt_3d << endl;
+//			}
+//			x += jump_pixels;
+//		}
+//		y += jump_pixels;
+//	}
+//	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
+//}
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
 {
@@ -1761,13 +1806,17 @@ void Pose::meshSurface()
 	cout << "Cya!" << endl;
 }
 
-pcl::PointXYZRGB Pose::addPointFromPoseFile(int pose_index)
+pcl::PointXYZRGB Pose::addPointFromPoseFile(int pose_index, bool red_or_blue)
 {
 	pcl::PointXYZRGB position;
 	position.x = pose_data[pose_index][tx_ind];
 	position.y = pose_data[pose_index][ty_ind];
 	position.z = pose_data[pose_index][tz_ind];
-	uint32_t rgb = (uint32_t)255 << 16;	//red
+	uint32_t rgb;
+	if(red_or_blue)
+		rgb = (uint32_t)255 << 16;	//red
+	else
+		rgb = (uint32_t)255;		//blue
 	position.rgb = *reinterpret_cast<float*>(&rgb);
 	
 	return position;
@@ -1806,14 +1855,14 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	{
 		dist_nearby *= 2;
 		cout << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
+		cout << img_numbers[img_index];
 		log_file << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
+		log_file << img_numbers[img_index];
 		cloud_current->clear();
 		cloud_prior->clear();
 		generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, pose_index_src);
 		dist_nearby /= 2;
 	}
-	cout << endl;
-	log_file << endl;
 	
 	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
@@ -1833,8 +1882,8 @@ int Pose::generate_Matched_Keypoints_Point_Cloud
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src)
 {
-	cout << "matched " << img_numbers[img_index] << " with_imgs/matches";
-	log_file << "matched " << img_numbers[img_index] << " with_imgs/matches";
+	cout << " matched with_imgs/matches";
+	log_file << " matched with_imgs/matches";
 	
 	Mat disp_img_src;
 	if(use_segment_labels)

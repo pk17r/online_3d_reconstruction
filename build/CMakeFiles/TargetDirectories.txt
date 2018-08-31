@@ -1,5 +1,3 @@
 /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/edit_cache.dir
-/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/pose_functions.dir
-/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/pose_main.dir
 /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/rebuild_cache.dir
 /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/pose.dir

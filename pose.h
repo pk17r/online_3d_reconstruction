@@ -53,7 +53,6 @@ double minDisparity = 64;
 int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 int jump_pixels = 10;
-int start_idx = 0, end_idx = 0;
 int seq_len = -1;
 bool online = false;
 int blur_kernel = 1;	//31 is a good number
@@ -65,7 +64,11 @@ bool smooth_surface = false;
 int polynomial_order = 2;
 double search_radius = 0.02;//, sqr_gauss_param = 0.02;
 bool downsample = false;
-unsigned int min_points_per_voxel = 10;
+unsigned int min_points_per_voxel = 1;
+
+const double uav_line_creation_dist_threshold = 0.2;
+const double uav_new_row_dist_threshold = 1;
+const int min_uav_positions_for_line_fitting = 7;		//want at least x points for good line fitting
 
 double voxel_size = 0.1; //in meters
 double max_depth = 2; //in meters
@@ -151,7 +154,7 @@ void populateData();
 void findFeatures();
 void pairWiseMatching();
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
-void createFeaturePtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
+void createSingleImgPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
 void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform);
 void createPlaneFittedDisparityImages(int i);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose);
@@ -175,7 +178,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::Po
 void orbcudaPairwiseMatching();
 void smoothPtCloud();
 void meshSurface();
-pcl::PointXYZRGB addPointFromPoseFile(int pose_index);
+pcl::PointXYZRGB addPointFromPoseFile(int pose_index, bool red_or_blue);
 pcl::PointXYZRGB transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts);
 void populateDisparityImages(int start_index, int end_index);
 void readDisparityImage(int i);
@@ -185,12 +188,12 @@ void populateImages(int start_index, int end_index);
 void readImage(int i);
 void populateDoubleDispImages(int start_index, int end_index);
 void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_combined_copy, 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, int cycle, int n_cycle);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, int cycle, bool last_cycle);
 void createAndTransformPtCloud(int img_index, 
 	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &transformed_cloudrgb);
 void findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-void findFeaturesActual(int img_idx, int finderIdx);
+void findFeatures(int img_idx);
 int generate_Matched_Keypoints_Point_Cloud (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, 
 pcl::PointXYZRGB>::Matrix4> t_FMVec, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src);

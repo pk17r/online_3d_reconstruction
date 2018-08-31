@@ -22,11 +22,5 @@ set(
     -gencode=arch=compute_61,code=sm_61
     )
 
-add_library(pose_functions pose_functions.cpp)
-target_link_libraries(pose_functions ${OpenCV_LIBS} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
-
-add_library(pose_main pose.cpp)
-target_link_libraries(pose_main ${OpenCV_LIBS} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
-
-add_executable(pose main.cpp)
-target_link_libraries(pose pose_main pose_functions)
+add_executable(pose pose.cpp)
+target_link_libraries(pose ${OpenCV_LIBS} ${PCL_LIBRARIES} ${Boost_LIBRARIES})

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libpose_main.a  CMakeFiles/pose_main.dir/pose.cpp.o
-/usr/bin/ranlib libpose_main.a

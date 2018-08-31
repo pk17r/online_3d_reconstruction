@@ -57,41 +57,39 @@ include CMakeFiles/pose.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/pose.dir/flags.make
 
-CMakeFiles/pose.dir/main.cpp.o: CMakeFiles/pose.dir/flags.make
-CMakeFiles/pose.dir/main.cpp.o: ../main.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pkr/pkr-work/pose_estimation/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/pose.dir/main.cpp.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/pose.dir/main.cpp.o -c /home/pkr/pkr-work/pose_estimation/main.cpp
+CMakeFiles/pose.dir/pose.cpp.o: CMakeFiles/pose.dir/flags.make
+CMakeFiles/pose.dir/pose.cpp.o: ../pose.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pkr/pkr-work/pose_estimation/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/pose.dir/pose.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/pose.dir/pose.cpp.o -c /home/pkr/pkr-work/pose_estimation/pose.cpp
 
-CMakeFiles/pose.dir/main.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/pose.dir/main.cpp.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/pkr/pkr-work/pose_estimation/main.cpp > CMakeFiles/pose.dir/main.cpp.i
+CMakeFiles/pose.dir/pose.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/pose.dir/pose.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/pkr/pkr-work/pose_estimation/pose.cpp > CMakeFiles/pose.dir/pose.cpp.i
 
-CMakeFiles/pose.dir/main.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/pose.dir/main.cpp.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/pkr/pkr-work/pose_estimation/main.cpp -o CMakeFiles/pose.dir/main.cpp.s
+CMakeFiles/pose.dir/pose.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/pose.dir/pose.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/pkr/pkr-work/pose_estimation/pose.cpp -o CMakeFiles/pose.dir/pose.cpp.s
 
-CMakeFiles/pose.dir/main.cpp.o.requires:
+CMakeFiles/pose.dir/pose.cpp.o.requires:
 
-.PHONY : CMakeFiles/pose.dir/main.cpp.o.requires
+.PHONY : CMakeFiles/pose.dir/pose.cpp.o.requires
 
-CMakeFiles/pose.dir/main.cpp.o.provides: CMakeFiles/pose.dir/main.cpp.o.requires
-	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/main.cpp.o.provides.build
-.PHONY : CMakeFiles/pose.dir/main.cpp.o.provides
+CMakeFiles/pose.dir/pose.cpp.o.provides: CMakeFiles/pose.dir/pose.cpp.o.requires
+	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/pose.cpp.o.provides.build
+.PHONY : CMakeFiles/pose.dir/pose.cpp.o.provides
 
-CMakeFiles/pose.dir/main.cpp.o.provides.build: CMakeFiles/pose.dir/main.cpp.o
+CMakeFiles/pose.dir/pose.cpp.o.provides.build: CMakeFiles/pose.dir/pose.cpp.o
 
 
 # Object files for target pose
 pose_OBJECTS = \
-"CMakeFiles/pose.dir/main.cpp.o"
+"CMakeFiles/pose.dir/pose.cpp.o"
 
 # External object files for target pose
 pose_EXTERNAL_OBJECTS =
 
-pose: CMakeFiles/pose.dir/main.cpp.o
+pose: CMakeFiles/pose.dir/pose.cpp.o
 pose: CMakeFiles/pose.dir/build.make
-pose: libpose_main.a
-pose: libpose_functions.a
 pose: /usr/local/lib/libopencv_videostab.so.3.1.0
 pose: /usr/local/lib/libopencv_superres.so.3.1.0
 pose: /usr/local/lib/libopencv_stitching.so.3.1.0
@@ -101,28 +99,108 @@ pose: /usr/local/lib/libopencv_cudastereo.so.3.1.0
 pose: /usr/local/lib/libopencv_cudaoptflow.so.3.1.0
 pose: /usr/local/lib/libopencv_cudaobjdetect.so.3.1.0
 pose: /usr/local/lib/libopencv_cudalegacy.so.3.1.0
-pose: /usr/local/lib/libopencv_objdetect.so.3.1.0
 pose: /usr/local/lib/libopencv_cudaimgproc.so.3.1.0
 pose: /usr/local/lib/libopencv_cudafeatures2d.so.3.1.0
-pose: /usr/local/lib/libopencv_cudawarping.so.3.1.0
-pose: /usr/local/lib/libopencv_cudafilters.so.3.1.0
 pose: /usr/local/lib/libopencv_cudacodec.so.3.1.0
 pose: /usr/local/lib/libopencv_cudabgsegm.so.3.1.0
-pose: /usr/local/lib/libopencv_video.so.3.1.0
-pose: /usr/local/lib/libopencv_cudaarithm.so.3.1.0
 pose: /usr/local/lib/libopencv_calib3d.so.3.1.0
+pose: /usr/lib/x86_64-linux-gnu/libboost_system.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_filesystem.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_thread.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_date_time.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_iostreams.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_serialization.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_chrono.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_atomic.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_regex.so
+pose: /usr/lib/x86_64-linux-gnu/libpthread.so
+pose: /usr/lib/libpcl_common.so
+pose: /usr/lib/libpcl_octree.so
+pose: /usr/lib/libOpenNI.so
+pose: /usr/lib/libpcl_io.so
+pose: /usr/lib/x86_64-linux-gnu/libflann_cpp.so
+pose: /usr/lib/libpcl_kdtree.so
+pose: /usr/lib/libpcl_search.so
+pose: /usr/lib/libpcl_sample_consensus.so
+pose: /usr/lib/libpcl_filters.so
+pose: /usr/lib/libpcl_features.so
+pose: /usr/lib/libpcl_ml.so
+pose: /usr/lib/libpcl_segmentation.so
+pose: /usr/lib/libpcl_visualization.so
+pose: /usr/lib/x86_64-linux-gnu/libqhull.so
+pose: /usr/lib/libpcl_surface.so
+pose: /usr/lib/libpcl_registration.so
+pose: /usr/lib/libpcl_keypoints.so
+pose: /usr/lib/libpcl_tracking.so
+pose: /usr/lib/libpcl_recognition.so
+pose: /usr/lib/libpcl_stereo.so
+pose: /usr/lib/libpcl_apps.so
+pose: /usr/lib/libpcl_people.so
+pose: /usr/lib/libpcl_gpu_containers.so
+pose: /usr/lib/libpcl_gpu_utils.so
+pose: /usr/lib/libpcl_gpu_octree.so
+pose: /usr/lib/libpcl_gpu_features.so
+pose: /usr/lib/libpcl_gpu_segmentation.so
+pose: /usr/lib/libpcl_gpu_kinfu.so
+pose: /usr/lib/libpcl_gpu_kinfu_large_scale.so
+pose: /usr/lib/libpcl_outofcore.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_system.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_filesystem.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_thread.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_date_time.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_iostreams.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_serialization.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_chrono.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_atomic.so
+pose: /usr/lib/x86_64-linux-gnu/libboost_regex.so
+pose: /usr/lib/x86_64-linux-gnu/libpthread.so
+pose: /usr/lib/x86_64-linux-gnu/libqhull.so
+pose: /usr/lib/libOpenNI.so
+pose: /usr/lib/x86_64-linux-gnu/libflann_cpp.so
+pose: /usr/lib/libvtkGenericFiltering.so.5.10.1
+pose: /usr/lib/libvtkGeovis.so.5.10.1
+pose: /usr/lib/libvtkCharts.so.5.10.1
+pose: /usr/local/lib/libopencv_cudawarping.so.3.1.0
+pose: /usr/local/lib/libopencv_objdetect.so.3.1.0
+pose: /usr/local/lib/libopencv_cudafilters.so.3.1.0
+pose: /usr/local/lib/libopencv_cudaarithm.so.3.1.0
 pose: /usr/local/lib/libopencv_features2d.so.3.1.0
 pose: /usr/local/lib/libopencv_ml.so.3.1.0
 pose: /usr/local/lib/libopencv_highgui.so.3.1.0
 pose: /usr/local/lib/libopencv_videoio.so.3.1.0
 pose: /usr/local/lib/libopencv_imgcodecs.so.3.1.0
-pose: /usr/local/lib/libopencv_imgproc.so.3.1.0
 pose: /usr/local/lib/libopencv_flann.so.3.1.0
+pose: /usr/local/lib/libopencv_video.so.3.1.0
+pose: /usr/local/lib/libopencv_imgproc.so.3.1.0
 pose: /usr/local/lib/libopencv_core.so.3.1.0
 pose: /usr/local/lib/libopencv_cudev.so.3.1.0
-pose: /usr/lib/libvtkGenericFiltering.so.5.10.1
-pose: /usr/lib/libvtkGeovis.so.5.10.1
-pose: /usr/lib/libvtkCharts.so.5.10.1
+pose: /usr/lib/libpcl_common.so
+pose: /usr/lib/libpcl_octree.so
+pose: /usr/lib/libpcl_io.so
+pose: /usr/lib/libpcl_kdtree.so
+pose: /usr/lib/libpcl_search.so
+pose: /usr/lib/libpcl_sample_consensus.so
+pose: /usr/lib/libpcl_filters.so
+pose: /usr/lib/libpcl_features.so
+pose: /usr/lib/libpcl_ml.so
+pose: /usr/lib/libpcl_segmentation.so
+pose: /usr/lib/libpcl_visualization.so
+pose: /usr/lib/libpcl_surface.so
+pose: /usr/lib/libpcl_registration.so
+pose: /usr/lib/libpcl_keypoints.so
+pose: /usr/lib/libpcl_tracking.so
+pose: /usr/lib/libpcl_recognition.so
+pose: /usr/lib/libpcl_stereo.so
+pose: /usr/lib/libpcl_apps.so
+pose: /usr/lib/libpcl_people.so
+pose: /usr/lib/libpcl_gpu_containers.so
+pose: /usr/lib/libpcl_gpu_utils.so
+pose: /usr/lib/libpcl_gpu_octree.so
+pose: /usr/lib/libpcl_gpu_features.so
+pose: /usr/lib/libpcl_gpu_segmentation.so
+pose: /usr/lib/libpcl_gpu_kinfu.so
+pose: /usr/lib/libpcl_gpu_kinfu_large_scale.so
+pose: /usr/lib/libpcl_outofcore.so
 pose: /usr/lib/libvtkViews.so.5.10.1
 pose: /usr/lib/libvtkInfovis.so.5.10.1
 pose: /usr/lib/libvtkWidgets.so.5.10.1
@@ -136,86 +214,6 @@ pose: /usr/lib/libvtkIO.so.5.10.1
 pose: /usr/lib/libvtkFiltering.so.5.10.1
 pose: /usr/lib/libvtkCommon.so.5.10.1
 pose: /usr/lib/libvtksys.so.5.10.1
-pose: /usr/lib/x86_64-linux-gnu/libboost_system.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_filesystem.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_thread.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_date_time.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_iostreams.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_serialization.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_chrono.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_atomic.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_regex.so
-pose: /usr/lib/x86_64-linux-gnu/libpthread.so
-pose: /usr/lib/libpcl_common.so
-pose: /usr/lib/libpcl_octree.so
-pose: /usr/lib/libOpenNI.so
-pose: /usr/lib/libpcl_io.so
-pose: /usr/lib/x86_64-linux-gnu/libflann_cpp.so
-pose: /usr/lib/libpcl_kdtree.so
-pose: /usr/lib/libpcl_search.so
-pose: /usr/lib/libpcl_sample_consensus.so
-pose: /usr/lib/libpcl_filters.so
-pose: /usr/lib/libpcl_features.so
-pose: /usr/lib/libpcl_ml.so
-pose: /usr/lib/libpcl_segmentation.so
-pose: /usr/lib/libpcl_visualization.so
-pose: /usr/lib/x86_64-linux-gnu/libqhull.so
-pose: /usr/lib/libpcl_surface.so
-pose: /usr/lib/libpcl_registration.so
-pose: /usr/lib/libpcl_keypoints.so
-pose: /usr/lib/libpcl_tracking.so
-pose: /usr/lib/libpcl_recognition.so
-pose: /usr/lib/libpcl_stereo.so
-pose: /usr/lib/libpcl_apps.so
-pose: /usr/lib/libpcl_people.so
-pose: /usr/lib/libpcl_gpu_containers.so
-pose: /usr/lib/libpcl_gpu_utils.so
-pose: /usr/lib/libpcl_gpu_octree.so
-pose: /usr/lib/libpcl_gpu_features.so
-pose: /usr/lib/libpcl_gpu_segmentation.so
-pose: /usr/lib/libpcl_gpu_kinfu.so
-pose: /usr/lib/libpcl_gpu_kinfu_large_scale.so
-pose: /usr/lib/libpcl_outofcore.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_system.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_filesystem.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_thread.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_date_time.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_iostreams.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_serialization.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_chrono.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_atomic.so
-pose: /usr/lib/x86_64-linux-gnu/libboost_regex.so
-pose: /usr/lib/x86_64-linux-gnu/libpthread.so
-pose: /usr/lib/libpcl_common.so
-pose: /usr/lib/libpcl_octree.so
-pose: /usr/lib/libOpenNI.so
-pose: /usr/lib/libpcl_io.so
-pose: /usr/lib/x86_64-linux-gnu/libflann_cpp.so
-pose: /usr/lib/libpcl_kdtree.so
-pose: /usr/lib/libpcl_search.so
-pose: /usr/lib/libpcl_sample_consensus.so
-pose: /usr/lib/libpcl_filters.so
-pose: /usr/lib/libpcl_features.so
-pose: /usr/lib/libpcl_ml.so
-pose: /usr/lib/libpcl_segmentation.so
-pose: /usr/lib/libpcl_visualization.so
-pose: /usr/lib/x86_64-linux-gnu/libqhull.so
-pose: /usr/lib/libpcl_surface.so
-pose: /usr/lib/libpcl_registration.so
-pose: /usr/lib/libpcl_keypoints.so
-pose: /usr/lib/libpcl_tracking.so
-pose: /usr/lib/libpcl_recognition.so
-pose: /usr/lib/libpcl_stereo.so
-pose: /usr/lib/libpcl_apps.so
-pose: /usr/lib/libpcl_people.so
-pose: /usr/lib/libpcl_gpu_containers.so
-pose: /usr/lib/libpcl_gpu_utils.so
-pose: /usr/lib/libpcl_gpu_octree.so
-pose: /usr/lib/libpcl_gpu_features.so
-pose: /usr/lib/libpcl_gpu_segmentation.so
-pose: /usr/lib/libpcl_gpu_kinfu.so
-pose: /usr/lib/libpcl_gpu_kinfu_large_scale.so
-pose: /usr/lib/libpcl_outofcore.so
 pose: CMakeFiles/pose.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/pkr/pkr-work/pose_estimation/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable pose"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/pose.dir/link.txt --verbose=$(VERBOSE)
@@ -225,7 +223,7 @@ CMakeFiles/pose.dir/build: pose
 
 .PHONY : CMakeFiles/pose.dir/build
 
-CMakeFiles/pose.dir/requires: CMakeFiles/pose.dir/main.cpp.o.requires
+CMakeFiles/pose.dir/requires: CMakeFiles/pose.dir/pose.cpp.o.requires
 
 .PHONY : CMakeFiles/pose.dir/requires
 

@@ -6,9 +6,17 @@
 
 #IncludeRegexTransform: 
 
-/home/pkr/pkr-work/pose_estimation/main.cpp
+/home/pkr/pkr-work/pose_estimation/pose.cpp
 pose.h
 /home/pkr/pkr-work/pose_estimation/pose.h
+boost/filesystem.hpp
+-
+pose_functions.cpp
+/home/pkr/pkr-work/pose_estimation/pose_functions.cpp
+pcl/sample_consensus/ransac.h
+-
+pcl/sample_consensus/sac_model_line.h
+-
 
 /home/pkr/pkr-work/pose_estimation/pose.h
 iostream
@@ -77,6 +85,8 @@ opencv2/features2d.hpp
 -
 opencv2/cudafeatures2d.hpp
 -
+
+/home/pkr/pkr-work/pose_estimation/pose_functions.cpp
 
 /usr/include/eigen3/Eigen/Cholesky
 Core
@@ -2262,6 +2272,14 @@ unsupported/Eigen/NonLinearOptimization
 pcl/sample_consensus/ransac.h
 -
 
+/usr/include/pcl-1.8/pcl/sample_consensus/impl/sac_model_line.hpp
+pcl/sample_consensus/sac_model_line.h
+-
+pcl/common/centroid.h
+-
+pcl/common/concatenate.h
+-
+
 /usr/include/pcl-1.8/pcl/sample_consensus/impl/sac_model_registration.hpp
 pcl/sample_consensus/sac_model_registration.h
 -
@@ -2310,6 +2328,16 @@ pcl/sample_consensus/boost.h
 pcl/sample_consensus/model_types.h
 -
 pcl/search/search.h
+-
+
+/usr/include/pcl-1.8/pcl/sample_consensus/sac_model_line.h
+pcl/sample_consensus/sac_model.h
+-
+pcl/sample_consensus/model_types.h
+-
+pcl/common/eigen.h
+-
+pcl/sample_consensus/impl/sac_model_line.hpp
 -
 
 /usr/include/pcl-1.8/pcl/sample_consensus/sac_model_registration.h

@@ -12,6 +12,10 @@
 
 #include "pose.h"
 #include <boost/filesystem.hpp>
+#include "pose_functions.cpp"
+
+#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_line.h>
 
 Pose::Pose(int argc, char* argv[])
 {
@@ -59,7 +63,7 @@ Pose::Pose(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
 		
 		//downsample cloud
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered = downsamplePtCloud(cloudrgb, false);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered = downsamplePtCloud(cloudrgb, true);
 		
 		string writePath = "downsampled_" + read_PLY_filename0;
 		save_pt_cloud_to_PLY_File(cloudrgb_filtered, writePath);
@@ -147,58 +151,135 @@ Pose::Pose(int argc, char* argv[])
 	
 	bool log_uav_positions = false;
 	
-	for (int cycle = 0; cycle < n_cycle; cycle++)
+	double error_x = 0, error_y = 0, error_z = 0;
+	
+	int current_idx = 0;
+	int last_idx = img_numbers.size() - 1;
+	int cycle = 0;
+	
+	while(current_idx <= last_idx)
 	{
 		int64 t0 = getTickCount();
 		
-		start_idx = cycle * seq_len;
+		int cycle_start_idx = current_idx;
+		int row_start_idx = current_idx;
 		
-		if(online)
-			end_idx = min((cycle + 1) * seq_len - 1, (int)(img_numbers.size()) - 1);
-		else
-			end_idx = img_numbers.size() - 1;
+		cout << "\nCycle " << cycle << endl;
+		log_file << "\nCycle " << cycle << endl;
 		
-		cout << "\nCycle " << cycle << " : Images " << start_idx << " to " << end_idx << endl;
-		log_file << "\nCycle " << cycle << " : Images " << start_idx << " to " << end_idx << endl;
-		
-		findFeatures();
-		
-		int64 t1 = getTickCount();
-		cout << "\nFinding features time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
-		log_file << "Finding features time:\t\t\t\t" << (t1 - t0) / getTickFrequency() << " sec" << endl;
+		//int64 t1 = getTickCount();
+		//cout << "\nFinding features time: " << (t1 - t0) / getTickFrequency() << " sec\n" << endl;
+		//log_file << "Finding features time:\t\t\t\t" << (t1 - t0) / getTickFrequency() << " sec" << endl;
 
-		if(log_uav_positions) log_file << "\nrecorded hexacopter positions" << endl;
-		
-		for (int i = start_idx; i < end_idx + 1; i++)
+		bool row1_done = false;
+		bool row2_done = false;
+		bool red_or_blue = true;
+		Eigen::VectorXf model_coefficients;
+		while(current_idx <= last_idx)
 		{
 			//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
-			int pose_index = data_index_finder(img_numbers[i]);
-			pcl::PointXYZRGB hexPosMAVLink = addPointFromPoseFile(pose_index);
+			int pose_index = data_index_finder(img_numbers[current_idx]);
+			pcl::PointXYZRGB hexPosMAVLink = addPointFromPoseFile(pose_index, red_or_blue);
+			
+			//line fitting
+			if (current_idx - row_start_idx >= min_uav_positions_for_line_fitting)
+			{
+				//row line fitting
+				// created RandomSampleConsensus object and compute the appropriated model
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr row_UAV_pos(new pcl::PointCloud<pcl::PointXYZRGB> ());
+				for (int i = min_uav_pos; i > 0; i--)
+					row_UAV_pos->points.push_back(cloud_hexPos_MAVLink->points[current_idx - i]);
+				
+				pcl::SampleConsensusModelLine<pcl::PointXYZRGB>::Ptr model_l (new pcl::SampleConsensusModelLine<pcl::PointXYZRGB> (row_UAV_pos));
+				pcl::RandomSampleConsensus<pcl::PointXYZRGB> ransac (model_l);
+				ransac.setDistanceThreshold (uav_line_creation_dist_threshold);
+				
+				ransac.computeModel();
+				ransac.getModelCoefficients (model_coefficients);
+				
+				if(current_idx - row_start_idx == min_uav_positions_for_line_fitting)
+				{
+					//std::vector<int> inliers;
+					//ransac.getInliers(inliers);
+					//if (row_UAV_pos->size() != inliers.size())
+					//	cout << "***** row_UAV_pos->size() and inliers.size() mismatch! *****" << endl;
+					std::vector<double> distances;
+					model_l->getDistancesToModel(model_coefficients, distances);
+					
+					std::cout << "\nUAV dist from fitted line: ";
+					for (int a = 0; a < distances.size(); a++)
+						std::cout << distances[a] << " " << std::flush;
+				}
+			}
+			
+			if (current_idx - row_start_idx >= min_uav_pos)
+			{
+				// Obtain the line point and direction
+				Eigen::Vector4f line_pt  (model_coefficients[0], model_coefficients[1], model_coefficients[2], 0);
+				Eigen::Vector4f line_dir (model_coefficients[3], model_coefficients[4], model_coefficients[5], 0);
+				line_dir.normalize ();
+				Eigen::Vector4f new_pt  (hexPosMAVLink.x, hexPosMAVLink.y, hexPosMAVLink.z, 0);
+				
+				double distance_new_uav_pos = sqrt ((line_pt - new_pt).cross3 (line_dir).squaredNorm ());
+
+				std::cout << " dist_new_uav_pos: " << distance_new_uav_pos << std::endl;
+				
+				if (distance_new_uav_pos > uav_new_row_dist_threshold)
+				{//new row
+					if (!row1_done)
+					{
+						row1_done = true;
+						row_start_idx = current_idx;
+						cout << "New Row!" << endl;
+						red_or_blue = false;
+						hexPosMAVLink = addPointFromPoseFile(pose_index, red_or_blue);
+					}
+					else
+					{
+						row2_done = true;
+						cout << "New Row and Cycle!" << endl;
+						red_or_blue = true;
+						hexPosMAVLink = addPointFromPoseFile(pose_index, red_or_blue);
+						break;
+					}
+				}
+			}
+			else
+				std::cout << std::endl;
+			
 			cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
-			if(log_uav_positions) log_file << img_numbers[i] << "," << pose_data[pose_index][tx_ind] << "," << pose_data[pose_index][ty_ind] << "," << pose_data[pose_index][tz_ind] << endl;
+			
+			if(log_uav_positions) log_file << img_numbers[current_idx] << "," << pose_data[pose_index][tx_ind] << "," << pose_data[pose_index][ty_ind] << "," << pose_data[pose_index][tz_ind] << endl;
 			
 			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
 			t_matVec.push_back(t_mat);
 			
-			if (i == 0)
+			//Find Features
+			findFeatures(current_idx);
+		
+			if (current_idx == 0)
 			{
 				t_FMVec.push_back(t_mat);
 				cloud_hexPos_FM->points.push_back(hexPosMAVLink);
+				current_idx++;
 				continue;
 			}
 			
 			//Feature Matching Alignment
 			//generate point clouds of matched keypoints and estimate rigid body transform between them
-			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts = generate_tf_of_Matched_Keypoints_Point_Cloud(i, t_FMVec, t_mat);
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts = generate_tf_of_Matched_Keypoints_Point_Cloud(current_idx, t_FMVec, t_mat);
 			
 			t_FMVec.push_back(T_SVD_matched_pts * t_mat);
 			
 			pcl::PointXYZRGB hexPosFM = transformPoint(hexPosMAVLink, T_SVD_matched_pts);
 			cloud_hexPos_FM->points.push_back(hexPosFM);
+			
+			current_idx++;
 		}
+		
 		int64 t2 = getTickCount();
-		cout << "\nMatching features and finding transformations time: " << (t2 - t1) / getTickFrequency() << " sec\n" << endl;
-		log_file << "Matching features n transformations time:\t" << (t2 - t1) / getTickFrequency() << " sec" << endl;
+		cout << "\nMatching features and finding transformations time: " << (t2 - t0) / getTickFrequency() << " sec\n" << endl;
+		log_file << "Matching features n transformations time:\t" << (t2 - t0) / getTickFrequency() << " sec" << endl;
 		
 		////finding normals of the hexPos
 		//cout << "cloud_hexPos_FM: ";
@@ -209,7 +290,7 @@ Pose::Pose(int argc, char* argv[])
 		if(log_uav_positions)
 		{
 			log_file << "\nfeature matched hexacopter positions" << endl;
-			for (int i = start_idx; i < end_idx + 1; i++)
+			for (int i = cycle_start_idx; i < current_idx; i++)
 				log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
 		}
 		
@@ -220,7 +301,7 @@ Pose::Pose(int argc, char* argv[])
 		transformPtCloud(cloud_big, cloud_big, tf_icp);
 		
 		//correcting old tf_mats
-		for (int i = 0; i < end_idx + 1; i++)
+		for (int i = 0; i < current_idx; i++)
 			t_FMVec[i] = tf_icp * t_FMVec[i];
 		
 		//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
@@ -229,7 +310,7 @@ Pose::Pose(int argc, char* argv[])
 		if(log_uav_positions)
 		{
 			log_file << "\ncorrected hexacopter positions" << endl;
-			for (int i = start_idx; i < end_idx + 1; i++)
+			for (int i = cycle_start_idx; i < current_idx + 1; i++)
 				log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
 		}
 		
@@ -238,17 +319,18 @@ Pose::Pose(int argc, char* argv[])
 		log_file << "ICP point cloud correction time:\t\t" << (t3 - t2) / getTickFrequency() << " sec" << endl;
 		
 		//add additional correction for each individual UAV position -> translate back to MAVLink location by a percentage value
-		//find distance and then translate
+		////find distance and then translate
 		//for (int i = 0; i < end_idx + 1; i++)
 		//{
 		//	double delx = cloud_hexPos_MAVLink->points[i].x - cloud_hexPos_FM->points[i].x;
 		//	double dely = cloud_hexPos_MAVLink->points[i].y - cloud_hexPos_FM->points[i].y;
 		//	double delz = cloud_hexPos_MAVLink->points[i].z - cloud_hexPos_FM->points[i].z;
+		//	
 		//	double linear_dist = sqrt(delx*delx + dely*dely);
 		//	double linear_dist_threshold = 0;
 		//	if (linear_dist > linear_dist_threshold)
 		//	{
-		//		double K = 0.5;
+		//		double K = 0.1;
 		//		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_correct;
 		//		for (int i = 0; i < 4; i++)
 		//			for (int j = 0; j < 4; j++)
@@ -270,8 +352,8 @@ Pose::Pose(int argc, char* argv[])
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		
 		//log_file << "Adding Point Cloud number/points ";
-		int i = start_idx;
-		while(i < end_idx + 1)
+		int i = cycle_start_idx;
+		while(i < current_idx)
 		{
 			int i0 = i;
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
@@ -285,12 +367,12 @@ Pose::Pose(int argc, char* argv[])
 			boost::thread pt_cloud_thread1, pt_cloud_thread2, pt_cloud_thread3, pt_cloud_thread4, pt_cloud_thread5, pt_cloud_thread6, pt_cloud_thread7;
 			
 			pt_cloud_thread1 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb1);
-			if(++i < end_idx + 1) pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb2);
-			if(++i < end_idx + 1) pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb3);
-			if(++i < end_idx + 1) pt_cloud_thread4 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb4);
-			if(++i < end_idx + 1) pt_cloud_thread5 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb5);
-			if(++i < end_idx + 1) pt_cloud_thread6 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb6);
-			if(++i < end_idx + 1) pt_cloud_thread7 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb7);
+			if(++i < current_idx) pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb2);
+			if(++i < current_idx) pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb3);
+			if(++i < current_idx) pt_cloud_thread4 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb4);
+			if(++i < current_idx) pt_cloud_thread5 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb5);
+			if(++i < current_idx) pt_cloud_thread6 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb6);
+			if(++i < current_idx) pt_cloud_thread7 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb7);
 			
 			
 			//generating the bigger point cloud
@@ -298,17 +380,17 @@ Pose::Pose(int argc, char* argv[])
 			i = i0;
 			cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb1->begin(),transformed_cloudrgb1->end());
 			pt_cloud_thread2.join();
-			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb2->begin(),transformed_cloudrgb2->end());
+			if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb2->begin(),transformed_cloudrgb2->end());
 			pt_cloud_thread3.join();
-			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb3->begin(),transformed_cloudrgb3->end());
+			if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb3->begin(),transformed_cloudrgb3->end());
 			pt_cloud_thread4.join();
-			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb4->begin(),transformed_cloudrgb4->end());
+			if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb4->begin(),transformed_cloudrgb4->end());
 			pt_cloud_thread5.join();
-			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb5->begin(),transformed_cloudrgb5->end());
+			if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb5->begin(),transformed_cloudrgb5->end());
 			pt_cloud_thread6.join();
-			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb6->begin(),transformed_cloudrgb6->end());
+			if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb6->begin(),transformed_cloudrgb6->end());
 			pt_cloud_thread7.join();
-			if(++i < end_idx + 1) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb7->begin(),transformed_cloudrgb7->end());
+			if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb7->begin(),transformed_cloudrgb7->end());
 			//cout << "Transformed and added." << endl;
 		}
 		
@@ -340,6 +422,7 @@ Pose::Pose(int argc, char* argv[])
 		//visualize
 		if(preview)
 		{
+			bool last_cycle = current_idx > last_idx;
 			if (online)
 			{
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_big_copy (new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -348,13 +431,16 @@ Pose::Pose(int argc, char* argv[])
 				if(cycle > 0)
 					the_visualization_thread.join();
 				
-				the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_big_copy, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, n_cycle);
+				the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_big_copy, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, last_cycle);
 			}
 			else
 			{
-				the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_small, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, n_cycle);
+				the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_small, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, last_cycle);
 			}
 		}
+		
+		finder->collectGarbage();
+		cycle++;
 		
 		int64 t6 = getTickCount();
 		
@@ -371,11 +457,14 @@ Pose::Pose(int argc, char* argv[])
 		<< "\nrange_width " << range_width
 		<< "\nblur_kernel " << blur_kernel
 		<< "\nvoxel_size " << voxel_size
-		<< "\nmax_depth " << max_depth
-		<< "\nmax_height " << max_height
+		//<< "\nmax_depth " << max_depth
+		//<< "\nmax_height " << max_height
 		<< "\nmin_points_per_voxel " << min_points_per_voxel
 		<< "\ndist_nearby " << dist_nearby
 		<< "\ngood_matched_imgs " << good_matched_imgs
+		<< "\nuav_line_creation_dist_threshold " << uav_line_creation_dist_threshold
+		<< "\nuav_new_row_dist_threshold " << uav_new_row_dist_threshold
+		<< "\nmin_uav_positions_for_line_fitting " << min_uav_positions_for_line_fitting
 		<< endl;
 	log_file << "\nFinished Pose Estimation, total time: " << ((tend - app_start_time) / getTickFrequency()) << " sec at " << 1.0*img_numbers.size()/((tend - app_start_time) / getTickFrequency()) << " fps" 
 		<< "\nimages " << img_numbers.size()
@@ -384,12 +473,22 @@ Pose::Pose(int argc, char* argv[])
 		<< "\nrange_width " << range_width
 		<< "\nblur_kernel " << blur_kernel
 		<< "\nvoxel_size " << voxel_size
-		<< "\nmax_depth " << max_depth
-		<< "\nmax_height " << max_height
+		//<< "\nmax_depth " << max_depth
+		//<< "\nmax_height " << max_height
 		<< "\nmin_points_per_voxel " << min_points_per_voxel
 		<< "\ndist_nearby " << dist_nearby
 		<< "\ngood_matched_imgs " << good_matched_imgs
+		<< "\nuav_line_creation_dist_threshold " << uav_line_creation_dist_threshold
+		<< "\nuav_new_row_dist_threshold " << uav_new_row_dist_threshold
+		<< "\nmin_uav_positions_for_line_fitting " << min_uav_positions_for_line_fitting
 		<< endl;
+	
+	if(true)
+	{
+		log_file << "\nerror in uav positions" << endl;
+		for (int i = 0; i <= last_idx; i++)
+			log_file << img_numbers[i] << "," << cloud_hexPos_MAVLink->points[i].x - cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_MAVLink->points[i].y - cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_MAVLink->points[i].z - cloud_hexPos_FM->points[i].z << endl;
+	}
 	
 	if(online)
 	{
@@ -457,10 +556,10 @@ void Pose::createAndTransformPtCloud(int img_index,
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	
-	if(jump_pixels == 1)
-		createPtCloud(img_index, cloudrgb);
-	else
-		createFeaturePtCloud(img_index, cloudrgb);
+	//if(jump_pixels == 1)
+	//	createPtCloud(img_index, cloudrgb);
+	//else
+		createSingleImgPtCloud(img_index, cloudrgb);
 	//cout << "Created point cloud " << i << endl;
 	
 	transformPtCloud(cloudrgb, cloudrgb_transformed, t_FMVec[img_index]);
@@ -471,7 +570,7 @@ void Pose::createAndTransformPtCloud(int img_index,
 }
 
 void Pose::displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_combined_copy, 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, int cycle, int n_cycle)
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, int cycle, bool last_cycle)
 {
 	wait_at_visualizer = false;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -500,11 +599,36 @@ void Pose::displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud
 	{
 		visualize_pt_cloud_update(cloudrgb, "cloudrgb_visualization_Online", viewer_online);
 	}
-	if(cycle == n_cycle -1)
+	if(last_cycle)
 	{
 		while (!viewer_online->wasStopped ()) { // Display the visualiser until 'q' key is pressed
 			viewer_online->spinOnce();
 		}
 	}
+}
+
+int main(int argc, char* argv[])
+{
+	cout << setprecision(3) << 
+		  "\n**********   Unmanned Systems Lab    **********"
+		"\n\n********** 3D Reconstruction Program **********"
+		"\n\nAuthor: Prashant Kumar"
+		"\n\nHelp  ./pose --help"
+		"\n"
+		<< endl;
+	
+	//plotMatches("images/1248.png","images/1251.png");
+	//plotMatches("images/1248.png","images/1258.png");
+	
+	try
+	{
+		Pose pose(argc, argv);
+	}
+	catch (const char* msg)
+	{
+		cerr << msg << endl;
+	}
+	
+	return 0;
 }
 

@@ -111,32 +111,6 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named pose_functions
-
-# Build rule for target.
-pose_functions: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 pose_functions
-.PHONY : pose_functions
-
-# fast build rule for target.
-pose_functions/fast:
-	$(MAKE) -f CMakeFiles/pose_functions.dir/build.make CMakeFiles/pose_functions.dir/build
-.PHONY : pose_functions/fast
-
-#=============================================================================
-# Target rules for targets named pose_main
-
-# Build rule for target.
-pose_main: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 pose_main
-.PHONY : pose_main
-
-# fast build rule for target.
-pose_main/fast:
-	$(MAKE) -f CMakeFiles/pose_main.dir/build.make CMakeFiles/pose_main.dir/build
-.PHONY : pose_main/fast
-
-#=============================================================================
 # Target rules for targets named pose
 
 # Build rule for target.
@@ -149,40 +123,13 @@ pose/fast:
 	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/build
 .PHONY : pose/fast
 
-main.o: main.cpp.o
-
-.PHONY : main.o
-
-# target to build an object file
-main.cpp.o:
-	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/main.cpp.o
-.PHONY : main.cpp.o
-
-main.i: main.cpp.i
-
-.PHONY : main.i
-
-# target to preprocess a source file
-main.cpp.i:
-	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/main.cpp.i
-.PHONY : main.cpp.i
-
-main.s: main.cpp.s
-
-.PHONY : main.s
-
-# target to generate assembly for a file
-main.cpp.s:
-	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/main.cpp.s
-.PHONY : main.cpp.s
-
 pose.o: pose.cpp.o
 
 .PHONY : pose.o
 
 # target to build an object file
 pose.cpp.o:
-	$(MAKE) -f CMakeFiles/pose_main.dir/build.make CMakeFiles/pose_main.dir/pose.cpp.o
+	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/pose.cpp.o
 .PHONY : pose.cpp.o
 
 pose.i: pose.cpp.i
@@ -191,7 +138,7 @@ pose.i: pose.cpp.i
 
 # target to preprocess a source file
 pose.cpp.i:
-	$(MAKE) -f CMakeFiles/pose_main.dir/build.make CMakeFiles/pose_main.dir/pose.cpp.i
+	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/pose.cpp.i
 .PHONY : pose.cpp.i
 
 pose.s: pose.cpp.s
@@ -200,35 +147,8 @@ pose.s: pose.cpp.s
 
 # target to generate assembly for a file
 pose.cpp.s:
-	$(MAKE) -f CMakeFiles/pose_main.dir/build.make CMakeFiles/pose_main.dir/pose.cpp.s
+	$(MAKE) -f CMakeFiles/pose.dir/build.make CMakeFiles/pose.dir/pose.cpp.s
 .PHONY : pose.cpp.s
-
-pose_functions.o: pose_functions.cpp.o
-
-.PHONY : pose_functions.o
-
-# target to build an object file
-pose_functions.cpp.o:
-	$(MAKE) -f CMakeFiles/pose_functions.dir/build.make CMakeFiles/pose_functions.dir/pose_functions.cpp.o
-.PHONY : pose_functions.cpp.o
-
-pose_functions.i: pose_functions.cpp.i
-
-.PHONY : pose_functions.i
-
-# target to preprocess a source file
-pose_functions.cpp.i:
-	$(MAKE) -f CMakeFiles/pose_functions.dir/build.make CMakeFiles/pose_functions.dir/pose_functions.cpp.i
-.PHONY : pose_functions.cpp.i
-
-pose_functions.s: pose_functions.cpp.s
-
-.PHONY : pose_functions.s
-
-# target to generate assembly for a file
-pose_functions.cpp.s:
-	$(MAKE) -f CMakeFiles/pose_functions.dir/build.make CMakeFiles/pose_functions.dir/pose_functions.cpp.s
-.PHONY : pose_functions.cpp.s
 
 # Help Target
 help:
@@ -237,19 +157,11 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
-	@echo "... pose_functions"
-	@echo "... pose_main"
 	@echo "... rebuild_cache"
 	@echo "... pose"
-	@echo "... main.o"
-	@echo "... main.i"
-	@echo "... main.s"
 	@echo "... pose.o"
 	@echo "... pose.i"
 	@echo "... pose.s"
-	@echo "... pose_functions.o"
-	@echo "... pose_functions.i"
-	@echo "... pose_functions.s"
 .PHONY : help
 
 
