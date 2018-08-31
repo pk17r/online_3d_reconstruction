@@ -1,4 +1,0 @@
-pcl 1.6 requires vtk 5.10.1 to work
-
-install using
-sudo apt-get install libvtk5.10-qt4 libvtk5.10 libvtk5-dev
