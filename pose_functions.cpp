@@ -1463,9 +1463,9 @@ void area_picking_get_points (const pcl::visualization::AreaPickingEvent &event,
 
 boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bool showcloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, bool showmesh, pcl::PolygonMesh &mesh, string pt_cloud_name)
 {
-	cout << "Starting Visualization..." << endl;
-	cout << "- use h for help" << endl;
-	cout << "visualizing cloud with " << cloudrgb->size() << " points" << endl;
+	//cout << "Starting Visualization..." << endl;
+	//cout << "- use h for help" << endl;
+	//cout << "visualizing cloud with " << cloudrgb->size() << " points" << endl;
 	
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer " + pt_cloud_name));
 	//pcl::visualization::PCLVisualizer viewer ("3d visualizer " + pt_cloud_name);
