@@ -83,7 +83,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--visualize")
 		{
 			visualize = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
+			run3d_reconstruction = false;
 			read_PLY_filename0 = string(argv[i + 1]);
 			cout << "Visualize " << read_PLY_filename0 << endl;
 			i++;
@@ -91,7 +91,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--align_point_cloud")
 		{
 			align_point_cloud = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
+			run3d_reconstruction = false;
 			read_PLY_filename0 = string(argv[++i]);
 			read_PLY_filename1 = string(argv[++i]);
 			cout << "Align " << read_PLY_filename0 << " and " << read_PLY_filename1 << " using ICP." << endl;
@@ -99,7 +99,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--smooth_surface")
 		{
 			smooth_surface = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
+			run3d_reconstruction = false;
 			read_PLY_filename0 = string(argv[i + 1]);
 			cout << "smooth_surface " << read_PLY_filename0 << endl;
 			i++;
@@ -107,7 +107,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--mesh_surface")
 		{
 			mesh_surface = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
+			run3d_reconstruction = false;
 			read_PLY_filename0 = string(argv[i + 1]);
 			cout << "mesh_surface " << read_PLY_filename0 << endl;
 			i++;
@@ -115,7 +115,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--downsample")
 		{
 			downsample = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
+			run3d_reconstruction = false;
 			read_PLY_filename0 = string(argv[i + 1]);
 			cout << "Downsample " << read_PLY_filename0 << endl;
 			i++;
@@ -123,7 +123,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else if (string(argv[i]) == "--displayUAVPositions")
 		{
 			displayUAVPositions = true;
-			n_imgs = 1;		//just to stop program from reading images.txt file
+			run3d_reconstruction = false;
 			read_PLY_filename1 = string(argv[i + 1]);
 			i++;
 			cout << "displayUAVPositions " << read_PLY_filename1 << endl;
@@ -159,9 +159,10 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		}
 		else if (string(argv[i]) == "--segment_map_only")
 		{
+			run3d_reconstruction = false;
 			segment_map_only = true;
 			read_PLY_filename0 = string(argv[++i]);
-			cout << "segment_map" << endl;
+			cout << "segment_map_only" << endl;
 			cout << "Cloud filename " << read_PLY_filename0 << endl;
 			cout << "argc " << argc << endl;
 			if (argc > 3)
@@ -169,12 +170,12 @@ int Pose::parseCmdArgs(int argc, char** argv)
 				segment_dist_threashold = atof(argv[++i]);
 				convexhull_dist_threshold = atof(argv[++i]);
 				convexhull_alpha = atof(argv[++i]);
-				size_cloud_divider = atof(argv[++i]);
+				//size_cloud_divider = atof(argv[++i]);
 			}
 			cout << "segment_dist_threashold " << segment_dist_threashold << endl;
 			cout << "convexhull_dist_threshold " << convexhull_dist_threshold << endl;
 			cout << "convexhull_alpha " << convexhull_alpha << endl;
-			cout << "size_cloud_divider " << size_cloud_divider << endl;
+			//cout << "size_cloud_divider " << size_cloud_divider << endl;
 		}
 		else if (string(argv[i]) == "--search_radius")
 		{
@@ -254,7 +255,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			++n_imgs;
 		}
 	}
-	if (n_imgs == 0)
+	if (run3d_reconstruction && n_imgs == 0)
 	{
 		ifstream images_file;
 		images_file.open(imageNumbersFile);
@@ -2207,74 +2208,104 @@ vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pc
 
 */
 
-void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, Eigen::VectorXf &model_coefficients)
+void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
 {
 	cout << "\nFinding UGV traversible area on map..." << endl;
 	log_file << "\nFinding UGV traversible area on map..." << endl;
 	
+	Eigen::Vector4f min_pt, max_pt;
+	pcl::getMinMax3D (*cloudrgb, min_pt, max_pt);
+	cout << "min_pt " << min_pt << endl;
+	cout << "max_pt " << max_pt << endl;
+	double x_range = max_pt[0] - min_pt[0];
+	double y_range = max_pt[0] - min_pt[0];
+	cout << "x_range " << x_range << " y_range " << y_range << endl;
+	int size_cloud_divider_calc = (x_range + y_range) / 4;
+	cout << "size_cloud_divider_calc " << size_cloud_divider_calc << endl;
+	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_seg (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_obstacles (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	int part = 0;
-	int size_cloud = (int)ceil(1.0 * cloudrgb->size()/size_cloud_divider);
 	cout << "point cloud size " << cloudrgb->size() << endl;
 	log_file << "point cloud size " << cloudrgb->size() << endl;
-	while (true)
+	
+	cout << "segment_dist_threashold " << segment_dist_threashold << endl;
+	cout << "convexhull_dist_threshold " << convexhull_dist_threshold << endl;
+	cout << "convexhull_alpha " << convexhull_alpha << endl;
+	log_file << "segment_dist_threashold " << segment_dist_threashold << endl;
+	log_file << "convexhull_dist_threshold " << convexhull_dist_threshold << endl;
+	log_file << "convexhull_alpha " << convexhull_alpha << endl;
+	
+	for (int i = 0; i < size_cloud_divider_calc; i++)
 	{
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_small (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		for (int i = part * size_cloud; i < (part + 1) * size_cloud && i < cloudrgb->size(); i++)
-			cloud_small->points.push_back(cloudrgb->points[i]);
-		
-		//cout << "part point cloud size " << cloud_small->size() << endl;
-		if (cloud_small->size() == 0)
-			break;
-		
-		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-		// Create the segmentation object
-		pcl::SACSegmentation<pcl::PointXYZRGB> seg;
-		// Optional
-		seg.setOptimizeCoefficients (true);
-		// Mandatory
-		seg.setModelType (pcl::SACMODEL_PLANE);
-		seg.setMethodType (pcl::SAC_RANSAC);
-		seg.setDistanceThreshold (segment_dist_threashold);
-		seg.setInputCloud (cloud_small);
-		seg.segment (*inliers, *coefficients);
-		if (inliers->indices.size () == 0)
+		for (int j = 0; j < size_cloud_divider_calc; j++)
 		{
-			PCL_ERROR ("Could not estimate a planar model for the given dataset.");
-			throw "PCL ERROR: Could not estimate a planar model for the given dataset.";
-		}
-
-		cout << "Model coefficients: " << coefficients->values[0] << " " << coefficients->values[1] << " " << coefficients->values[2] << " "  << coefficients->values[3] << endl;
-		log_file << "Model coefficients: " << coefficients->values[0] << " " << coefficients->values[1] << " " << coefficients->values[2] << " "  << coefficients->values[3] << endl;
-
-		cout << "Model inliers: " << inliers->indices.size () << endl;
-		log_file << "Model inliers: " << inliers->indices.size () << endl;
-		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgbseg (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgboutlier (new pcl::PointCloud<pcl::PointXYZRGB> ());
-		int index = 0;
-		for (size_t i = 0; i < inliers->indices.size (); ++i)
-		{
-			while(index < inliers->indices[i])
+			Eigen::Vector4f min_pt_box, max_pt_box;
+			min_pt_box[0] = 1.0 * i * x_range / size_cloud_divider_calc + min_pt[0];
+			max_pt_box[0] = 1.0 * (i+1) * x_range / size_cloud_divider_calc + min_pt[0];
+			min_pt_box[1] = 1.0 * j * y_range / size_cloud_divider_calc + min_pt[1];
+			max_pt_box[1] = 1.0 * (j+1) * y_range / size_cloud_divider_calc + min_pt[1];
+			min_pt_box[2] = min_pt[2];
+			max_pt_box[2] = max_pt[2];
+			std::vector< int > indices_ptsInBox;
+			
+			pcl::getPointsInBox (*cloudrgb, min_pt_box, max_pt_box, indices_ptsInBox);
+			
+			cout << "indices_ptsInBox.size() " << indices_ptsInBox.size() << endl;
+			log_file << "indices_ptsInBox.size() " << indices_ptsInBox.size() << endl;
+			if (indices_ptsInBox.size() < 10)
+				continue;
+			
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_box (new pcl::PointCloud<pcl::PointXYZRGB> ());
+			copyPointCloud(*cloudrgb, indices_ptsInBox, *cloud_box);
+			//visualize_pt_cloud(cloud_box, "cloud_box");
+			
+			pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+			pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+			// Create the segmentation object
+			pcl::SACSegmentation<pcl::PointXYZRGB> seg;
+			// Optional
+			seg.setOptimizeCoefficients (true);
+			// Mandatory
+			seg.setModelType (pcl::SACMODEL_PLANE);
+			seg.setMethodType (pcl::SAC_RANSAC);
+			seg.setDistanceThreshold (segment_dist_threashold);
+			seg.setInputCloud (cloud_box);
+			seg.segment (*inliers, *coefficients);
+			if (inliers->indices.size () == 0)
 			{
-				cloudrgboutlier->points.push_back(cloud_small->points[index]);
+				PCL_ERROR ("Could not estimate a planar model for the given dataset.");
+				throw "PCL ERROR: Could not estimate a planar model for the given dataset.";
+			}
+
+			cout << "Model coefficients: " << coefficients->values[0] << " " << coefficients->values[1] << " " << coefficients->values[2] << " "  << coefficients->values[3] << endl;
+			log_file << "Model coefficients: " << coefficients->values[0] << " " << coefficients->values[1] << " " << coefficients->values[2] << " "  << coefficients->values[3] << endl;
+
+			cout << "Model inliers: " << inliers->indices.size () << endl;
+			log_file << "Model inliers: " << inliers->indices.size () << endl;
+			
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgbseg (new pcl::PointCloud<pcl::PointXYZRGB> ());
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgboutlier (new pcl::PointCloud<pcl::PointXYZRGB> ());
+			int index = 0;
+			for (size_t i = 0; i < inliers->indices.size (); ++i)
+			{
+				while(index < inliers->indices[i])
+				{
+					cloudrgboutlier->points.push_back(cloud_box->points[index]);
+					index++;
+				}
+				cloudrgbseg->points.push_back(cloud_box->points[inliers->indices[i]]);
 				index++;
 			}
-			cloudrgbseg->points.push_back(cloud_small->points[inliers->indices[i]]);
-			index++;
+			while(index < cloud_box->size())
+			{
+				cloudrgboutlier->points.push_back(cloud_box->points[index]);
+				index++;
+			}
+			//copyPointCloud(*cloud_small, inliers->indices, *cloudrgbseg);
+			cloud_seg->insert(cloud_seg->end(),cloudrgbseg->begin(),cloudrgbseg->end());
+			cloud_obstacles->insert(cloud_obstacles->end(),cloudrgboutlier->begin(),cloudrgboutlier->end());
+			//visualize_pt_cloud(cloudrgbseg);
 		}
-		while(index < cloud_small->size())
-		{
-			cloudrgboutlier->points.push_back(cloud_small->points[index]);
-			index++;
-		}
-		//copyPointCloud(*cloud_small, inliers->indices, *cloudrgbseg);
-		cloud_seg->insert(cloud_seg->end(),cloudrgbseg->begin(),cloudrgbseg->end());
-		cloud_obstacles->insert(cloud_obstacles->end(),cloudrgboutlier->begin(),cloudrgboutlier->end());
-		//visualize_pt_cloud(cloudrgbseg);
-		part++;
 	}
 	
 	displayUAVPositions = false;
@@ -2324,12 +2355,12 @@ void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, Eigen:
 		cloud_hull->points[i].rgb = *reinterpret_cast<float*>(&rgbFM);
 	}
 	
-	visualize_pt_cloud(cloud_hull, "cloud_hull");
-	
 	log_file << "\nConvex Hull Boundary Points: x y z" << endl;
 	for (int i = 0; i < cloud_hull->size(); i++)
 	{
 		log_file << cloud_hull->points[i].x << " " << cloud_hull->points[i].y << " " << cloud_hull->points[i].z << endl;
 	}
+	
+	visualize_pt_cloud(cloud_hull, "cloud_hull");
 	
 }

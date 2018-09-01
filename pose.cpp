@@ -34,15 +34,9 @@ Pose::Pose(int argc, char* argv[])
 	
 	if (segment_map_only)
 	{
-		Eigen::VectorXf model_coefficients;
-		model_coefficients[0] = 0;
-		model_coefficients[0] = 0;
-		model_coefficients[0] = 0;
-		model_coefficients[3] = 0.5;
-		model_coefficients[4] = 1.732/2;
-		model_coefficients[5] = 0;
+		cout << "inside segment_map_only" << endl;
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
-		segmentCloud(cloudrgb, model_coefficients);
+		segmentCloud(cloudrgb);
 		return;
 	}
 	
@@ -112,6 +106,9 @@ Pose::Pose(int argc, char* argv[])
 		
 		return;
 	}
+	
+	if(!run3d_reconstruction)
+		return;
 	
 	readCalibFile();
 	readPoseFile();

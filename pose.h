@@ -132,10 +132,10 @@ bool release = true;
 
 bool segment_map = false;
 bool segment_map_only = false;
-double segment_dist_threashold = 0.1;		//0.1
-double convexhull_dist_threshold = 0.25;	//0.25
-double convexhull_alpha = 0.15;				//0.15
-double size_cloud_divider = 10;				//10
+double segment_dist_threashold = voxel_size;		//0.1
+double convexhull_dist_threshold = 2.5 * voxel_size;	//0.25
+double convexhull_alpha = 1.5 * voxel_size;				//0.15
+//int size_cloud_divider = 10;				//10
 
 vector<Mat> full_images;
 vector<Mat> disparity_images;
@@ -156,6 +156,7 @@ Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatc
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr hexPos_cloud;
 int last_hexPos_cloud_points = 0;
 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer_online;
+bool run3d_reconstruction = true;
 
 //declaring functions
 void readCalibFile();
@@ -219,7 +220,7 @@ int generate_Matched_Keypoints_Point_Cloud
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src,
 	vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink);
-void segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, Eigen::VectorXf model_coefficients);
+void segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb_orig);
 
 
 };
