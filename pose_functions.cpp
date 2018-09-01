@@ -2220,7 +2220,7 @@ void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
 	double x_range = max_pt[0] - min_pt[0];
 	double y_range = max_pt[0] - min_pt[0];
 	cout << "x_range " << x_range << " y_range " << y_range << endl;
-	int size_cloud_divider_calc = (x_range + y_range) / 4;
+	int size_cloud_divider_calc = (x_range + y_range) / 4;		//would give areas of around 2m x 2m to run Sample Consensus Plane Fitting on.
 	cout << "size_cloud_divider_calc " << size_cloud_divider_calc << endl;
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_seg (new pcl::PointCloud<pcl::PointXYZRGB> ());
