@@ -170,9 +170,13 @@ void visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string 
 void visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
+//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
+//	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+//	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
 	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+	vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, bool combinedPtCloud);
 void orbcudaPairwiseMatching();
@@ -194,9 +198,14 @@ void createAndTransformPtCloud(int img_index,
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &transformed_cloudrgb);
 void findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 void findFeatures(int img_idx);
-int generate_Matched_Keypoints_Point_Cloud (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, 
-pcl::PointXYZRGB>::Matrix4> t_FMVec, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src);
+//int generate_Matched_Keypoints_Point_Cloud (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, 
+	//pcl::PointXYZRGB>::Matrix4> t_FMVec, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src);
+int generate_Matched_Keypoints_Point_Cloud
+	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src,
+	vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink);
 
 
 };

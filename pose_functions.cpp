@@ -1836,7 +1836,8 @@ pcl::PointXYZRGB Pose::transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::regis
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generate_tf_of_Matched_Keypoints_Point_Cloud
 (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink)
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink)
 {
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -1850,7 +1851,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	//pose_data[pose_index_src][tx_ind] << "," << pose_data[pose_index_src][ty_ind]
 	
 	//find matches and create matched point clouds
-	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, pose_index_src);
+	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, pose_index_src, row1_UAV_pos_idx, row2_UAV_pos_idx, cloud_hexPos_MAVLink);
 	if (good_matches_count <= 500)
 	{
 		dist_nearby *= 2;
@@ -1860,7 +1861,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 		log_file << img_numbers[img_index];
 		cloud_current->clear();
 		cloud_prior->clear();
-		generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, pose_index_src);
+		generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, pose_index_src, row1_UAV_pos_idx, row2_UAV_pos_idx, cloud_hexPos_MAVLink);
 		dist_nearby /= 2;
 	}
 	
@@ -1880,7 +1881,8 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 int Pose::generate_Matched_Keypoints_Point_Cloud
 (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src,
+vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink)
 {
 	cout << " matched with_imgs/matches";
 	log_file << " matched with_imgs/matches";
@@ -1980,5 +1982,214 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::Poin
 	return good_matches_count;
 }
 
+/*	the above two functions with distance being taken into account from row positions
 
+
+pcl::PointXYZRGB Pose::transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts)
+{
+	pcl::PointXYZRGB hexPosFM;// = pcl::transformPoint(hexPosMAVLink, T_SVD_matched_pts);
+	hexPosFM.x = static_cast<float> (T_SVD_matched_pts (0, 0) * hexPosMAVLink.x + T_SVD_matched_pts (0, 1) * hexPosMAVLink.y + T_SVD_matched_pts (0, 2) * hexPosMAVLink.z + T_SVD_matched_pts (0, 3));
+	hexPosFM.y = static_cast<float> (T_SVD_matched_pts (1, 0) * hexPosMAVLink.x + T_SVD_matched_pts (1, 1) * hexPosMAVLink.y + T_SVD_matched_pts (1, 2) * hexPosMAVLink.z + T_SVD_matched_pts (1, 3));
+	hexPosFM.z = static_cast<float> (T_SVD_matched_pts (2, 0) * hexPosMAVLink.x + T_SVD_matched_pts (2, 1) * hexPosMAVLink.y + T_SVD_matched_pts (2, 2) * hexPosMAVLink.z + T_SVD_matched_pts (2, 3));
+	uint32_t rgbFM = (uint32_t)255 << 8;	//green
+	hexPosFM.rgb = *reinterpret_cast<float*>(&rgbFM);
+	
+	return hexPosFM;
+}
+
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generate_tf_of_Matched_Keypoints_Point_Cloud
+(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink)
+{
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	cloud_current->is_dense = true;
+	cloud_prior->is_dense = true;
+	bool first_match = true;
+	
+	//cout << "Read source disparity image." << endl;
+	
+	int pose_index_src = data_index_finder(img_numbers[img_index]);
+	//pose_data[pose_index_src][tx_ind] << "," << pose_data[pose_index_src][ty_ind]
+	
+	//find matches and create matched point clouds
+	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, pose_index_src, row1_UAV_pos_idx, row2_UAV_pos_idx, cloud_hexPos_MAVLink);
+	if (good_matches_count <= 500)
+	{
+		dist_nearby *= 2;
+		cout << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
+		cout << img_numbers[img_index];
+		log_file << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
+		log_file << img_numbers[img_index];
+		cloud_current->clear();
+		cloud_prior->clear();
+		generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, cloud_current, cloud_prior, pose_index_src, row1_UAV_pos_idx, row2_UAV_pos_idx, cloud_hexPos_MAVLink);
+		dist_nearby /= 2;
+	}
+	
+	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
+	
+	//cout << " cloud_current->size():" << cloud_current->size() << " cloud_prior->size():" << cloud_prior->size() << endl;
+	te2.estimateRigidTransformation(*cloud_current, *cloud_prior, T_SVD_matched_pts);
+	//cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
+	//log_file << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
+	
+	return T_SVD_matched_pts;
+}
+
+
+
+int Pose::generate_Matched_Keypoints_Point_Cloud
+(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src,
+vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink)
+{
+	cout << " matched with_imgs/matches";
+	log_file << " matched with_imgs/matches";
+	
+	Mat disp_img_src;
+	if(use_segment_labels)
+		disp_img_src = double_disparity_images[img_index];
+	else
+		disp_img_src = disparity_images[img_index];
+	
+	int good_matched_imgs_this_src = 0;
+	int good_matches_count = 0;
+	
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_src = keypoints3DVec[img_index];
+	vector<bool> goodness_src = keypoints3DGoodnessVec[img_index];
+	
+	if (row2_UAV_pos_idx.size() > 0 && row2_UAV_pos_idx[row2_UAV_pos_idx.size()-1] != img_index)
+		throw "Exception: row2_UAV_pos_idx[row2_UAV_pos_idx.size()-1] != img_index";
+	if (row1_UAV_pos_idx.size() == 0)
+		throw "Exception: row1_UAV_pos_idx.size() == 0";
+		
+	bool row2_images = true;
+	int dst_index;
+	int row_index;
+	
+	if (row2_UAV_pos_idx.size() > 1)
+	{
+		row_index = row2_UAV_pos_idx.size()-2;
+		dst_index = row2_UAV_pos_idx[row_index];
+	}
+	else
+	{
+		row2_images = false;
+		row_index = row1_UAV_pos_idx.size()-2;
+		dst_index = row1_UAV_pos_idx[row_index];
+	}
+	
+	bool continue_check = true;
+	while(continue_check)
+	{
+		//check for only with nearby images
+		double dist = sqrt((cloud_hexPos_MAVLink->points[img_index].x - cloud_hexPos_MAVLink->points[dst_index].x) * (cloud_hexPos_MAVLink->points[img_index].x - cloud_hexPos_MAVLink->points[dst_index].x)
+			+ (cloud_hexPos_MAVLink->points[img_index].y - cloud_hexPos_MAVLink->points[dst_index].y) * (cloud_hexPos_MAVLink->points[img_index].y - cloud_hexPos_MAVLink->points[dst_index].y));
+		
+		if(dist < dist_nearby)
+		{
+			//reference https://stackoverflow.com/questions/44988087/opencv-feature-matching-match-descriptors-to-knn-filtered-keypoints
+			//reference https://github.com/opencv/opencv/issues/6130
+			//reference http://study.marearts.com/2014/07/opencv-study-orb-gpu-feature-extraction.html
+			//reference https://docs.opencv.org/3.1.0/d6/d1d/group__cudafeatures2d.html
+			
+			//cout << "image " << img_index << " to " << dst_index << endl;
+			vector<vector<DMatch>> matches;
+			
+			matcher->knnMatch(descriptorsVec[img_index], descriptorsVec[dst_index], matches, 2);
+			
+			vector<DMatch> good_matches;
+			for(int k = 0; k < matches.size(); k++)
+			{
+				if(matches[k][0].distance < 0.5 * matches[k][1].distance && matches[k][0].distance < 40)
+				{
+					//cout << matches[k][0].distance << "/" << matches[k][1].distance << " " << 
+					//matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << 
+					//matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << 
+					//matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
+					good_matches.push_back(matches[k][0]);
+				}
+			}
+			
+			//cout << " " << dist << "/" << good_matches.size();
+			
+			if(good_matches.size() > 150)	//less number of matches.. don't bother working on this one. good matches are around 500-600
+			{
+				good_matched_imgs++;
+				good_matched_imgs_this_src++;
+				good_matches_count += good_matches.size();
+				
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_dst = keypoints3DVec[dst_index];
+				vector<bool> goodness_dst = keypoints3DGoodnessVec[dst_index];
+				
+				//using sequential matched points to estimate the rigid body transformation between matched 3D points
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+				cloud_current_temp->is_dense = true;
+				cloud_prior_temp->is_dense = true;
+				
+				for (int match_index = 0; match_index < good_matches.size(); match_index++)
+				{
+					DMatch match = good_matches[match_index];
+					
+					int dst_Idx = match.trainIdx;	//dst img
+					int src_Idx = match.queryIdx;	//src img
+					
+					if(goodness_src[src_Idx] == true && goodness_dst[dst_Idx] == true)
+					{
+						cloud_current_temp->points.push_back(keypoints3D_src->points[src_Idx]);
+						cloud_prior_temp->points.push_back(keypoints3D_dst->points[dst_Idx]);
+					}
+				}
+				
+				pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_FM = t_FMVec[dst_index];
+				
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
+				
+				pcl::transformPointCloud(*cloud_current_temp, *cloud_current_t_temp, t_mat_MAVLink);
+				pcl::transformPointCloud(*cloud_prior_temp, *cloud_prior_t_temp, t_FM);
+				
+				//cout << " cloud_current_t_temp->size():" << cloud_current_t_temp->size() << " cloud_prior_t_temp->size():" << cloud_prior_t_temp->size() << flush;
+				
+				cloud_current->insert(cloud_current->end(),cloud_current_t_temp->begin(),cloud_current_t_temp->end());
+				cloud_prior->insert(cloud_prior->end(),cloud_prior_t_temp->begin(),cloud_prior_t_temp->end());
+			}
+		}
+		
+		//cout << "row_index " << row_index << " continue_check " << continue_check << " row2_images " << row2_images << " img " << img_numbers[dst_index] << endl;
+		
+		//update dst_index
+		if (row2_images)
+		{
+			if (--row_index >= 0)
+			{
+				dst_index = row2_UAV_pos_idx[row_index];
+			}
+			else
+			{
+				row2_images = false;
+				row_index = row1_UAV_pos_idx.size()-1;
+				dst_index = row1_UAV_pos_idx[row_index];
+			}
+		}
+		else
+		{
+			if (--row_index >= 0)
+				dst_index = row1_UAV_pos_idx[row_index];
+			else
+				continue_check = false;
+		}
+	}
+	cout << " " << good_matched_imgs_this_src << "/" << good_matches_count;
+	log_file << " " << good_matched_imgs_this_src << "/" << good_matches_count;
+	
+	return good_matches_count;
+}
+
+*/
 
