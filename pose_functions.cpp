@@ -42,7 +42,7 @@ void Pose::printUsage()
 		"\n      Visualize a given point cloud"
 		"\n  --segment_map"
 		"\n      To create segmented map with excluded obstacles and area convex hull"
-		"\n  --segment_map_details [segment_dist_threashold_float] [convexhull_dist_threshold_float] [convexhull_alpha_float]"
+		"\n  --segment_map_only [Pt Cloud filename] [segment_dist_threashold_float] [convexhull_dist_threshold_float] [convexhull_alpha_float] [size_cloud_divider_float]"
 		"\n      To create segmented map with excluded obstacles and area convex hull"
 		"\n  --displayUAVPositions [Pt Cloud filename]"
 		"\n      Display hexacopter positions along with point cloud during visualization"
@@ -157,16 +157,24 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			segment_map = true;
 			cout << "segment_map" << endl;
 		}
-		else if (string(argv[i]) == "--segment_map_details")
+		else if (string(argv[i]) == "--segment_map_only")
 		{
-			segment_map = true;
-			segment_dist_threashold = atof(argv[++i]);
-			convexhull_dist_threshold = atof(argv[++i]);
-			convexhull_alpha = atof(argv[++i]);
+			segment_map_only = true;
+			read_PLY_filename0 = string(argv[++i]);
 			cout << "segment_map" << endl;
+			cout << "Cloud filename " << read_PLY_filename0 << endl;
+			cout << "argc " << argc << endl;
+			if (argc > 3)
+			{
+				segment_dist_threashold = atof(argv[++i]);
+				convexhull_dist_threshold = atof(argv[++i]);
+				convexhull_alpha = atof(argv[++i]);
+				size_cloud_divider = atof(argv[++i]);
+			}
 			cout << "segment_dist_threashold " << segment_dist_threashold << endl;
 			cout << "convexhull_dist_threshold " << convexhull_dist_threshold << endl;
 			cout << "convexhull_alpha " << convexhull_alpha << endl;
+			cout << "size_cloud_divider " << size_cloud_divider << endl;
 		}
 		else if (string(argv[i]) == "--search_radius")
 		{
@@ -1074,8 +1082,7 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 		}
 	}
 	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
-	//if(log_stuff)
-	//	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
+	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
 }
 
 void Pose::createSingleImgPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
@@ -1165,8 +1172,7 @@ void Pose::createSingleImgPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRG
 		}
 	}
 	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
-	//if(log_stuff)
-	//	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size();
+	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
 }
 
 //kernel to create point cloud
@@ -2201,15 +2207,17 @@ vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pc
 
 */
 
-void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
+void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, Eigen::VectorXf &model_coefficients)
 {
 	cout << "\nFinding UGV traversible area on map..." << endl;
+	log_file << "\nFinding UGV traversible area on map..." << endl;
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_seg (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_obstacles (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	int part = 0;
-	int size_cloud = (int)ceil(1.0 * cloudrgb->size()/10.0);
+	int size_cloud = (int)ceil(1.0 * cloudrgb->size()/size_cloud_divider);
 	cout << "point cloud size " << cloudrgb->size() << endl;
+	log_file << "point cloud size " << cloudrgb->size() << endl;
 	while (true)
 	{
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_small (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -2238,12 +2246,11 @@ void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
 			throw "PCL ERROR: Could not estimate a planar model for the given dataset.";
 		}
 
-		std::cerr << "Model coefficients: " << coefficients->values[0] << " " 
-										  << coefficients->values[1] << " "
-										  << coefficients->values[2] << " " 
-										  << coefficients->values[3] << std::endl;
+		cout << "Model coefficients: " << coefficients->values[0] << " " << coefficients->values[1] << " " << coefficients->values[2] << " "  << coefficients->values[3] << endl;
+		log_file << "Model coefficients: " << coefficients->values[0] << " " << coefficients->values[1] << " " << coefficients->values[2] << " "  << coefficients->values[3] << endl;
 
-		std::cerr << "Model inliers: " << inliers->indices.size () << std::endl;
+		cout << "Model inliers: " << inliers->indices.size () << endl;
+		log_file << "Model inliers: " << inliers->indices.size () << endl;
 		
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgbseg (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgboutlier (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -2308,8 +2315,8 @@ void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
 	chull.setAlpha (convexhull_alpha);
 	chull.reconstruct (*cloud_hull);
 
-	std::cerr << "Concave hull has: " << cloud_hull->points.size ()
-			<< " data points." << std::endl;
+	cout << "Concave hull has: " << cloud_hull->points.size ()	<< " data points." << endl;
+	log_file << "Concave hull has: " << cloud_hull->points.size ()	<< " data points." << endl;
 	
 	for (int i = 0; i < cloud_hull->size(); i++)
 	{
@@ -2318,4 +2325,11 @@ void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
 	}
 	
 	visualize_pt_cloud(cloud_hull, "cloud_hull");
+	
+	log_file << "\nConvex Hull Boundary Points: x y z" << endl;
+	for (int i = 0; i < cloud_hull->size(); i++)
+	{
+		log_file << cloud_hull->points[i].x << " " << cloud_hull->points[i].y << " " << cloud_hull->points[i].z << endl;
+	}
+	
 }
