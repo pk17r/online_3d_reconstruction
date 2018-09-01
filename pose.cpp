@@ -556,8 +556,15 @@ Pose::Pose(int argc, char* argv[])
 	string hexpos_filename = folder + "cloud_uavpos.ply";
 	save_pt_cloud_to_PLY_File(cloud_hexPos_FM, hexpos_filename);
 	
+	if (segment_map)
+	{
+		segmentCloud(cloud_small);
+	}
+	
 	if(preview)
 		the_visualization_thread.join();
+	
+	
 }
 
 void Pose::findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)

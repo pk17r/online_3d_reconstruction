@@ -25,6 +25,12 @@
 #include <pcl/surface/mls.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/surface/gp3.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/filters/project_inliers.h>
+#include <pcl/surface/concave_hull.h>
 //#include <pcl/PCLPointCloud2.h>
 #include <time.h>
 #include <opencv2/opencv.hpp>
@@ -71,8 +77,8 @@ const double uav_new_row_dist_threshold = 1;
 const int min_uav_positions_for_line_fitting = 7;		//want at least x points for good line fitting
 
 double voxel_size = 0.1; //in meters
-double max_depth = 2; //in meters
-double max_height = 4; //in meters
+//double max_depth = 2; //in meters
+//double max_height = 4; //in meters
 bool visualize = false;
 bool align_point_cloud = false;
 string read_PLY_filename0 = "";
@@ -123,6 +129,11 @@ string save_log_to = "";
 int range_width = 30;		//matching will be done between range_width number of sequential images.
 bool use_segment_labels = false;
 bool release = true;
+
+bool segment_map = false;
+double segment_dist_threashold = 0.1;		//0.1
+double convexhull_dist_threshold = 0.25;	//0.25
+double convexhull_alpha = 0.15;				//0.15
 
 vector<Mat> full_images;
 vector<Mat> disparity_images;
@@ -206,6 +217,7 @@ int generate_Matched_Keypoints_Point_Cloud
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src,
 	vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink);
+void segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb);
 
 
 };
