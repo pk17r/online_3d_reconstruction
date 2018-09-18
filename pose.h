@@ -158,6 +158,8 @@ int last_hexPos_cloud_points = 0;
 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer_online;
 bool run3d_reconstruction = true;
 
+bool test_bad_data_rejection = false;
+
 //declaring functions
 void readCalibFile();
 void printUsage();
@@ -221,6 +223,13 @@ int generate_Matched_Keypoints_Point_Cloud
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_prior, int pose_index_src,
 	vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink);
 void segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb_orig);
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 basicBundleAdjustmentErrorCalculator
+			(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_inliers, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_inliers,
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts, double threshold,
+			double &avg_inliers_err, int &inliers);
+
+
 
 
 };

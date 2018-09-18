@@ -40,6 +40,55 @@ Pose::Pose(int argc, char* argv[])
 		return;
 	}
 	
+	if(test_bad_data_rejection)
+	{
+		cout << "*** inside test_bad_data_rejection to test rejection of tilted UAV positions and bad disparity images ***\n" << endl;
+		
+		readPoseFile();
+		
+		//namedWindow("dispImg", CV_WINDOW_AUTOSIZE);
+		
+		cout << "rows " << rows << " cols " << cols << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
+		//test load an image to fix rows, cols and cols_start_aft_cutout
+		Mat test_load_img = imread(disparityPrefix + to_string(1141) + ".png", CV_LOAD_IMAGE_GRAYSCALE);
+		rows = test_load_img.rows;
+		cols = test_load_img.cols;
+		cols_start_aft_cutout = (int)(cols/cutout_ratio);
+		cout << "rows " << rows << " cols " << cols << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
+		cout << fixed;
+		cout << setprecision(5);
+		cout << endl;
+		
+		for (int img_id = 1141; img_id < 1600; img_id++)
+		{
+			int pose_index = data_index_finder(img_id);
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
+			double z_normal = t_mat(0,2) + t_mat(1,2) + t_mat(2,2) + t_mat(3,2);
+			cout << img_id << " z_normal " << z_normal;
+			
+			string disp_img_name = disparityPrefix + to_string(img_id) + ".png";
+			Mat disp_img = imread(disp_img_name,CV_LOAD_IMAGE_GRAYSCALE);
+			if(disp_img.empty())
+			{
+				cout << "disparity img_id " << img_id << " not present!" << endl;
+				continue;
+			}
+			//imshow( "dispImg", disp_img );                   // Show our image inside it.
+			//waitKey(1);                                          // Wait for a keystroke in the window
+			
+			double disp_img_var = getVariance(disp_img, false);
+			cout << "\tdisp_img_var " << disp_img_var;
+			if (disp_img_var > 5)
+				cout << "\tvariance > 5!";
+			
+			if(z_normal < -1.05 || z_normal > -0.95)
+				cout << "\tz_normal > +-5%!";
+			
+			cout << endl;
+		}
+		return;
+	}
+	
 	if (smooth_surface)
 	{
 		smoothPtCloud();
@@ -113,6 +162,10 @@ Pose::Pose(int argc, char* argv[])
 	readCalibFile();
 	readPoseFile();
 	populateData();
+	
+	//checks
+	if(rows == 0 || cols == 0 || cols_start_aft_cutout == 0)
+		throw "Exception: some important values not set! rows " + to_string(rows) + " cols " + to_string(cols) + " cols_start_aft_cutout " + to_string(cols_start_aft_cutout);
 	
 	//start program
 	int64 app_start_time = getTickCount();
@@ -577,8 +630,8 @@ Pose::Pose(int argc, char* argv[])
 	save_pt_cloud_to_PLY_File(cloud_small, read_PLY_filename0);
 	//read_PLY_filename0 = "cloudrgb_MAVLink_" + currentDateTimeStr + ".ply";
 	//save_pt_cloud_to_PLY_File(cloudrgb_MAVLink, read_PLY_filename0);
-	read_PLY_filename1 = folder + "cloud_big.ply";
-	save_pt_cloud_to_PLY_File(cloud_big, read_PLY_filename1);
+	//read_PLY_filename1 = folder + "cloud_big.ply";
+	//save_pt_cloud_to_PLY_File(cloud_big, read_PLY_filename1);
 	
 	//downsampling
 	//cout << "downsampling..." << endl;

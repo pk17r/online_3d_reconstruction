@@ -152,6 +152,12 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "blur_kernel " << blur_kernel << endl;
 			i++;
 		}
+		else if (string(argv[i]) == "--test_bad_data_rejection")
+		{
+			test_bad_data_rejection = true;
+			run3d_reconstruction = false;
+			cout << "test_bad_data_rejection" << endl;
+		}
 		else if (string(argv[i]) == "--segment_map")
 		{
 			segment_map = true;
@@ -276,6 +282,71 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		}
 		else
 			throw "Exception: Unable to open imageNumbersFile!";
+	}
+	if (run3d_reconstruction && n_imgs == 2)
+	{
+		int start_num = img_numbers[0];
+		int end_num = img_numbers[1];
+		img_numbers.clear();
+		n_imgs = 0;
+		
+		readPoseFile();
+		
+		cout << "rows " << rows << " cols " << cols << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
+		//test load an image to fix rows, cols and cols_start_aft_cutout
+		Mat test_load_img = imread(disparityPrefix + to_string(1141) + ".png", CV_LOAD_IMAGE_GRAYSCALE);
+		rows = test_load_img.rows;
+		cols = test_load_img.cols;
+		cols_start_aft_cutout = (int)(cols/cutout_ratio);
+		cout << "rows " << rows << " cols " << cols << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
+		cout << fixed;
+		cout << setprecision(3);
+		cout << endl;
+		double z_threshold = 0.05;
+		
+		for (int img_id = start_num; img_id <= end_num; img_id++)
+		{
+			int pose_index = data_index_finder(img_id);
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
+			double z_normal = t_mat(0,2) + t_mat(1,2) + t_mat(2,2) + t_mat(3,2);
+			cout << img_id << " z_normal " << z_normal;
+			
+			if(z_normal < -(1+z_threshold) || z_normal > -(1-z_threshold))
+			{
+				cout << "\tz_normal > +-" << z_threshold*100 << " %!" << endl;
+				continue;
+			}
+			
+			Mat full_images = imread(imagePrefix + to_string(img_id) + ".png");
+			if(full_images.empty())
+			{
+				cout << "***** Cannot read full_img " << img_id << endl;
+				continue;
+			}
+			
+			Mat disp_img = imread(disparityPrefix + to_string(img_id) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+			if(disp_img.empty())
+			{
+				cout << "***** Cannot read disp_img " << img_id << endl;
+				continue;
+			}
+			//imshow( "dispImg", disp_img );                   // Show our image inside it.
+			//waitKey(1);                                          // Wait for a keystroke in the window
+			double disp_img_var = getVariance(disp_img, false);
+			cout << img_id << " disp_img_var " << disp_img_var;
+			if (disp_img_var > 5)
+			{
+				cout << "\tvariance > 5, Rejected!";
+			}
+			else
+			{
+				img_numbers.push_back(img_id);
+				++n_imgs;
+			}
+			cout << endl;
+		}
+		
+		cout << "\nAccepted " << n_imgs << " image numbers" << endl;
 	}
 	
 	return 0;
@@ -1888,9 +1959,113 @@ vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pc
 	//cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
 	//log_file << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
 	
+	
+	////try BA
+	////calculate error
+	//double threshold = 0.4;
+	//int initial_inliers = cloud_current->size();
+	//bool best_val_overshot = false;
+	//
+	//while(true)
+	//{
+	//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_inliers (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_inliers (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	//	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts2;
+	//	double avg_inliers_err;
+	//	int inliers;
+	//	
+	//	cout << endl;
+	//	T_SVD_matched_pts2 = basicBundleAdjustmentErrorCalculator(cloud_current, cloud_prior, cloud_current_inliers, cloud_prior_inliers, T_SVD_matched_pts, threshold, avg_inliers_err, inliers);
+	//	
+	//	if (threshold <= 0.05 || 1.0*inliers/initial_inliers < 0.75)
+	//	{//we just want to reduce outliers accounting to 25% of all matched points
+	//		if (1.0*inliers/initial_inliers < 0.6)
+	//		{//anything more and we go back by increasing threashold
+	//			//the treshold controls the distance between points in meters to denote them as outliers
+	//			threshold += 0.025;
+	//			best_val_overshot = true;
+	//		}
+	//		else
+	//		{
+	//			T_SVD_matched_pts = T_SVD_matched_pts2;
+	//			break;
+	//		}
+	//	}
+	//	else
+	//	{
+	//		cloud_current = cloud_current_inliers;
+	//		cloud_prior = cloud_prior_inliers;
+	//		
+	//		//reducing threshold in smaller and smaller increments
+	//		threshold -= 0.05;
+	//		if (best_val_overshot)
+	//		{
+	//			T_SVD_matched_pts = T_SVD_matched_pts2;
+	//			break;
+	//		}
+	//		
+	//	}
+	//}
+		
 	return T_SVD_matched_pts;
 }
 
+
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::basicBundleAdjustmentErrorCalculator
+			(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_inliers, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_inliers,
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts, double threshold,
+			double &avg_inliers_err, int &inliers)
+{
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_tfed (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	pcl::transformPointCloud(*cloud_current, *cloud_tfed, T_SVD_matched_pts);
+	//calculate error
+	vector<double> errors;
+	//cout << "\nerrors: for threshold " << threshold << endl;
+	int n_1 = 0, n_2 = 0, n_3 = 0, n_15 = 0, n_25 = 0, n_05 = 0, n_4 = 0, n_5 = 0;
+	inliers = 0;
+	double inlier_err = 0;
+	for (int i = 0; i < cloud_tfed->size(); i++)
+	{
+		double err = sqrt((cloud_tfed->points[i].x-cloud_prior->points[i].x)*(cloud_tfed->points[i].x-cloud_prior->points[i].x) + 
+						  (cloud_tfed->points[i].y-cloud_prior->points[i].y)*(cloud_tfed->points[i].y-cloud_prior->points[i].y) + 
+						  (cloud_tfed->points[i].z-cloud_prior->points[i].z)*(cloud_tfed->points[i].z-cloud_prior->points[i].z) );
+		errors.push_back(err);
+		//cout << err << " " << flush;
+		if(err > 0.05) n_05++;
+		if(err > 0.1) n_1++;
+		if(err > 0.15) n_15++;
+		if(err > 0.2) n_2++;
+		if(err > 0.25) n_25++;
+		if(err > 0.3) n_3++;
+		if(err > 0.4) n_4++;
+		if(err > 0.5) n_5++;
+		
+		if (err < threshold)
+		{
+			inliers++;
+			cloud_prior_inliers->points.push_back(cloud_prior->points[i]);
+			cloud_current_inliers->points.push_back(cloud_current->points[i]);
+			inlier_err += err;
+		}
+	}
+	//cout << endl << endl;
+	double avg_err = accumulate( errors.begin(), errors.end(), 0.0)/errors.size();
+	sort(errors.begin(), errors.end());
+	
+	avg_inliers_err = inlier_err/inliers;
+	
+	//cout << "tot  " << errors.size() << "\n<.05   " << errors.size()-n_05 << "\n.05-.1 " << n_05-n_1 << "\n.1-.15 " << n_1-n_15 << "\n.15-.2  " << n_15-n_2 << "\n.2-25 " << n_2-n_25 << "\n.25-.3  " << n_25-n_3 << "\n.3-.4   " << n_3-n_4 << "\n.4-.5   " << n_4-n_5 << "\n>.5    " << n_5 << "\navg " << average << "\nmedian " << errors[errors.size()/2] << endl << endl;
+	cout << "avg_err " << avg_err << " median " << errors[errors.size()/2] << " threshold " << threshold << " inliers " << inliers << " avg_inliers_err " << avg_inliers_err;
+	
+	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts2;
+	
+	//cout << " cloud_current->size():" << cloud_current->size() << " cloud_prior->size():" << cloud_prior->size() << endl;
+	te2.estimateRigidTransformation(*cloud_current_inliers, *cloud_prior_inliers, T_SVD_matched_pts2);
+	
+	return T_SVD_matched_pts2;
+}
 
 
 int Pose::generate_Matched_Keypoints_Point_Cloud
