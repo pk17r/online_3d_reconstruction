@@ -464,6 +464,7 @@ int Pose::binarySearchImageTime(int l, int r, int imageNumber)
    }
  
    // We reach here when element is not present in array
+   printf("l:%d, r:%d, imageNumber:%d", l, r, imageNumber);
    throw "Exception: binarySearchImageTime: unsuccessful search!";
    return -1;
 }
@@ -2007,7 +2008,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink)
 	//		
 	//	}
 	//}
-		
+	cout << endl;
 	return T_SVD_matched_pts;
 }
 
