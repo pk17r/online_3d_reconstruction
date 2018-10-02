@@ -6,5 +6,5 @@ CXX_FLAGS =   -Wno-deprecated    -march=native -msse4.2 -mfpmath=sse  -std=gnu++
 
 CXX_DEFINES = -DDISABLE_LIBUSB_1_0 -DDISABLE_PCAP -DDISABLE_PNG -Dqh_QHpointer
 
-CXX_INCLUDES = -I/home/pkr/pkr-work/pose_estimation/$(OpenCV_DIR) -I/usr/include/vtk-5.10 -I/usr/include/pcl-1.8 -I/usr/include/eigen3 -I/usr/local/boost_1_61_0 -I/usr/include/ni -I/usr/local/cuda/include -isystem /usr/local/include/opencv -isystem /usr/local/include 
+CXX_INCLUDES = -I/home/pkr/pkr-work/online_3d_reconstruction/$(OpenCV_DIR) -I/usr/include/vtk-5.10 -I/usr/include/pcl-1.8 -I/usr/include/eigen3 -I/usr/local/boost_1_61_0 -I/usr/include/ni -I/usr/local/cuda/include -isystem /usr/local/include/opencv -isystem /usr/local/include 
 

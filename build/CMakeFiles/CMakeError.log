@@ -1,24 +1,24 @@
 Determining if the pthread_create exist failed with the following output:
-Change Dir: /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp
+Change Dir: /home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_1aa65/fast"
-/usr/bin/make -f CMakeFiles/cmTC_1aa65.dir/build.make CMakeFiles/cmTC_1aa65.dir/build
-make[1]: Entering directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_1aa65.dir/CheckSymbolExists.c.o
-/usr/bin/cc    -fPIC    -o CMakeFiles/cmTC_1aa65.dir/CheckSymbolExists.c.o   -c /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
-Linking C executable cmTC_1aa65
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1aa65.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC     CMakeFiles/cmTC_1aa65.dir/CheckSymbolExists.c.o  -o cmTC_1aa65 -rdynamic 
-CMakeFiles/cmTC_1aa65.dir/CheckSymbolExists.c.o: In function `main':
+Run Build Command:"/usr/bin/make" "cmTC_a349c/fast"
+/usr/bin/make -f CMakeFiles/cmTC_a349c.dir/build.make CMakeFiles/cmTC_a349c.dir/build
+make[1]: Entering directory '/home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_a349c.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -fPIC    -o CMakeFiles/cmTC_a349c.dir/CheckSymbolExists.c.o   -c /home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_a349c
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a349c.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC     CMakeFiles/cmTC_a349c.dir/CheckSymbolExists.c.o  -o cmTC_a349c -rdynamic 
+CMakeFiles/cmTC_a349c.dir/CheckSymbolExists.c.o: In function `main':
 CheckSymbolExists.c:(.text+0x1b): undefined reference to `pthread_create'
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_1aa65.dir/build.make:97: recipe for target 'cmTC_1aa65' failed
-make[1]: *** [cmTC_1aa65] Error 1
-make[1]: Leaving directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_1aa65/fast' failed
-make: *** [cmTC_1aa65/fast] Error 2
+CMakeFiles/cmTC_a349c.dir/build.make:97: recipe for target 'cmTC_a349c' failed
+make[1]: *** [cmTC_a349c] Error 1
+make[1]: Leaving directory '/home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_a349c/fast' failed
+make: *** [cmTC_a349c/fast] Error 2
 
-File /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+File /home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
 /* */
 #include <pthread.h>
 
@@ -34,22 +34,22 @@ int main(int argc, char** argv)
 }
 
 Determining if the function pthread_create exists in the pthreads failed with the following output:
-Change Dir: /home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp
+Change Dir: /home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_76926/fast"
-/usr/bin/make -f CMakeFiles/cmTC_76926.dir/build.make CMakeFiles/cmTC_76926.dir/build
-make[1]: Entering directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_76926.dir/CheckFunctionExists.c.o
-/usr/bin/cc    -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_76926.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
-Linking C executable cmTC_76926
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_76926.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_76926.dir/CheckFunctionExists.c.o  -o cmTC_76926 -rdynamic -lpthreads 
+Run Build Command:"/usr/bin/make" "cmTC_b97b9/fast"
+/usr/bin/make -f CMakeFiles/cmTC_b97b9.dir/build.make CMakeFiles/cmTC_b97b9.dir/build
+make[1]: Entering directory '/home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_b97b9.dir/CheckFunctionExists.c.o
+/usr/bin/cc    -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_b97b9.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
+Linking C executable cmTC_b97b9
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b97b9.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_b97b9.dir/CheckFunctionExists.c.o  -o cmTC_b97b9 -rdynamic -lpthreads 
 /usr/bin/ld: cannot find -lpthreads
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_76926.dir/build.make:97: recipe for target 'cmTC_76926' failed
-make[1]: *** [cmTC_76926] Error 1
-make[1]: Leaving directory '/home/pkr/pkr-work/pose_estimation/build/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_76926/fast' failed
-make: *** [cmTC_76926/fast] Error 2
+CMakeFiles/cmTC_b97b9.dir/build.make:97: recipe for target 'cmTC_b97b9' failed
+make[1]: *** [cmTC_b97b9] Error 1
+make[1]: Leaving directory '/home/pkr/pkr-work/online_3d_reconstruction/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_b97b9/fast' failed
+make: *** [cmTC_b97b9/fast] Error 2
 
 

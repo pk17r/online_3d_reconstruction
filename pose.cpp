@@ -355,7 +355,7 @@ Pose::Pose(int argc, char* argv[])
 			
 			//Feature Matching Alignment
 			//generate point clouds of matched keypoints and estimate rigid body transform between them
-			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts = generate_tf_of_Matched_Keypoints_Point_Cloud(current_idx, t_FMVec, t_mat, row1_UAV_pos_idx, row2_UAV_pos_idx, cloud_hexPos_MAVLink);
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts = generate_tf_of_Matched_Keypoints_Point_Cloud(current_idx, t_FMVec, t_mat, cloud_hexPos_MAVLink);
 			
 			t_FMVec.push_back(T_SVD_matched_pts * t_mat);
 			

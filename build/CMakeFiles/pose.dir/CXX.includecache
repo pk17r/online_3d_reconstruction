@@ -6,19 +6,19 @@
 
 #IncludeRegexTransform: 
 
-/home/pkr/pkr-work/pose_estimation/pose.cpp
+/home/pkr/pkr-work/online_3d_reconstruction/pose.cpp
 pose.h
-/home/pkr/pkr-work/pose_estimation/pose.h
+/home/pkr/pkr-work/online_3d_reconstruction/pose.h
 boost/filesystem.hpp
 -
 pose_functions.cpp
-/home/pkr/pkr-work/pose_estimation/pose_functions.cpp
+/home/pkr/pkr-work/online_3d_reconstruction/pose_functions.cpp
 pcl/sample_consensus/ransac.h
 -
 pcl/sample_consensus/sac_model_line.h
 -
 
-/home/pkr/pkr-work/pose_estimation/pose.h
+/home/pkr/pkr-work/online_3d_reconstruction/pose.h
 iostream
 -
 fstream
@@ -98,7 +98,7 @@ opencv2/features2d.hpp
 opencv2/cudafeatures2d.hpp
 -
 
-/home/pkr/pkr-work/pose_estimation/pose_functions.cpp
+/home/pkr/pkr-work/online_3d_reconstruction/pose_functions.cpp
 
 /usr/include/eigen3/Eigen/Cholesky
 Core
