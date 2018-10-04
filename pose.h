@@ -72,13 +72,13 @@ double search_radius = 0.02;//, sqr_gauss_param = 0.02;
 bool downsample = false;
 unsigned int min_points_per_voxel = 1;
 
-const double uav_line_creation_dist_threshold = 0.2;
-const double uav_new_row_dist_threshold = 1;
-const int min_uav_positions_for_line_fitting = 7;		//want at least x points for good line fitting
+//variables for k-D tree of UAV locations of accepted images
+vector<cv::Point> acceptedPointsVec;
+vector<int> acceptedPointsIndexVec;
+const int featureMatchingThreshold = 50;
+const double z_threshold = 0.05;
 
 double voxel_size = 0.1; //in meters
-//double max_depth = 2; //in meters
-//double max_height = 4; //in meters
 bool visualize = false;
 bool align_point_cloud = false;
 string read_PLY_filename0 = "";
@@ -149,7 +149,7 @@ vector<MatchesInfo> pairwise_matches;
 vector<vector<KeyPoint>> keypointsVec;
 vector<cuda::GpuMat> descriptorsVec;
 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> keypoints3DVec;
-vector<vector<bool>> keypoints3DGoodnessVec;
+vector<vector<bool>> keypoints3D_ROI_PointsVec;
 Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
 
 //dumb variables -> try to remove them
@@ -170,7 +170,7 @@ void populateData();
 void findFeatures();
 void pairWiseMatching();
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
-void createSingleImgPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
+void createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
 void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform);
 void createPlaneFittedDisparityImages(int i);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose);
@@ -189,10 +189,10 @@ void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, 
 //pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
 //	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
 //	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints
 	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, bool &acceptDecision);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, bool combinedPtCloud);
 void orbcudaPairwiseMatching();
