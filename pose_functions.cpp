@@ -564,10 +564,12 @@ int Pose::data_index_finder(int image_number)
 
 void Pose::readImage(int i)
 {
-	full_images[i] = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
-	if(full_images[i].empty())
+	rawImageDataVec[i].img_num = img_numbers[i];
+	rawImageDataVec[i].rgb_image = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
+	
+	if(rawImageDataVec[i].rgb_image.empty())
 		throw "Exception: cannot read full_img " + to_string(img_numbers[i]) + "!";
-	//full_images[i] = full_image;
+	
 	cout << " i" << to_string(img_numbers[i]) << " " << std::flush;
 }
 
@@ -590,22 +592,29 @@ void Pose::readDisparityImage(int i)
 		Mat disp_img_blurred;
 		//bilateralFilter ( disp_img, disp_img_blurred, blur_kernel, blur_kernel*2, blur_kernel/2 );
 		medianBlur ( disp_img, disp_img_blurred, blur_kernel );
-		disparity_images[i] = disp_img_blurred;
+		rawImageDataVec[i].disparity_image = disp_img_blurred;
 	}
 	else
 	{
-		disparity_images[i] = disp_img;
+		rawImageDataVec[i].disparity_image = disp_img;
 	}
 	
-	//double disp_img_var = getVariance(disparity_images[i], false);
-	////cout << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
-	////log_file << img_numbers[i] << " disp_img_var " << disp_img_var << "\t";
-	//if (disp_img_var > 5)
-	//{
-	//	string outputError = "Exception: disp_image " + to_string(img_numbers[i]) + " > 5. Unacceptable disparity image.";
-	//	cout << outputError << endl;
-	//	throw outputError;
-	//}
+	//SEARCH PROCESS: get time NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
+	int image_time_index = binarySearchImageTime(0, images_times_seq.size()-1, img_numbers[i]);
+	//cout << fixed <<  "image_number: " << image_number << " image_time_index: " << image_time_index << " time: " << images_times_seq[image_time_index] << endl;
+	int pose_index = binarySearchUsingTime(pose_times_seq, 0, pose_times_seq.size()-1, images_times_seq[image_time_index]);
+	
+	rawImageDataVec[i].time = images_times_seq[image_time_index];
+	
+	record_t pose = pose_data[pose_index];
+	rawImageDataVec[i].tx = pose[tx_ind];
+	rawImageDataVec[i].ty = pose[ty_ind];
+	rawImageDataVec[i].tz = pose[tz_ind];
+	rawImageDataVec[i].qx = pose[qx_ind];
+	rawImageDataVec[i].qy = pose[qy_ind];
+	rawImageDataVec[i].qz = pose[qz_ind];
+	rawImageDataVec[i].qw = pose[qw_ind];
+	
 	cout << " d" << to_string(img_numbers[i]) << " " << std::flush;
 }
 
@@ -619,8 +628,9 @@ void Pose::populateDisparityImages(int start_index, int end_index)
 
 void Pose::readSegmentLabelMap(int i)
 {
-	segment_maps[i] = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-	if(segment_maps[i].empty())
+	rawImageDataVec[i].segment_map = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	//segment_maps[i] = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	if(rawImageDataVec[i].segment_map.empty())
 		throw "Exception: cannot read segment_label_map " + to_string(img_numbers[i]) + "!";
 	
 	cout << " s" << to_string(img_numbers[i]) << " " << std::flush;
@@ -644,8 +654,9 @@ void Pose::populateDoubleDispImages(int start_index, int end_index)
 
 void Pose::populateData()
 {
-	full_images = vector<Mat>(img_numbers.size());
-	disparity_images = vector<Mat>(img_numbers.size());
+	readCalibFile();
+	readPoseFile();
+	rawImageDataVec = vector<RawImageData>(img_numbers.size());
 	
 	//logging stuff
 	if(log_stuff)
@@ -693,7 +704,7 @@ void Pose::populateData()
 	
 	if(use_segment_labels)
 	{
-		segment_maps = vector<Mat>(img_numbers.size());
+		//segment_maps = vector<Mat>(img_numbers.size());
 		//cout << "\nReading segment label map images using multithreading" << endl;
 		i = 0;
 		boost::thread segment_map_thread1(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
@@ -728,7 +739,7 @@ void Pose::populateData()
 	
 	if(use_segment_labels)
 	{
-		double_disparity_images = vector<Mat>(img_numbers.size());
+		//double_disparity_images = vector<Mat>(img_numbers.size());
 		cout << "\n\nPopulating Double Disp Images using multithreading" << endl;
 		i = 0;
 		boost::thread double_disp_thread1(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
@@ -763,83 +774,45 @@ void Pose::populateData()
 	//}
 }
 
-void Pose::findFeatures()
+ImageData Pose::findFeatures(int img_idx)
 {
-	cout << "\nFeatures";
-	//int i = start_idx;
-	//while(i < end_idx + 1)
-	//{
-	//	boost::thread featureFinder_thread1, featureFinder_thread2, featureFinder_thread3, featureFinder_thread4, featureFinder_thread5, featureFinder_thread6, featureFinder_thread7;
-	//	//cout << "d0" << endl;
-	//	featureFinder_thread1 = boost::thread(&Pose::findFeaturesActual, this, i, 0);
-	//	//cout << "d1" << endl;
-	//	if(++i < end_idx + 1) featureFinder_thread2 = boost::thread(&Pose::findFeaturesActual, this, i, 1);
-	//	//cout << "d2" << endl;
-	//	if(++i < end_idx + 1) featureFinder_thread3 = boost::thread(&Pose::findFeaturesActual, this, i, 2);
-	//	//cout << "d3" << endl;
-	//	if(++i < end_idx + 1) featureFinder_thread4 = boost::thread(&Pose::findFeaturesActual, this, i, 3);
-	//	//cout << "d4" << endl;
-	//	if(++i < end_idx + 1) featureFinder_thread5 = boost::thread(&Pose::findFeaturesActual, this, i, 4);
-	//	//cout << "d5" << endl;
-	//	if(++i < end_idx + 1) featureFinder_thread6 = boost::thread(&Pose::findFeaturesActual, this, i, 5);
-	//	//cout << "d6" << endl;
-	//	if(++i < end_idx + 1) featureFinder_thread7 = boost::thread(&Pose::findFeaturesActual, this, i, 6);
-	//	//cout << "d7" << endl;
-	//	//sleep(5);
-	//	//cout << "slept enough" << endl;
-	//	featureFinder_thread1.join();
-	//	featureFinder_thread2.join();
-	//	featureFinder_thread3.join();
-	//	featureFinder_thread4.join();
-	//	featureFinder_thread5.join();
-	//	featureFinder_thread6.join();
-	//	featureFinder_thread7.join();
-	//}
-	//for (int i = start_idx; i < end_idx + 1; ++i)
-	//{
-	//	//findFeaturesActual(i, 0);
-	//	//(*finder)(full_images[i], features[i]);
-	//	////vector<KeyPoint> keypointsD;
-	//	////detector->detect(img,keypointsD,Mat());
-	//	//features[i].img_idx = i;
-	//	////features[i].keypoints = keypointsD;
-	//	//cout << " " << img_numbers[i] << "/" << features[i].keypoints.size() << std::flush;
-	//}
-	//cout << endl;
-	//for (int i = 0; i < 6; i++)
-	//{
-	//	(finderVec[i])->collectGarbage();
-	//}
-	finder->collectGarbage();
-}
-
-void Pose::findFeatures(int img_idx)
-{
-	ImageFeatures imgDescriptors;
+	ImageData currentImageDataObj;
+	//ImageData* currentImageDataObjPtr = &currentImageDataObj;
+	currentImageDataObj.raw_img_data_ptr = &(rawImageDataVec[img_idx]);
+	
 	//Ptr<FeaturesFinder> finder = makePtr<OrbFeaturesFinder>();
-	(*finder)(full_images[img_idx], imgDescriptors);
-	imgDescriptors.img_idx = img_idx;
+	ImageFeatures features;
+	Mat img = currentImageDataObj.raw_img_data_ptr->rgb_image;
+	(*finder)(img, features);
+	//cout << "rawImageDataVec[img_idx].img_num " << rawImageDataVec[img_idx].img_num << endl;
+	//cout << "rawImageDataVec[img_idx].rgb_image.size() " << rawImageDataVec[img_idx].rgb_image.size() << endl;
+	//cout << "currentImageDataObjPtr->raw_img_data_ptr->img_num " << currentImageDataObjPtr->raw_img_data_ptr->img_num << endl;
+	//cout << "currentImageDataObjPtr->raw_img_data_ptr->rgb_image.size() " << currentImageDataObjPtr->raw_img_data_ptr->rgb_image.size() << endl;
+	//cout << "img.size() " << img.size() << endl;
+	currentImageDataObj.features = features;
+	//cout << "found features.." << endl;
+	currentImageDataObj.features.img_idx = img_idx;
 	
-	cout << img_numbers[img_idx] << " features " << imgDescriptors.keypoints.size();
-	
-	features.push_back(imgDescriptors);
-	
-	cuda::GpuMat descriptor(imgDescriptors.descriptors);
-	descriptorsVec.push_back(descriptor);
-	
+	//cout << "rawImageDataVec[img_idx].img_num " << rawImageDataVec[img_idx].img_num << endl;
+	//cout << "currentImageDataObjPtr->features.img_idx " << currentImageDataObjPtr->features.img_idx << endl;
+	//cout << "currentImageDataObjPtr->features.img_size " << currentImageDataObjPtr->features.img_size << endl;
+	//cout << "currentImageDataObjPtr->features.keypoints.size() " << currentImageDataObjPtr->features.keypoints.size() << endl;
+	//cout << "\nfeatures.descriptors.size() " << features.descriptors.size() << endl;
+	//cout << "features.keypoints.size() " << features.keypoints.size() << endl;
+	//cout << "currentImageDataObj.features.descriptors.size() " << currentImageDataObj.features.descriptors.size() << endl;
+	//cout << "currentImageDataObj.features.keypoints.size() " << currentImageDataObj.features.keypoints.size() << endl;
+	//cout << "blah blah A" << endl;
+	cuda::GpuMat descriptor(currentImageDataObj.features.descriptors);
 	//convert keypoints to 3d for easier estimation of rigid body transform later during pairwise matching
-	Mat disp_img;
-	if(use_segment_labels)
-		disp_img = double_disparity_images[img_idx];
-	else
-		disp_img = disparity_images[img_idx];
+	//cout << "descriptor.size() " << descriptor.size() << endl;
+	currentImageDataObj.gpu_descriptors = descriptor;
+	//cout << " gpu_descriptors " << currentImageDataObj.gpu_descriptors.size();
 	
-	vector<KeyPoint> keypoints = imgDescriptors.keypoints;
+	vector<KeyPoint> keypoints = currentImageDataObj.features.keypoints;
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3dptcloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	keypoints3dptcloud->is_dense = true;
-	keypoints3DVec.push_back(keypoints3dptcloud);
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp = keypoints3DVec[img_idx];
+	currentImageDataObj.keypoints3D = keypoints3dptcloud;
 	vector<bool> pointsInROIVec;
 	
 	int good = 0, bad = 0;
@@ -847,9 +820,9 @@ void Pose::findFeatures(int img_idx)
 	{
 		double disp_value;
 		if(use_segment_labels)
-			disp_value = disp_img.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
+			disp_value = rawImageDataVec[img_idx].double_disparity_image.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
 		else
-			disp_value = (double)disp_img.at<char>(keypoints[i].pt.y, keypoints[i].pt.x);
+			disp_value = (double)rawImageDataVec[img_idx].disparity_image.at<char>(keypoints[i].pt.y, keypoints[i].pt.x);
 	
 		cv::Mat_<double> vec_src(4, 1);
 
@@ -879,35 +852,10 @@ void Pose::findFeatures(int img_idx)
 			pointsInROIVec.push_back(false);
 		}
 	}
-	//cout << " g" << good << "/b" << bad << endl;
-	keypoints3D_ROI_PointsVec.push_back(pointsInROIVec);
-}
-
-void Pose::pairWiseMatching()
-{
-	if (range_width == -1)
-	{
-		BestOf2NearestMatcher matcher(try_cuda, match_conf);
-		matcher(features, pairwise_matches);
-		matcher.collectGarbage();
-	}
-	else
-	{
-		BestOf2NearestRangeMatcher matcher(range_width, try_cuda, match_conf);
-		matcher(features, pairwise_matches);
-		matcher.collectGarbage();
-	}
+	cout << " g" << good << "/b" << bad << flush;
+	currentImageDataObj.keypoints3D_ROI_Points = pointsInROIVec;
 	
-	if(log_stuff)
-	{
-		cout << "\nPairwise matches:" << endl;
-		log_file << "\nPairwise matches:" << endl;
-		for (int i = 0; i < pairwise_matches.size(); i++)
-		{
-			log_file << "i" << i << " src " << pairwise_matches[i].src_img_idx << " dst " << pairwise_matches[i].dst_img_idx << " confidence " << pairwise_matches[i].confidence << " inliers " << pairwise_matches[i].inliers_mask.size() << " matches " << pairwise_matches[i].matches.size() << endl;
-		}
-	}
-	
+	return currentImageDataObj;
 }
 
 void Pose::orbcudaPairwiseMatching()
@@ -982,8 +930,8 @@ void Pose::orbcudaPairwiseMatching()
 void Pose::createPlaneFittedDisparityImages(int i)
 {
 	//cout << "Image" << i << endl;
-	Mat segment_img = segment_maps[i];
-	Mat disp_img = disparity_images[i];
+	Mat segment_img = rawImageDataVec[i].segment_map;
+	Mat disp_img = rawImageDataVec[i].disparity_image;
 	Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
 	
 	for (int cluster = 1; cluster < 1024; cluster++)
@@ -1052,7 +1000,7 @@ void Pose::createPlaneFittedDisparityImages(int i)
 			new_disp_img.at<double>(Yc[p],Xc[p]) = 1.0 * x.at<double>(0,0) * Xc[p] + 1.0 * x.at<double>(0,1) * Yc[p] + 1.0 * x.at<double>(0,2);
 		}
 	}
-	double_disparity_images[i] = new_disp_img;
+	rawImageDataVec[i].double_disparity_image = new_disp_img;
 	
 	double plane_fitted_disp_img_var = getVariance(new_disp_img, true);
 	//cout << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
@@ -1109,19 +1057,12 @@ double Pose::getVariance(Mat disp_img, bool planeFitted)
 	return var;
 }
 
-void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
+void Pose::createPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
 	//cout << "Pt Cloud #" << img_index;
 	cloudrgb->is_dense = true;
 	
 	cv::Mat_<double> vec_tmp(4,1);
-	
-	Mat disp_img;
-	if(use_segment_labels)
-		disp_img = double_disparity_images[img_index];
-	else
-		disp_img = disparity_images[img_index];
-	//cout << "disp_img.type(): " << type2str(disp_img.type()) << endl;;
 	
 	for (int y = boundingBox; y < rows - boundingBox; ++y)
 	{
@@ -1131,9 +1072,9 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 			//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
 			//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
 			if(use_segment_labels)
-				disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+				disp_val = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
 			else
-				disp_val = (double)disp_img.at<uchar>(y,x);
+				disp_val = (double)acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image.at<uchar>(y,x);
 			//cout << "disp_val " << disp_val << endl;
 			
 			if (disp_val > minDisparity)
@@ -1147,7 +1088,7 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 				pt_3drgb.x = (float)vec_tmp(0);
 				pt_3drgb.y = (float)vec_tmp(1);
 				pt_3drgb.z = (float)vec_tmp(2);
-				Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
+				Vec3b color = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image.at<Vec3b>(Point(x, y));
 				
 				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
@@ -1157,26 +1098,18 @@ void Pose::createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 			}
 		}
 	}
-	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
-	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
+	cout << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
+	log_file << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
 }
 
 void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
-	int img_index = acceptedPointsIndexVec[accepted_img_index];
-	cout << " Pt Cloud #" << accepted_img_index << " img_index " << img_index << flush;
+	//cout << " Pt Cloud #" << accepted_img_index << flush;
 	cloudrgb->is_dense = true;
 	
-	vector<KeyPoint> keypoints = features[accepted_img_index].keypoints;
-	//vector<KeyPoint> keypoints = keypointsVec[img_index];
+	vector<KeyPoint> keypoints = acceptedImageDataVec[accepted_img_index].features.keypoints;
 	
 	cv::Mat_<double> vec_tmp(4,1);
-	
-	Mat disp_img;
-	if(use_segment_labels)
-		disp_img = double_disparity_images[img_index];
-	else
-		disp_img = disparity_images[img_index];
 	
 	if (jump_pixels != 1)
 	{
@@ -1184,9 +1117,9 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 		{
 			double disp_val = 0;
 			if(use_segment_labels)
-				disp_val = disp_img.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
+				disp_val = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
 			else
-				disp_val = (double)disp_img.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
+				disp_val = (double)acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
 			
 			if (disp_val > minDisparity)
 			{
@@ -1199,7 +1132,7 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 				pt_3drgb.x = (float)vec_tmp(0);
 				pt_3drgb.y = (float)vec_tmp(1);
 				pt_3drgb.z = (float)vec_tmp(2);
-				Vec3b color = full_images[img_index].at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
+				Vec3b color = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image.at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
 				
 				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
@@ -1219,9 +1152,9 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 				//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
 				//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
 				if(use_segment_labels)
-					disp_val = disp_img.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+					disp_val = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
 				else
-					disp_val = (double)disp_img.at<uchar>(y,x);
+					disp_val = (double)acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image.at<uchar>(y,x);
 				//cout << "disp_val " << disp_val << endl;
 				
 				if (disp_val > minDisparity)
@@ -1235,7 +1168,7 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 					pt_3drgb.x = (float)vec_tmp(0);
 					pt_3drgb.y = (float)vec_tmp(1);
 					pt_3drgb.z = (float)vec_tmp(2);
-					Vec3b color = full_images[img_index].at<Vec3b>(Point(x, y));
+					Vec3b color = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image.at<Vec3b>(Point(x, y));
 					
 					uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 					pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
@@ -1248,8 +1181,8 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 			y += jump_pixels;
 		}
 	}
-	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
-	log_file << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
+	cout << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
+	log_file << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
 }
 
 //kernel to create point cloud
@@ -1294,7 +1227,7 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 //	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
 //}
 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(record_t pose)
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(int current_idx)
 {
 	//rotation of image plane to account for camera pitch -> x axis is towards east and y axis is towards south of image
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 r_xi;
@@ -1382,13 +1315,13 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	
 	
 	//converting hexacopter quaternion to rotation matrix
-	double tx = pose[tx_ind];
-	double ty = pose[ty_ind];
-	double tz = pose[tz_ind];
-	double qx = pose[qx_ind];
-	double qy = pose[qy_ind];
-	double qz = pose[qz_ind];
-	double qw = pose[qw_ind];
+	double tx = rawImageDataVec[current_idx].tx;
+	double ty = rawImageDataVec[current_idx].ty;
+	double tz = rawImageDataVec[current_idx].tz;
+	double qx = rawImageDataVec[current_idx].qx;
+	double qy = rawImageDataVec[current_idx].qy;
+	double qz = rawImageDataVec[current_idx].qz;
+	double qw = rawImageDataVec[current_idx].qw;
 	
 	double sqw = qw*qw;
 	double sqx = qx*qx;
@@ -1737,7 +1670,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, bool combinedPtCloud)
 {
-	cout << "PointCloud before filtering: " << cloudrgb->size() << endl;
+	//cout << "PointCloud before filtering: " << cloudrgb->size() << endl;
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_outlier_removed (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	int j = 0;
@@ -1756,7 +1689,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 	
 	if (!combinedPtCloud && jump_pixels > 0)
 	{
-		cout << " before:" << cloudrgb_outlier_removed->size();
+		//cout << " before:" << cloudrgb_outlier_removed->size();
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_filtered_stat (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		//use statistical outlier remover to remove outliers from single image point cloud
 		// Create the filtering object
@@ -1766,7 +1699,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 		sor0.setStddevMulThresh (1.0);
 		sor0.filter (*cloudrgb_filtered_stat);
 		cloudrgb_outlier_removed = cloudrgb_filtered_stat;
-		cout << " after:" << cloudrgb_outlier_removed->size() << " ";
+		//cout << " after:" << cloudrgb_outlier_removed->size() << " ";
 	}
 	
 	// Create the filtering object
@@ -1787,7 +1720,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 		for (int i = 0; i < cloudrgb_filtered->size(); i++)
 			cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
 	
-	cout << "\nPointCloud after filtering: " << cloudrgb_filtered->size() << endl;
+	//cout << "\nPointCloud after filtering: " << cloudrgb_filtered->size() << endl;
 	
 	return cloudrgb_filtered;
 }
@@ -1895,17 +1828,13 @@ void Pose::meshSurface()
 	cout << "Cya!" << endl;
 }
 
-pcl::PointXYZRGB Pose::addPointFromPoseFile(int pose_index, bool red_or_blue)
+pcl::PointXYZRGB Pose::createPCLPoint(int current_idx)
 {
 	pcl::PointXYZRGB position;
-	position.x = pose_data[pose_index][tx_ind];
-	position.y = pose_data[pose_index][ty_ind];
-	position.z = pose_data[pose_index][tz_ind];
-	uint32_t rgb;
-	if(red_or_blue)
-		rgb = (uint32_t)255 << 16;	//red
-	else
-		rgb = (uint32_t)255;		//blue
+	position.x = rawImageDataVec[current_idx].tx;
+	position.y = rawImageDataVec[current_idx].ty;
+	position.z = rawImageDataVec[current_idx].tz;
+	uint32_t rgb = (uint32_t)255 << 16;	//red
 	position.rgb = *reinterpret_cast<float*>(&rgb);
 	
 	return position;
@@ -1924,35 +1853,25 @@ pcl::PointXYZRGB Pose::transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::regis
 }
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generate_tf_of_Matched_Keypoints
-(int img_index, 
-vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink, 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink,
-bool &acceptDecision)
+(ImageData &currentImageDataObj, bool &acceptDecision)
 {
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_img_matched_keypoints (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr fitted_cloud_matched_keypoints (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	current_img_matched_keypoints->is_dense = true;
 	fitted_cloud_matched_keypoints->is_dense = true;
-	bool first_match = true;
-	
-	//cout << "Read source disparity image." << endl;
-	
-	int pose_index_src = data_index_finder(img_numbers[img_index]);
-	//pose_data[pose_index_src][tx_ind] << "," << pose_data[pose_index_src][ty_ind]
 	
 	//find matches and create matched point clouds
-	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, current_img_matched_keypoints, fitted_cloud_matched_keypoints, pose_index_src);
+	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(currentImageDataObj, current_img_matched_keypoints, fitted_cloud_matched_keypoints);
 	if (good_matches_count <= 500)
 	{
 		dist_nearby *= 2;
-		cout << "\tretrying with dist_nearby " << dist_nearby << ".." << endl;
-		cout << img_numbers[img_index];
-		log_file << "\tretrying with dist_nearby " << dist_nearby << ".." << endl;
-		log_file << img_numbers[img_index];
+		cout << "\tretrying in larger radius.." << endl;
+		cout << currentImageDataObj.raw_img_data_ptr->img_num;
+		log_file << "\tretrying in larger radius.." << endl;
+		log_file << currentImageDataObj.raw_img_data_ptr->img_num;
 		current_img_matched_keypoints->clear();
 		fitted_cloud_matched_keypoints->clear();
-		good_matches_count = generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, current_img_matched_keypoints, fitted_cloud_matched_keypoints, pose_index_src);
+		good_matches_count = generate_Matched_Keypoints_Point_Cloud(currentImageDataObj, current_img_matched_keypoints, fitted_cloud_matched_keypoints);
 		dist_nearby /= 2;
 	}
 	
@@ -2080,41 +1999,26 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 
 
 int Pose::generate_Matched_Keypoints_Point_Cloud
-(int current_img_index, 
-vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink, 
+(ImageData &currentImageDataObj, 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr &current_img_matched_keypoints, 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr &fitted_cloud_matched_keypoints, 
-int pose_index_src)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr &fitted_cloud_matched_keypoints)
 {
 	cout << " matched with_imgs/matches";
 	log_file << " matched with_imgs/matches";
 	
-	Mat disp_img_src;
-	if(use_segment_labels)
-		disp_img_src = double_disparity_images[current_img_index];
-	else
-		disp_img_src = disparity_images[current_img_index];
-	//cout << "\n" << img_numbers[current_img_index] << " disp_img_src.size() " << disp_img_src.size() << endl;
 	int good_matched_imgs_this_src = 0;
 	int good_matches_count = 0;
 	
-	int current_img_index_new = keypoints3D_ROI_PointsVec.size() - 1;
-	//cout << "keypoints3DVec.size() " << keypoints3DVec.size() << " keypoints3D_ROI_PointsVec.size() " << keypoints3D_ROI_PointsVec.size() << " current_img_index " << current_img_index << " current_img_index_new " << current_img_index_new << endl;
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_src = keypoints3DVec[current_img_index];
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_src = keypoints3DVec[current_img_index_new];
-	//cout << "keypoints3D_src->points.size() " << keypoints3D_src->points.size() << endl;
-	
-	//vector<bool> pointsInROIVec_src = keypoints3D_ROI_PointsVec[current_img_index];
-	vector<bool> pointsInROIVec_src = keypoints3D_ROI_PointsVec[current_img_index_new];
-	//cout << "pointsInROIVec_src.size() " << pointsInROIVec_src.size() << endl;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_src = currentImageDataObj.keypoints3D;
+	vector<bool> pointsInROIVec_src = currentImageDataObj.keypoints3D_ROI_Points;
+	//cout << "\nkeypoints3D_src->points.size() " << keypoints3D_src->points.size() << " pointsInROIVec_src.size() " << pointsInROIVec_src.size() << endl;
 	
 	//for (int dst_index = current_img_index-1; dst_index >= max(current_img_index - range_width,0); dst_index--)
-	for (int dst_index = acceptedPointsIndexVec.size() - 1; dst_index >= max((int)acceptedPointsIndexVec.size() - range_width, 0); dst_index--)
+	for (int dst_index = acceptedImageDataVec.size() - 1; dst_index >= max((int)acceptedImageDataVec.size() - range_width, 0); dst_index--)
 	{
-		//cout << "dst_img " << img_numbers[dst_index] << flush;
+		//cout << "dst_img_num " << acceptedImageDataVec[dst_index].raw_img_data_ptr->img_num << flush;
 		//check for only with nearby images
-		double dist = distanceCalculator(dst_index, pose_index_src);
+		double dist = distanceCalculator(currentImageDataObj.raw_img_data_ptr, acceptedImageDataVec[dst_index].raw_img_data_ptr);
 		if(dist > dist_nearby)
 			continue;
 		
@@ -2123,12 +2027,13 @@ int pose_index_src)
 		//reference http://study.marearts.com/2014/07/opencv-study-orb-gpu-feature-extraction.html
 		//reference https://docs.opencv.org/3.1.0/d6/d1d/group__cudafeatures2d.html
 		
-		//cout << "\ncurrent_img_index_new " << current_img_index_new << " to dst_index " << dst_index << endl;
-		vector<vector<DMatch>> matches;
+		//cout << "\nimg_num " << currentImageDataObj.raw_img_data_ptr->img_num << " to " << acceptedImageDataVec[dst_index].raw_img_data_ptr->img_num << flush;
 		
+		vector<vector<DMatch>> matches;
 		//matcher->knnMatch(descriptorsVec[current_img_index], descriptorsVec[dst_index], matches, 2);
-		//cout << "descriptorsVec.size() " << descriptorsVec.size() << " current_img_index_new " << current_img_index_new << " dst_index " << dst_index << endl;
-		matcher->knnMatch(descriptorsVec[current_img_index_new], descriptorsVec[dst_index], matches, 2);
+		//cout << "\ncurrentImageDataObj.gpu_descriptors.size() " << currentImageDataObj.gpu_descriptors.size() << " acceptedImageDataVec[dst_index].gpu_descriptors.size() " << acceptedImageDataVec[dst_index].gpu_descriptors.size() << " dst_index " << dst_index << endl;
+		matcher->knnMatch(currentImageDataObj.gpu_descriptors, acceptedImageDataVec[dst_index].gpu_descriptors, matches, 2);
+		//cout << " matches.size() " << matches.size() << flush;
 		
 		vector<DMatch> good_matches;
 		for(int k = 0; k < matches.size(); k++)
@@ -2136,24 +2041,25 @@ int pose_index_src)
 			if(matches[k][0].distance < 0.5 * matches[k][1].distance && matches[k][0].distance < 40)
 			{
 				//cout << matches[k][0].distance << "/" << matches[k][1].distance << " " << 
-				//matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << 
-				//matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << 
-				//matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
+				//	matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << 
+				//	matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << 
+				//	matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
 				good_matches.push_back(matches[k][0]);
 			}
 		}
 		
-		//cout << " " << dist << "/" << good_matches.size();
+		//cout << " good_matches.size() " << good_matches.size() << flush;
 		
 		if(good_matches.size() < featureMatchingThreshold)	//less number of matches.. don't bother working on this one. good matches are around 500-600
 			continue;
-		
 		good_matched_imgs++;
 		good_matched_imgs_this_src++;
 		good_matches_count += good_matches.size();
 		
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_dst = keypoints3DVec[dst_index];
-		vector<bool> pointsInROIVec_dst = keypoints3D_ROI_PointsVec[dst_index];
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_dst = acceptedImageDataVec[dst_index].keypoints3D;
+		
+		vector<bool> pointsInROIVec_dst = acceptedImageDataVec[dst_index].keypoints3D_ROI_Points;
+		//cout << "\nkeypoints3D_dst->points.size() " << keypoints3D_dst->points.size() << " pointsInROIVec_dst.size() " << pointsInROIVec_dst.size() << endl;
 		
 		//using sequential matched points to estimate the rigid body transformation between matched 3D points
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -2174,16 +2080,18 @@ int pose_index_src)
 				cloud_prior_temp->points.push_back(keypoints3D_dst->points[dst_Idx]);
 			}
 		}
-		//cout << " A " << flush;
-		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_FM = t_FMVec[dst_index];
 		
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink = currentImageDataObj.t_mat_MAVLink;
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_FeatureMatched = acceptedImageDataVec[dst_index].t_mat_FeatureMatched;
+		//cout << "\ncloud_current_temp->size(): " << cloud_current_temp->size() << flush;
+		//cout << "\nt_mat_MAVLink:\n" << t_mat_MAVLink << endl;
 		pcl::transformPointCloud(*cloud_current_temp, *cloud_current_t_temp, t_mat_MAVLink);
-		pcl::transformPointCloud(*cloud_prior_temp, *cloud_prior_t_temp, t_FM);
-		
-		//cout << " cloud_current_t_temp->size():" << cloud_current_t_temp->size() << " cloud_prior_t_temp->size():" << cloud_prior_t_temp->size() << flush;
+		//cout << "cloud_prior_temp->size():" << cloud_prior_temp->size() << flush;
+		//cout << "\nt_mat_FeatureMatched:\n" << t_mat_FeatureMatched << endl;
+		pcl::transformPointCloud(*cloud_prior_temp, *cloud_prior_t_temp, t_mat_FeatureMatched);
 		
 		current_img_matched_keypoints->insert(current_img_matched_keypoints->end(),cloud_current_t_temp->begin(),cloud_current_t_temp->end());
 		fitted_cloud_matched_keypoints->insert(fitted_cloud_matched_keypoints->end(),cloud_prior_t_temp->begin(),cloud_prior_t_temp->end());
@@ -2194,224 +2102,12 @@ int pose_index_src)
 	return good_matches_count;
 }
 
-double Pose::distanceCalculator(int dst_index, int pose_index_src)
+double Pose::distanceCalculator(RawImageData* img_obj_ptr_src, RawImageData* img_obj_ptr_dst)
 {
-	int pose_index_dst = data_index_finder(img_numbers[dst_index]);
-	double dist = sqrt((pose_data[pose_index_src][tx_ind] - pose_data[pose_index_dst][tx_ind]) * (pose_data[pose_index_src][tx_ind] - pose_data[pose_index_dst][tx_ind])
-		+ (pose_data[pose_index_src][ty_ind] - pose_data[pose_index_dst][ty_ind]) * (pose_data[pose_index_src][ty_ind] - pose_data[pose_index_dst][ty_ind]));
+	double dist = sqrt((img_obj_ptr_src->tx - img_obj_ptr_dst->tx) * (img_obj_ptr_src->tx - img_obj_ptr_dst->tx)
+		+ (img_obj_ptr_src->ty - img_obj_ptr_dst->ty) * (img_obj_ptr_src->ty - img_obj_ptr_dst->ty));
 	return dist;
 }
-
-/*	the above two functions with distance being taken into account from row positions
-
-
-pcl::PointXYZRGB Pose::transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts)
-{
-	pcl::PointXYZRGB hexPosFM;// = pcl::transformPoint(hexPosMAVLink, T_SVD_matched_pts);
-	hexPosFM.x = static_cast<float> (T_SVD_matched_pts (0, 0) * hexPosMAVLink.x + T_SVD_matched_pts (0, 1) * hexPosMAVLink.y + T_SVD_matched_pts (0, 2) * hexPosMAVLink.z + T_SVD_matched_pts (0, 3));
-	hexPosFM.y = static_cast<float> (T_SVD_matched_pts (1, 0) * hexPosMAVLink.x + T_SVD_matched_pts (1, 1) * hexPosMAVLink.y + T_SVD_matched_pts (1, 2) * hexPosMAVLink.z + T_SVD_matched_pts (1, 3));
-	hexPosFM.z = static_cast<float> (T_SVD_matched_pts (2, 0) * hexPosMAVLink.x + T_SVD_matched_pts (2, 1) * hexPosMAVLink.y + T_SVD_matched_pts (2, 2) * hexPosMAVLink.z + T_SVD_matched_pts (2, 3));
-	uint32_t rgbFM = (uint32_t)255 << 8;	//green
-	hexPosFM.rgb = *reinterpret_cast<float*>(&rgbFM);
-	
-	return hexPosFM;
-}
-
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generate_tf_of_Matched_Keypoints_Point_Cloud
-(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink)
-{
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_img_matched_keypoints (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr fitted_cloud_matched_keypoints (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	current_img_matched_keypoints->is_dense = true;
-	fitted_cloud_matched_keypoints->is_dense = true;
-	bool first_match = true;
-	
-	//cout << "Read source disparity image." << endl;
-	
-	int pose_index_src = data_index_finder(img_numbers[img_index]);
-	//pose_data[pose_index_src][tx_ind] << "," << pose_data[pose_index_src][ty_ind]
-	
-	//find matches and create matched point clouds
-	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, current_img_matched_keypoints, fitted_cloud_matched_keypoints, pose_index_src, row1_UAV_pos_idx, row2_UAV_pos_idx, cloud_hexPos_MAVLink);
-	if (good_matches_count <= 500)
-	{
-		dist_nearby *= 2;
-		cout << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
-		cout << img_numbers[img_index];
-		log_file << "\t** LOW MATCHES ** dist_nearby " << dist_nearby << " retrying.." << endl;
-		log_file << img_numbers[img_index];
-		current_img_matched_keypoints->clear();
-		fitted_cloud_matched_keypoints->clear();
-		generate_Matched_Keypoints_Point_Cloud(img_index, t_FMVec, t_mat_MAVLink, current_img_matched_keypoints, fitted_cloud_matched_keypoints, pose_index_src, row1_UAV_pos_idx, row2_UAV_pos_idx, cloud_hexPos_MAVLink);
-		dist_nearby /= 2;
-	}
-	
-	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
-	
-	//cout << " current_img_matched_keypoints->size():" << current_img_matched_keypoints->size() << " fitted_cloud_matched_keypoints->size():" << fitted_cloud_matched_keypoints->size() << endl;
-	te2.estimateRigidTransformation(*current_img_matched_keypoints, *fitted_cloud_matched_keypoints, T_SVD_matched_pts);
-	//cout << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
-	//log_file << "computed transformation between MATCHED KEYPOINTS T_SVD2 is\n" << T_SVD_matched_pts << endl;
-	
-	return T_SVD_matched_pts;
-}
-
-
-
-int Pose::generate_Matched_Keypoints_Point_Cloud
-(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr &current_img_matched_keypoints, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &fitted_cloud_matched_keypoints, int pose_index_src,
-vector<int> &row1_UAV_pos_idx, vector<int> &row2_UAV_pos_idx, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink)
-{
-	cout << " matched with_imgs/matches";
-	log_file << " matched with_imgs/matches";
-	
-	Mat disp_img_src;
-	if(use_segment_labels)
-		disp_img_src = double_disparity_images[img_index];
-	else
-		disp_img_src = disparity_images[img_index];
-	
-	int good_matched_imgs_this_src = 0;
-	int good_matches_count = 0;
-	
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_src = keypoints3DVec[img_index];
-	vector<bool> goodness_src = keypoints3D_ROI_PointsVec[img_index];
-	
-	if (row2_UAV_pos_idx.size() > 0 && row2_UAV_pos_idx[row2_UAV_pos_idx.size()-1] != img_index)
-		throw "Exception: row2_UAV_pos_idx[row2_UAV_pos_idx.size()-1] != img_index";
-	if (row1_UAV_pos_idx.size() == 0)
-		throw "Exception: row1_UAV_pos_idx.size() == 0";
-		
-	bool row2_images = true;
-	int dst_index;
-	int row_index;
-	
-	if (row2_UAV_pos_idx.size() > 1)
-	{
-		row_index = row2_UAV_pos_idx.size()-2;
-		dst_index = row2_UAV_pos_idx[row_index];
-	}
-	else
-	{
-		row2_images = false;
-		row_index = row1_UAV_pos_idx.size()-2;
-		dst_index = row1_UAV_pos_idx[row_index];
-	}
-	
-	bool continue_check = true;
-	while(continue_check)
-	{
-		//check for only with nearby images
-		double dist = sqrt((cloud_hexPos_MAVLink->points[img_index].x - cloud_hexPos_MAVLink->points[dst_index].x) * (cloud_hexPos_MAVLink->points[img_index].x - cloud_hexPos_MAVLink->points[dst_index].x)
-			+ (cloud_hexPos_MAVLink->points[img_index].y - cloud_hexPos_MAVLink->points[dst_index].y) * (cloud_hexPos_MAVLink->points[img_index].y - cloud_hexPos_MAVLink->points[dst_index].y));
-		
-		if(dist < dist_nearby)
-		{
-			//reference https://stackoverflow.com/questions/44988087/opencv-feature-matching-match-descriptors-to-knn-filtered-keypoints
-			//reference https://github.com/opencv/opencv/issues/6130
-			//reference http://study.marearts.com/2014/07/opencv-study-orb-gpu-feature-extraction.html
-			//reference https://docs.opencv.org/3.1.0/d6/d1d/group__cudafeatures2d.html
-			
-			//cout << "image " << img_index << " to " << dst_index << endl;
-			vector<vector<DMatch>> matches;
-			
-			matcher->knnMatch(descriptorsVec[img_index], descriptorsVec[dst_index], matches, 2);
-			
-			vector<DMatch> good_matches;
-			for(int k = 0; k < matches.size(); k++)
-			{
-				if(matches[k][0].distance < 0.5 * matches[k][1].distance && matches[k][0].distance < 40)
-				{
-					//cout << matches[k][0].distance << "/" << matches[k][1].distance << " " << 
-					//matches[k][0].imgIdx << "/" << matches[k][1].imgIdx << " " << 
-					//matches[k][0].queryIdx << "/" << matches[k][1].queryIdx << " " << 
-					//matches[k][0].trainIdx << "/" << matches[k][1].trainIdx << endl;
-					good_matches.push_back(matches[k][0]);
-				}
-			}
-			
-			//cout << " " << dist << "/" << good_matches.size();
-			
-			if(good_matches.size() > 150)	//less number of matches.. don't bother working on this one. good matches are around 500-600
-			{
-				good_matched_imgs++;
-				good_matched_imgs_this_src++;
-				good_matches_count += good_matches.size();
-				
-				pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D_dst = keypoints3DVec[dst_index];
-				vector<bool> goodness_dst = keypoints3D_ROI_PointsVec[dst_index];
-				
-				//using sequential matched points to estimate the rigid body transformation between matched 3D points
-				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
-				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
-				cloud_current_temp->is_dense = true;
-				cloud_prior_temp->is_dense = true;
-				
-				for (int match_index = 0; match_index < good_matches.size(); match_index++)
-				{
-					DMatch match = good_matches[match_index];
-					
-					int dst_Idx = match.trainIdx;	//dst img
-					int src_Idx = match.queryIdx;	//src img
-					
-					if(goodness_src[src_Idx] == true && goodness_dst[dst_Idx] == true)
-					{
-						cloud_current_temp->points.push_back(keypoints3D_src->points[src_Idx]);
-						cloud_prior_temp->points.push_back(keypoints3D_dst->points[dst_Idx]);
-					}
-				}
-				
-				pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_FM = t_FMVec[dst_index];
-				
-				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
-				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_t_temp (new pcl::PointCloud<pcl::PointXYZRGB> ());
-				
-				pcl::transformPointCloud(*cloud_current_temp, *cloud_current_t_temp, t_mat_MAVLink);
-				pcl::transformPointCloud(*cloud_prior_temp, *cloud_prior_t_temp, t_FM);
-				
-				//cout << " cloud_current_t_temp->size():" << cloud_current_t_temp->size() << " cloud_prior_t_temp->size():" << cloud_prior_t_temp->size() << flush;
-				
-				current_img_matched_keypoints->insert(current_img_matched_keypoints->end(),cloud_current_t_temp->begin(),cloud_current_t_temp->end());
-				fitted_cloud_matched_keypoints->insert(fitted_cloud_matched_keypoints->end(),cloud_prior_t_temp->begin(),cloud_prior_t_temp->end());
-			}
-		}
-		
-		//cout << "row_index " << row_index << " continue_check " << continue_check << " row2_images " << row2_images << " img " << img_numbers[dst_index] << endl;
-		
-		//update dst_index
-		if (row2_images)
-		{
-			if (--row_index >= 0)
-			{
-				dst_index = row2_UAV_pos_idx[row_index];
-			}
-			else
-			{
-				row2_images = false;
-				row_index = row1_UAV_pos_idx.size()-1;
-				dst_index = row1_UAV_pos_idx[row_index];
-			}
-		}
-		else
-		{
-			if (--row_index >= 0)
-				dst_index = row1_UAV_pos_idx[row_index];
-			else
-				continue_check = false;
-		}
-	}
-	cout << " " << good_matched_imgs_this_src << "/" << good_matches_count;
-	log_file << " " << good_matched_imgs_this_src << "/" << good_matches_count;
-	
-	return good_matches_count;
-}
-
-*/
 
 void Pose::segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb)
 {

@@ -43,55 +43,6 @@ Pose::Pose(int argc, char* argv[])
 		return;
 	}
 	
-	if(test_bad_data_rejection)
-	{
-		cout << "*** inside test_bad_data_rejection to test rejection of tilted UAV positions and bad disparity images ***\n" << endl;
-		
-		readPoseFile();
-		
-		//namedWindow("dispImg", CV_WINDOW_AUTOSIZE);
-		
-		cout << "rows " << rows << " cols " << cols << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
-		//test load an image to fix rows, cols and cols_start_aft_cutout
-		Mat test_load_img = imread(disparityPrefix + to_string(1141) + ".png", CV_LOAD_IMAGE_GRAYSCALE);
-		rows = test_load_img.rows;
-		cols = test_load_img.cols;
-		cols_start_aft_cutout = (int)(cols/cutout_ratio);
-		cout << "rows " << rows << " cols " << cols << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
-		cout << fixed;
-		cout << setprecision(5);
-		cout << endl;
-		
-		for (int img_id = 1141; img_id < 1600; img_id++)
-		{
-			int pose_index = data_index_finder(img_id);
-			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
-			double z_normal = t_mat(0,2) + t_mat(1,2) + t_mat(2,2) + t_mat(3,2);
-			cout << img_id << " z_normal " << z_normal;
-			
-			string disp_img_name = disparityPrefix + to_string(img_id) + ".png";
-			Mat disp_img = imread(disp_img_name,CV_LOAD_IMAGE_GRAYSCALE);
-			if(disp_img.empty())
-			{
-				cout << "disparity img_id " << img_id << " not present!" << endl;
-				continue;
-			}
-			//imshow( "dispImg", disp_img );                   // Show our image inside it.
-			//waitKey(1);                                          // Wait for a keystroke in the window
-			
-			double disp_img_var = getVariance(disp_img, false);
-			cout << "\tdisp_img_var " << disp_img_var;
-			if (disp_img_var > 5)
-				cout << "\tvariance > 5!";
-			
-			if(z_normal < -1.05 || z_normal > -0.95)
-				cout << "\tz_normal > +-5%!";
-			
-			cout << endl;
-		}
-		return;
-	}
-	
 	if (smooth_surface)
 	{
 		smoothPtCloud();
@@ -162,8 +113,6 @@ Pose::Pose(int argc, char* argv[])
 	if(!run3d_reconstruction)
 		return;
 	
-	readCalibFile();
-	readPoseFile();
 	populateData();
 	
 	//checks
@@ -176,27 +125,11 @@ Pose::Pose(int argc, char* argv[])
 	//initialize some variables
 	finder = makePtr<OrbFeaturesFinder>();
 	
-	//features = vector<ImageFeatures>(img_numbers.size());
-	//for (int i = 0; i < img_numbers.size(); i++)
-	//{
-	//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3dptcloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	//	keypoints3dptcloud->is_dense = true;
-	//	keypoints3DVec.push_back(keypoints3dptcloud);
-	//}
-	
 	//main point clouds
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_MAVLink (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched_big (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_big (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_small (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	cloud_big->is_dense = true;
 	cloud_small->is_dense = true;
-	//cloudrgb_MAVLink->is_dense = true;
-	//cloudrgb_FeatureMatched_big->is_dense = true;
-	
-	//vectors to store transformations of point clouds
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_matVec;
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec;
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_MAVLink (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hexPos_FM (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -205,7 +138,7 @@ Pose::Pose(int argc, char* argv[])
 	
 	int n_cycle;
 	if(online)
-		n_cycle = ceil(1.0 * img_numbers.size() / seq_len);
+		n_cycle = ceil(1.0 * rawImageDataVec.size() / seq_len);
 	else
 		n_cycle = 1;
 	
@@ -214,7 +147,7 @@ Pose::Pose(int argc, char* argv[])
 	bool log_uav_positions = false;
 	
 	int current_idx = 0;
-	int last_idx = img_numbers.size() - 1;
+	int last_idx = rawImageDataVec.size() - 1;
 	int cycle = 0;
 	bool red_or_blue = true;
 	
@@ -227,81 +160,70 @@ Pose::Pose(int argc, char* argv[])
 		cout << "\nCycle " << cycle << endl;
 		log_file << "\nCycle " << cycle << endl;
 		int images_in_cycle = 0;
+		cout << "rawImageDataVec.size() " << rawImageDataVec.size() << endl;
 		
 		while(images_in_cycle < seq_len && current_idx <= last_idx)
 		{
-			Mat disp_img = disparity_images[current_idx];
-			
-			double disp_img_var = getVariance(disparity_images[current_idx], false);
-			//cout << img_numbers[current_idx] << " disp_img_var " << disp_img_var << "\t";
-			//log_file << img_numbers[current_idx] << " disp_img_var " << disp_img_var << "\t";
+			double disp_img_var = getVariance(rawImageDataVec[current_idx].disparity_image, false);
+			cout << rawImageDataVec[current_idx].img_num << " disp_img_var " << disp_img_var << "\t";
+			log_file << rawImageDataVec[current_idx].img_num << " disp_img_var " << disp_img_var << "\t";
 			if (disp_img_var > 5)
 			{
-				cout << img_numbers[current_idx] << " disp_image variance " << disp_img_var << " > 5. Rejected!" << endl;
+				cout << " > 5. Rejected!" << endl;
 				current_idx++;
 				continue;
 			}
 			
-			//SEARCH PROCESS: get NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
-			int pose_index = data_index_finder(img_numbers[current_idx]);
-			
-			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
-			//double z_normal = t_mat(0,2) + t_mat(1,2) + t_mat(2,2) + t_mat(3,2);
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink = generateTmat(current_idx);
+			//double z_normal = t_mat_MAVLink(0,2) + t_mat_MAVLink(1,2) + t_mat_MAVLink(2,2) + t_mat_MAVLink(3,2);
 			//if(z_normal < -(1+z_threshold) || z_normal > -(1-z_threshold))
 			//{
-			//	cout << img_numbers[current_idx] << " z_normal " << z_normal << " > +-" << z_threshold*100 << "%. Rejected!" << endl;
+			//	cout << rawImageDataVec[current_idx].img_num << " z_normal " << z_normal << " > +-" << z_threshold*100 << "%. Rejected!" << endl;
 			//	current_idx++;
 			//	continue;
 			//}
 			
-			pcl::PointXYZRGB hexPosMAVLink = addPointFromPoseFile(pose_index, red_or_blue);
-			
+			pcl::PointXYZRGB hexPosMAVLink = createPCLPoint(current_idx);
 			cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
 			
-			//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
-			t_matVec.push_back(t_mat);
-			
 			//Find Features
-			findFeatures(current_idx);
+			ImageData currentImageDataObj = findFeatures(current_idx);
+			currentImageDataObj.t_mat_MAVLink = t_mat_MAVLink;
 			
 			if (current_idx > 0)
 			{
 				//Feature Matching Alignment
 				//generate point clouds of matched keypoints and estimate rigid body transform between them
 				bool acceptDecision = true;
-				pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts = generate_tf_of_Matched_Keypoints(current_idx, t_FMVec, t_mat, cloud_hexPos_MAVLink, acceptDecision);
+				pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts = generate_tf_of_Matched_Keypoints(currentImageDataObj, acceptDecision);
 				
 				if (!acceptDecision)
 				{//rejected point -> no matches found
-					cout << img_numbers[current_idx] << " Low Feature Matches. Rejected!" << endl;
+					cout << rawImageDataVec[current_idx].img_num << " Low Feature Matches. Rejected!" << endl;
 					cloud_hexPos_MAVLink->points.pop_back();
-					t_matVec.pop_back();
 					current_idx++;
 					continue;
 				}
 				else
 				{
-					cout << " current_idx " << current_idx << " Accepted!" << endl;
+					//cout << " current_idx " << current_idx << " Accepted!" << endl;
 				}
 				
-				
-				t_FMVec.push_back(T_SVD_matched_pts * t_mat);
+				currentImageDataObj.t_mat_FeatureMatched = T_SVD_matched_pts * t_mat_MAVLink;
 				pcl::PointXYZRGB hexPosFM = transformPoint(hexPosMAVLink, T_SVD_matched_pts);
 				cloud_hexPos_FM->points.push_back(hexPosFM);
 			}
 			else
 			{
-				t_FMVec.push_back(t_mat);
+				currentImageDataObj.t_mat_FeatureMatched = t_mat_MAVLink;
 				cloud_hexPos_FM->points.push_back(hexPosMAVLink);
 			}
 			
-			cv::Point pt = Point(pose_data[pose_index][tx_ind], pose_data[pose_index][ty_ind]);
-			acceptedPointsVec.push_back(pt);
-			acceptedPointsIndexVec.push_back(current_idx);
-			
+			acceptedImageDataVec.push_back(currentImageDataObj);
 			current_idx++;
 			images_in_cycle++;
-			cout << "images_in_cycle " << images_in_cycle << endl;
+			//cout << "current_idx " << current_idx << " images_in_cycle " << images_in_cycle << endl;
+			
 		}
 		
 		cout << "Out of Feature Matching and Fitting Block" << endl;
@@ -322,8 +244,8 @@ Pose::Pose(int argc, char* argv[])
 		//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(row12_FM_UAV_pos, row12_MAV_UAV_pos);
 		
 		//correcting old tf_mats
-		for (int i = 0; i < current_idx; i++)
-			t_FMVec[i] = tf_icp * t_FMVec[i];
+		for (int i = 0; i < acceptedImageDataVec.size(); i++)
+			acceptedImageDataVec[i].t_mat_FeatureMatched = tf_icp * acceptedImageDataVec[i].t_mat_FeatureMatched;
 		
 		//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
 		transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, tf_icp);
@@ -377,7 +299,7 @@ Pose::Pose(int argc, char* argv[])
 			if(true)
 			{//single threaded
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
-				createAndTransformPtCloud(i, t_FMVec, transformed_cloudrgb1);
+				createAndTransformPtCloud(i, transformed_cloudrgb1);
 				//generating the bigger point cloud
 				cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb1->begin(),transformed_cloudrgb1->end());
 				i++;
@@ -395,13 +317,13 @@ Pose::Pose(int argc, char* argv[])
 				
 				boost::thread pt_cloud_thread1, pt_cloud_thread2, pt_cloud_thread3, pt_cloud_thread4, pt_cloud_thread5, pt_cloud_thread6, pt_cloud_thread7;
 				
-				pt_cloud_thread1 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb1);
-				if(++i < current_idx) pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb2);
-				if(++i < current_idx) pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb3);
-				if(++i < current_idx) pt_cloud_thread4 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb4);
-				if(++i < current_idx) pt_cloud_thread5 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb5);
-				if(++i < current_idx) pt_cloud_thread6 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb6);
-				if(++i < current_idx) pt_cloud_thread7 = boost::thread(&Pose::createAndTransformPtCloud, this, i, t_FMVec, transformed_cloudrgb7);
+				pt_cloud_thread1 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb1);
+				if(++i < current_idx) pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb2);
+				if(++i < current_idx) pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb3);
+				if(++i < current_idx) pt_cloud_thread4 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb4);
+				if(++i < current_idx) pt_cloud_thread5 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb5);
+				if(++i < current_idx) pt_cloud_thread6 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb6);
+				if(++i < current_idx) pt_cloud_thread7 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb7);
 				
 				
 				//generating the bigger point cloud
@@ -488,8 +410,6 @@ Pose::Pose(int argc, char* argv[])
 		<< "\nrange_width " << range_width
 		<< "\nblur_kernel " << blur_kernel
 		<< "\nvoxel_size " << voxel_size
-		//<< "\nmax_depth " << max_depth
-		//<< "\nmax_height " << max_height
 		<< "\nmin_points_per_voxel " << min_points_per_voxel
 		<< "\ndist_nearby " << dist_nearby
 		<< "\ngood_matched_imgs " << good_matched_imgs
@@ -501,8 +421,6 @@ Pose::Pose(int argc, char* argv[])
 		<< "\nrange_width " << range_width
 		<< "\nblur_kernel " << blur_kernel
 		<< "\nvoxel_size " << voxel_size
-		//<< "\nmax_depth " << max_depth
-		//<< "\nmax_height " << max_height
 		<< "\nmin_points_per_voxel " << min_points_per_voxel
 		<< "\ndist_nearby " << dist_nearby
 		<< "\ngood_matched_imgs " << good_matched_imgs
@@ -613,9 +531,7 @@ void Pose::findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 	
 }
 
-void Pose::createAndTransformPtCloud(int img_index, 
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb_return)
+void Pose::createAndTransformPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb_return)
 {
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -623,10 +539,10 @@ void Pose::createAndTransformPtCloud(int img_index,
 	//if(jump_pixels == 1)
 	//	createPtCloud(img_index, cloudrgb);
 	//else
-		createSingleImgPtCloud(img_index, cloudrgb);
+		createSingleImgPtCloud(accepted_img_index, cloudrgb);
 	//cout << "Created point cloud " << img_index << endl;
 	
-	transformPtCloud(cloudrgb, cloudrgb_transformed, t_FMVec[img_index]);
+	transformPtCloud(cloudrgb, cloudrgb_transformed, acceptedImageDataVec[accepted_img_index].t_mat_FeatureMatched);
 	//cout << "transformed point cloud " << img_index << endl;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_downsampled = downsamplePtCloud(cloudrgb_transformed, false);
 	//cout << "Downsampled point cloud " << img_index << endl;
@@ -735,18 +651,18 @@ int main(int argc, char* argv[])
 	//plotMatches("images/1248.png","images/1251.png");
 	//plotMatches("images/1248.png","images/1258.png");
 	
-	struct sigaction sigact;
-
-	sigact.sa_sigaction = crit_err_hdlr;
-	sigact.sa_flags = SA_RESTART | SA_SIGINFO;
-
-	if (sigaction(SIGSEGV, &sigact, (struct sigaction *)NULL) != 0)
-	{
-		fprintf(stderr, "error setting signal handler for %d (%s)\n",
-		SIGSEGV, strsignal(SIGSEGV));
-
-		exit(EXIT_FAILURE);
-	}
+	//struct sigaction sigact;
+    //
+	//sigact.sa_sigaction = crit_err_hdlr;
+	//sigact.sa_flags = SA_RESTART | SA_SIGINFO;
+    //
+	//if (sigaction(SIGSEGV, &sigact, (struct sigaction *)NULL) != 0)
+	//{
+	//	fprintf(stderr, "error setting signal handler for %d (%s)\n",
+	//	SIGSEGV, strsignal(SIGSEGV));
+    //
+	//	exit(EXIT_FAILURE);
+	//}
 	
 	try
 	{

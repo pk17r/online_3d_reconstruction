@@ -49,6 +49,38 @@ using namespace cv::detail;
 typedef vector <double> record_t;
 typedef vector <record_t> data_t;
 
+class RawImageData {
+public:
+	int img_num;
+	Mat rgb_image;
+	Mat disparity_image;
+	Mat segment_map;
+	Mat double_disparity_image;
+	
+	double time;	//NSECS
+	double tx;
+	double ty;
+	double tz;
+	double qx;
+	double qy;
+	double qz;
+	double qw;
+};
+
+class ImageData {
+public:
+	RawImageData* raw_img_data_ptr;
+	
+	ImageFeatures features;	//has features.keypoints and features.descriptors
+	cuda::GpuMat gpu_descriptors;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints3D;
+	vector<bool> keypoints3D_ROI_Points;
+	
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink;
+	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_FeatureMatched;
+	
+};
+
 class Pose {
 
 public:
@@ -72,10 +104,12 @@ double search_radius = 0.02;//, sqr_gauss_param = 0.02;
 bool downsample = false;
 unsigned int min_points_per_voxel = 1;
 
+//image data
+vector<RawImageData> rawImageDataVec;
+vector<ImageData> acceptedImageDataVec;
+
 //variables for k-D tree of UAV locations of accepted images
-vector<cv::Point> acceptedPointsVec;
-vector<int> acceptedPointsIndexVec;
-const int featureMatchingThreshold = 50;
+const int featureMatchingThreshold = 100;
 const double z_threshold = 0.05;
 
 double voxel_size = 0.1; //in meters
@@ -137,19 +171,8 @@ double convexhull_dist_threshold = 2.5 * voxel_size;	//0.25
 double convexhull_alpha = 1.5 * voxel_size;				//0.15
 //int size_cloud_divider = 10;				//10
 
-vector<Mat> full_images;
-vector<Mat> disparity_images;
-vector<Mat> segment_maps;
-vector<Mat> double_disparity_images;
 ofstream log_file;	//logging stuff
 Ptr<FeaturesFinder> finder;
-//vector<Ptr<FeaturesFinder>> finderVec;
-vector<ImageFeatures> features;
-vector<MatchesInfo> pairwise_matches;
-vector<vector<KeyPoint>> keypointsVec;
-vector<cuda::GpuMat> descriptorsVec;
-vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> keypoints3DVec;
-vector<vector<bool>> keypoints3D_ROI_PointsVec;
 Ptr<cuda::DescriptorMatcher> matcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
 
 //dumb variables -> try to remove them
@@ -167,13 +190,11 @@ string type2str(int type);
 int parseCmdArgs(int argc, char** argv);
 void readPoseFile();
 void populateData();
-void findFeatures();
-void pairWiseMatching();
 void createPtCloud(int img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
 void createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb);
 void transformPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 transform);
 void createPlaneFittedDisparityImages(int i);
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(record_t pose);
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generateTmat(int current_idx);
 int binarySearchUsingTime(vector<double> seq, int l, int r, double time);
 int binarySearchImageTime(int l, int r, int imageNumber);
 int data_index_finder(int image_number);
@@ -186,19 +207,13 @@ void visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string 
 void visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr read_PLY_File(string point_cloud_filename);
 void save_pt_cloud_to_PLY_File(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string &writePath);
-//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints_Point_Cloud
-//	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-//	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink);
-pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints
-	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, bool &acceptDecision);
+pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 generate_tf_of_Matched_Keypoints(ImageData &currentImageDataObj, bool &acceptDecision);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 runICPalignment(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb, bool combinedPtCloud);
 void orbcudaPairwiseMatching();
 void smoothPtCloud();
 void meshSurface();
-pcl::PointXYZRGB addPointFromPoseFile(int pose_index, bool red_or_blue);
+pcl::PointXYZRGB createPCLPoint(int current_idx);
 pcl::PointXYZRGB transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts);
 void populateDisparityImages(int start_index, int end_index);
 void readDisparityImage(int i);
@@ -209,28 +224,21 @@ void readImage(int i);
 void populateDoubleDispImages(int start_index, int end_index);
 void displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_combined_copy, 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_FM, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_hexPos_MAVLink, int cycle, bool last_cycle);
-void createAndTransformPtCloud(int img_index, 
-	vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> &t_FMVec, 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &transformed_cloudrgb);
+void createAndTransformPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb_return);
 void findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-void findFeatures(int img_idx);
-//int generate_Matched_Keypoints_Point_Cloud (int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, 
-	//pcl::PointXYZRGB>::Matrix4> t_FMVec, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr &current_img_matched_keypoints, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &fitted_cloud_matched_keypoints, int pose_index_src);
+ImageData findFeatures(int img_idx);
 int generate_Matched_Keypoints_Point_Cloud
-	(int img_index, vector<pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4> t_FMVec, 
-	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_MAVLink,
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &current_img_matched_keypoints, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &fitted_cloud_matched_keypoints, int pose_index_src);
+	(ImageData &currentImageDataObj, 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &current_img_matched_keypoints, 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr &fitted_cloud_matched_keypoints);
 void segmentCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb_orig);
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 basicBundleAdjustmentErrorCalculator
 			(pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_img_matched_keypoints, pcl::PointCloud<pcl::PointXYZRGB>::Ptr fitted_cloud_matched_keypoints,
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_current_inliers, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_prior_inliers,
 			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts, double threshold,
 			double &avg_inliers_err, int &inliers);
-double distanceCalculator(int dst_index, int pose_index_src);
+double distanceCalculator(RawImageData* img_obj_ptr_src, RawImageData* img_obj_ptr_dst);
 
 
 
 };
-
-
