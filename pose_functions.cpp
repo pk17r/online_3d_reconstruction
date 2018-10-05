@@ -852,7 +852,8 @@ ImageData Pose::findFeatures(int img_idx)
 			pointsInROIVec.push_back(false);
 		}
 	}
-	cout << " g" << good << "/b" << bad << flush;
+	//cout << " g" << good << "/b" << bad << flush;
+	log_file << " g" << good << "/b" << bad << flush;
 	currentImageDataObj.keypoints3D_ROI_Points = pointsInROIVec;
 	
 	return currentImageDataObj;
@@ -1062,6 +1063,16 @@ void Pose::createPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRG
 	//cout << "Pt Cloud #" << img_index;
 	cloudrgb->is_dense = true;
 	
+	Mat dispImg;
+	if(use_segment_labels)
+		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image;
+	else
+		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image;
+	
+	vector<KeyPoint> keypoints = acceptedImageDataVec[accepted_img_index].features.keypoints;
+	Mat rgb_image = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image;
+	int img_num = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num;
+	
 	cv::Mat_<double> vec_tmp(4,1);
 	
 	for (int y = boundingBox; y < rows - boundingBox; ++y)
@@ -1072,9 +1083,9 @@ void Pose::createPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRG
 			//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
 			//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
 			if(use_segment_labels)
-				disp_val = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+				disp_val = dispImg.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
 			else
-				disp_val = (double)acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image.at<uchar>(y,x);
+				disp_val = (double)dispImg.at<uchar>(y,x);
 			//cout << "disp_val " << disp_val << endl;
 			
 			if (disp_val > minDisparity)
@@ -1088,7 +1099,7 @@ void Pose::createPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRG
 				pt_3drgb.x = (float)vec_tmp(0);
 				pt_3drgb.y = (float)vec_tmp(1);
 				pt_3drgb.z = (float)vec_tmp(2);
-				Vec3b color = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image.at<Vec3b>(Point(x, y));
+				Vec3b color = rgb_image.at<Vec3b>(Point(x, y));
 				
 				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
@@ -1098,8 +1109,8 @@ void Pose::createPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRG
 			}
 		}
 	}
-	cout << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
-	log_file << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
+	cout << " " << img_num << "/" << cloudrgb->points.size() << std::flush;
+	log_file << " " << img_num << "/" << cloudrgb->points.size() << std::flush;
 }
 
 void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
@@ -1107,7 +1118,15 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 	//cout << " Pt Cloud #" << accepted_img_index << flush;
 	cloudrgb->is_dense = true;
 	
+	Mat dispImg;
+	if(use_segment_labels)
+		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image;
+	else
+		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image;
+	
 	vector<KeyPoint> keypoints = acceptedImageDataVec[accepted_img_index].features.keypoints;
+	Mat rgb_image = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image;
+	int img_num = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num;
 	
 	cv::Mat_<double> vec_tmp(4,1);
 	
@@ -1117,9 +1136,9 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 		{
 			double disp_val = 0;
 			if(use_segment_labels)
-				disp_val = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
+				disp_val = dispImg.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
 			else
-				disp_val = (double)acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
+				disp_val = (double)dispImg.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
 			
 			if (disp_val > minDisparity)
 			{
@@ -1132,7 +1151,7 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 				pt_3drgb.x = (float)vec_tmp(0);
 				pt_3drgb.y = (float)vec_tmp(1);
 				pt_3drgb.z = (float)vec_tmp(2);
-				Vec3b color = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image.at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
+				Vec3b color = rgb_image.at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
 				
 				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
@@ -1152,9 +1171,9 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 				//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
 				//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
 				if(use_segment_labels)
-					disp_val = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
+					disp_val = dispImg.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
 				else
-					disp_val = (double)acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image.at<uchar>(y,x);
+					disp_val = (double)dispImg.at<uchar>(y,x);
 				//cout << "disp_val " << disp_val << endl;
 				
 				if (disp_val > minDisparity)
@@ -1168,7 +1187,7 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 					pt_3drgb.x = (float)vec_tmp(0);
 					pt_3drgb.y = (float)vec_tmp(1);
 					pt_3drgb.z = (float)vec_tmp(2);
-					Vec3b color = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image.at<Vec3b>(Point(x, y));
+					Vec3b color = rgb_image.at<Vec3b>(Point(x, y));
 					
 					uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
 					pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
@@ -1181,8 +1200,9 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 			y += jump_pixels;
 		}
 	}
-	cout << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
-	log_file << " " << acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num << "/" << cloudrgb->points.size() << std::flush;
+	cout << " " << img_num << std::flush;
+	//cout << " " << img_num << "/" << cloudrgb->points.size() << std::flush;
+	log_file << " " << img_num << "/" << cloudrgb->points.size() << std::flush;
 }
 
 //kernel to create point cloud
@@ -1721,7 +1741,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::downsamplePtCloud(pcl::PointCloud<p
 			cloudrgb_filtered->points[i].z -= 500;	//changing back height to original place
 	
 	//cout << "\nPointCloud after filtering: " << cloudrgb_filtered->size() << endl;
-	
+	//cout << " d" << std::flush;
 	return cloudrgb_filtered;
 }
 
@@ -1865,9 +1885,9 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	if (good_matches_count <= 500)
 	{
 		dist_nearby *= 2;
-		cout << "\tretrying in larger radius.." << endl;
+		cout << "  retrying in larger radius.." << endl;
 		cout << currentImageDataObj.raw_img_data_ptr->img_num;
-		log_file << "\tretrying in larger radius.." << endl;
+		log_file << "  retrying in larger radius.." << endl;
 		log_file << currentImageDataObj.raw_img_data_ptr->img_num;
 		current_img_matched_keypoints->clear();
 		fitted_cloud_matched_keypoints->clear();
@@ -1936,7 +1956,6 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	//		
 	//	}
 	//}
-	cout << endl;
 	return T_SVD_matched_pts;
 }
 

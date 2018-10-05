@@ -103,6 +103,10 @@ opencv2/features2d.hpp
 -
 opencv2/cudafeatures2d.hpp
 -
+thread
+-
+mutex
+-
 
 /home/pkr/pkr-work/online_3d_reconstruction/pose_functions.cpp
 

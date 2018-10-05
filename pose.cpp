@@ -165,11 +165,11 @@ Pose::Pose(int argc, char* argv[])
 		while(images_in_cycle < seq_len && current_idx <= last_idx)
 		{
 			double disp_img_var = getVariance(rawImageDataVec[current_idx].disparity_image, false);
-			cout << rawImageDataVec[current_idx].img_num << " disp_img_var " << disp_img_var << "\t";
+			cout << rawImageDataVec[current_idx].img_num << " " << flush;
 			log_file << rawImageDataVec[current_idx].img_num << " disp_img_var " << disp_img_var << "\t";
 			if (disp_img_var > 5)
 			{
-				cout << " > 5. Rejected!" << endl;
+				cout << " disp_img_var = " << disp_img_var << " > 5.\tRejected!" << endl;
 				current_idx++;
 				continue;
 			}
@@ -199,14 +199,14 @@ Pose::Pose(int argc, char* argv[])
 				
 				if (!acceptDecision)
 				{//rejected point -> no matches found
-					cout << rawImageDataVec[current_idx].img_num << " Low Feature Matches. Rejected!" << endl;
+					cout << "\tLow Feature Matches.\tRejected!" << endl;
 					cloud_hexPos_MAVLink->points.pop_back();
 					current_idx++;
 					continue;
 				}
 				else
 				{
-					//cout << " current_idx " << current_idx << " Accepted!" << endl;
+					cout << "\tAccepted!" << endl;
 				}
 				
 				currentImageDataObj.t_mat_FeatureMatched = T_SVD_matched_pts * t_mat_MAVLink;
@@ -292,11 +292,13 @@ Pose::Pose(int argc, char* argv[])
 		
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_FeatureMatched (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		
-		//log_file << "Adding Point Cloud number/points ";
 		int i = seq_len * cycle;
+		int acceptedImageDataVecSize = acceptedImageDataVec.size();
+		//cout << "\nacceptedImageDataVec.size() " << acceptedImageDataVecSize << endl;
+		//cout << "i from " << seq_len * cycle << " to " << min(seq_len * (cycle + 1), seq_len * cycle + images_in_cycle) << endl;
 		while(i < min(seq_len * (cycle + 1), seq_len * cycle + images_in_cycle))
 		{
-			if(true)
+			if(false)
 			{//single threaded
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloudrgb1 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
 				createAndTransformPtCloud(i, transformed_cloudrgb1);
@@ -317,32 +319,38 @@ Pose::Pose(int argc, char* argv[])
 				
 				boost::thread pt_cloud_thread1, pt_cloud_thread2, pt_cloud_thread3, pt_cloud_thread4, pt_cloud_thread5, pt_cloud_thread6, pt_cloud_thread7;
 				
-				pt_cloud_thread1 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb1);
-				if(++i < current_idx) pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb2);
-				if(++i < current_idx) pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb3);
-				if(++i < current_idx) pt_cloud_thread4 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb4);
-				if(++i < current_idx) pt_cloud_thread5 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb5);
-				if(++i < current_idx) pt_cloud_thread6 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb6);
-				if(++i < current_idx) pt_cloud_thread7 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb7);
+				//cout << "Start threads for creation of single image point clouds... i " << i << endl;
+				for (int j = i; j < min(i+7, (int)acceptedImageDataVec.size()); j++)
+					cout << acceptedImageDataVec[j].raw_img_data_ptr->img_num << " " << flush;
+				cout << endl;
+				pt_cloud_thread1 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb1); i++;
+				if(i < acceptedImageDataVecSize) { pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb2); i++; }
+				if(i < acceptedImageDataVecSize) { pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb3); i++; }
+				if(i < acceptedImageDataVecSize) { pt_cloud_thread4 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb4); i++; }
+				if(i < acceptedImageDataVecSize) { pt_cloud_thread5 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb5); i++; }
+				if(i < acceptedImageDataVecSize) { pt_cloud_thread6 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb6); i++; }
+				if(i < acceptedImageDataVecSize) { pt_cloud_thread7 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb7); i++; }
+				//cout << "Created threads.." << endl;
 				
+				pt_cloud_thread1.join();
+				pt_cloud_thread2.join();
+				pt_cloud_thread3.join();
+				pt_cloud_thread4.join();
+				pt_cloud_thread5.join();
+				pt_cloud_thread6.join();
+				pt_cloud_thread7.join();
 				
 				//generating the bigger point cloud
-				pt_cloud_thread1.join();
+				//cout << "\nPoint Cloud Creation and Downsampling done." << endl;
 				i = i0;
-				cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb1->begin(),transformed_cloudrgb1->end());
-				pt_cloud_thread2.join();
-				if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb2->begin(),transformed_cloudrgb2->end());
-				pt_cloud_thread3.join();
-				if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb3->begin(),transformed_cloudrgb3->end());
-				pt_cloud_thread4.join();
-				if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb4->begin(),transformed_cloudrgb4->end());
-				pt_cloud_thread5.join();
-				if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb5->begin(),transformed_cloudrgb5->end());
-				pt_cloud_thread6.join();
-				if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb6->begin(),transformed_cloudrgb6->end());
-				pt_cloud_thread7.join();
-				if(++i < current_idx) cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb7->begin(),transformed_cloudrgb7->end());
-				//cout << "Transformed and added." << endl;
+				cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb1->begin(),transformed_cloudrgb1->end()); i++;
+				if(i < acceptedImageDataVecSize) { cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb2->begin(),transformed_cloudrgb2->end()); i++; }
+				if(i < acceptedImageDataVecSize) { cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb3->begin(),transformed_cloudrgb3->end()); i++; }
+				if(i < acceptedImageDataVecSize) { cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb4->begin(),transformed_cloudrgb4->end()); i++; }
+				if(i < acceptedImageDataVecSize) { cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb5->begin(),transformed_cloudrgb5->end()); i++; }
+				if(i < acceptedImageDataVecSize) { cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb6->begin(),transformed_cloudrgb6->end()); i++; }
+				if(i < acceptedImageDataVecSize) { cloudrgb_FeatureMatched->insert(cloudrgb_FeatureMatched->end(),transformed_cloudrgb7->begin(),transformed_cloudrgb7->end()); i++; }
+				//cout << "Point Clouds Added. i " << i << endl;
 			}
 		}
 		
@@ -533,20 +541,41 @@ void Pose::findNormalOfPtCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 
 void Pose::createAndTransformPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloudrgb_return)
 {
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	
-	//if(jump_pixels == 1)
-	//	createPtCloud(img_index, cloudrgb);
-	//else
-		createSingleImgPtCloud(accepted_img_index, cloudrgb);
-	//cout << "Created point cloud " << img_index << endl;
-	
-	transformPtCloud(cloudrgb, cloudrgb_transformed, acceptedImageDataVec[accepted_img_index].t_mat_FeatureMatched);
-	//cout << "transformed point cloud " << img_index << endl;
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_downsampled = downsamplePtCloud(cloudrgb_transformed, false);
-	//cout << "Downsampled point cloud " << img_index << endl;
-	copyPointCloud(*cloudrgb_downsampled, *cloudrgb_return);
+	try
+	{
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		
+		//if(jump_pixels == 1)
+		//	createPtCloud(img_index, cloudrgb);
+		//else
+			createSingleImgPtCloud(accepted_img_index, cloudrgb);
+		//cout << "Created point cloud " << img_index << endl;
+		
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_FeatureMatched = acceptedImageDataVec[accepted_img_index].t_mat_FeatureMatched;
+		transformPtCloud(cloudrgb, cloudrgb_transformed, t_mat_FeatureMatched);
+		//cout << "transformed point cloud " << img_index << endl;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_downsampled = downsamplePtCloud(cloudrgb_transformed, false);
+		//cout << "Downsampled point cloud " << img_index << endl;
+		copyPointCloud(*cloudrgb_downsampled, *cloudrgb_return);
+			
+	}
+	catch (const std::runtime_error& e)
+	{
+		// this executes if f() throws std::underflow_error (base class rule)
+		cout << "std::underflow_error Exception caught in thread with accepted_img_index=" << accepted_img_index << endl;
+		cout << e.what() << endl;
+	}
+	catch (exception& e)
+	{
+		cout << "Exception caught in thread with accepted_img_index=" << accepted_img_index << endl;
+		cout << e.what() << endl;
+	}
+	catch (...)
+	{
+		// this executes if f() throws std::string or int or any other unrelated type
+		cout << "General Exception caught in thread with accepted_img_index=" << accepted_img_index << endl;
+	}
 }
 
 void Pose::displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_combined_copy, 
@@ -667,6 +696,10 @@ int main(int argc, char* argv[])
 	try
 	{
 		Pose pose(argc, argv);
+	}
+	catch (exception& e)
+	{
+		cout << e.what() << '\n';
 	}
 	catch (const char* msg)
 	{

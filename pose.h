@@ -41,6 +41,8 @@
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/cudafeatures2d.hpp>
+#include <thread>
+#include <mutex>
 
 using namespace std;
 using namespace cv;
@@ -96,6 +98,7 @@ bool online = false;
 int blur_kernel = 1;	//31 is a good number
 double dist_nearby = 2;	//in meters
 int good_matched_imgs = 0;
+std::mutex mu;
 
 bool mesh_surface = false;
 bool smooth_surface = false;
