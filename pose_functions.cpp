@@ -1537,6 +1537,14 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
 			else
 				viewer->addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
+			
+			//add line
+			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
+			{
+				viewer->addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
+				viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
+			}
+			
 		}
 	}
 	
@@ -1588,6 +1596,14 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 				viewer.addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
 			else
 				viewer.addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
+			
+			//add line
+			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
+			{
+				viewer.addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
+				viewer.setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
+			}
+			
 		}
 	}
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
@@ -1633,6 +1649,15 @@ void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i));
 			//else
 			//	viewer->updateSphere(hexPos_cloud->points[i], 0.1, "FMFittedaa"+to_string(i));
+			
+			//update line
+			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
+			{
+				viewer->removeShape("line"+to_string(i), 0);
+				viewer->addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
+				viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
+			}
+			
 		}
 		//add new points
 		for (int i = last_hexPos_cloud_points; i < hexPos_cloud->size(); i++)
@@ -1645,6 +1670,14 @@ void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
 			else
 				viewer->addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
+			
+			//add line
+			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
+			{
+				viewer->addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
+				viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
+			}
+			
 		}
 		//update point counts
 		last_hexPos_cloud_points = hexPos_cloud->size();

@@ -216,7 +216,13 @@ Pose::Pose(int argc, char* argv[])
 			else
 			{
 				currentImageDataObj.t_mat_FeatureMatched = t_mat_MAVLink;
-				cloud_hexPos_FM->points.push_back(hexPosMAVLink);
+				pcl::PointXYZRGB hexPosFM;
+				hexPosFM.x = hexPosMAVLink.x;
+				hexPosFM.y = hexPosMAVLink.y;
+				hexPosFM.z = hexPosMAVLink.z;
+				uint32_t rgbFM = (uint32_t)255 << 8;	//green
+				hexPosFM.rgb = *reinterpret_cast<float*>(&rgbFM);
+				cloud_hexPos_FM->points.push_back(hexPosFM);
 			}
 			
 			acceptedImageDataVec.push_back(currentImageDataObj);
