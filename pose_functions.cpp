@@ -36,9 +36,9 @@ void Pose::printUsage()
 		"\n      visualize generated point cloud at the end"
 		"\n  --visualize [Pt Cloud filename]"
 		"\n      Visualize a given point cloud"
-		"\n  --segment_map"
+		"\n  --segment_cloud"
 		"\n      To create segmented map with excluded obstacles and area convex hull"
-		"\n  --segment_map_only [Pt Cloud filename] [segment_dist_threashold_float] [convexhull_dist_threshold_float] [convexhull_alpha_float] [size_cloud_divider_float]"
+		"\n  --segment_cloud_only [Pt Cloud filename] [segment_dist_threashold_float] [convexhull_dist_threshold_float] [convexhull_alpha_float] [size_cloud_divider_float]"
 		"\n      To create segmented map with excluded obstacles and area convex hull"
 		"\n  --displayUAVPositions [Pt Cloud filename]"
 		"\n      Display hexacopter positions along with point cloud during visualization"
@@ -75,6 +75,7 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		return -1;
 	}
 	int n_imgs = 0;
+	int first_img_num = -1, last_img_num = -1;
 	for (int i = 1; i < argc; ++i)
 	{
 		if (string(argv[i]) == "--help" || string(argv[i]) == "/?")
@@ -160,17 +161,17 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			run3d_reconstruction = false;
 			cout << "test_bad_data_rejection" << endl;
 		}
-		else if (string(argv[i]) == "--segment_map")
+		else if (string(argv[i]) == "--segment_cloud")
 		{
-			segment_map = true;
-			cout << "segment_map" << endl;
+			segment_cloud = true;
+			cout << "segment_cloud" << endl;
 		}
-		else if (string(argv[i]) == "--segment_map_only")
+		else if (string(argv[i]) == "--segment_cloud_only")
 		{
 			run3d_reconstruction = false;
-			segment_map_only = true;
+			segment_cloud_only = true;
 			read_PLY_filename0 = string(argv[++i]);
-			cout << "segment_map_only" << endl;
+			cout << "segment_cloud_only" << endl;
 			cout << "Cloud filename " << read_PLY_filename0 << endl;
 			cout << "argc " << argc << endl;
 			if (argc > 3)
@@ -245,8 +246,12 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		}
 		else
 		{
-			img_numbers.push_back(atoi(argv[i]));
+			//img_numbers.push_back(atoi(argv[i]));
 			cout << atoi(argv[i]) << endl;
+			if (first_img_num == -1)
+				first_img_num = atoi(argv[i]);
+			else
+				last_img_num = atoi(argv[i]);
 			++n_imgs;
 		}
 	}
@@ -262,7 +267,10 @@ int Pose::parseCmdArgs(int argc, char** argv)
 				stringstream fs( line );
 				int img_num = 0;  // (default value is 0.0)
 				fs >> img_num;
-				img_numbers.push_back(img_num);
+				//img_numbers.push_back(img_num);
+				RawImageData obj;
+				obj.img_num = img_num;
+				rawImageDataVec.push_back(obj);
 				++n_imgs;
 				cout << img_num << " ";
 			}
@@ -272,18 +280,13 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		else
 			throw "Exception: Unable to open imageNumbersFile!";
 	}
-	if (run3d_reconstruction && n_imgs == 2)
+	if (run3d_reconstruction && n_imgs != 0)
 	{
-		int start_num = img_numbers[0];
-		int end_num = img_numbers[1];
-		img_numbers.clear();
-		n_imgs = 0;
-		
 		readPoseFile();
 		
 		cout << "rows " << rows << " cols " << cols << " cols_start_aft_cutout " << cols_start_aft_cutout << endl;
 		//test load an image to fix rows, cols and cols_start_aft_cutout
-		Mat test_load_img = imread(disparityPrefix + to_string(1141) + ".png", CV_LOAD_IMAGE_GRAYSCALE);
+		Mat test_load_img = imread(disparityPrefix + to_string(first_img_num) + ".png", CV_LOAD_IMAGE_GRAYSCALE);
 		rows = test_load_img.rows;
 		cols = test_load_img.cols;
 		cols_start_aft_cutout = (int)(cols/cutout_ratio);
@@ -294,49 +297,10 @@ int Pose::parseCmdArgs(int argc, char** argv)
 		cout << "Reading from:\nimageNumbersFile: " << imageNumbersFile << "\ndataFilesPrefix: " << dataFilesPrefix << "\nimagePrefix: " << imagePrefix << 
 			"\ndisparityPrefix: " << disparityPrefix << "\nsegmentlblPrefix: " << segmentlblPrefix << "\noutput: " << folder << endl << endl;
 		
-		for (int img_id = start_num; img_id <= end_num; img_id++)
-		{
-			//int pose_index = data_index_finder(img_id);
-			//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat = generateTmat(pose_data[pose_index]);
-			//double z_normal = t_mat(0,2) + t_mat(1,2) + t_mat(2,2) + t_mat(3,2);
-			//cout << img_id << " z_normal " << z_normal;
-			//
-			//if(z_normal < -(1+z_threshold) || z_normal > -(1-z_threshold))
-			//{
-			//	cout << "\tz_normal > +-" << z_threshold*100 << " %!" << endl;
-			//	continue;
-			//}
-			
-			Mat full_images = imread(imagePrefix + to_string(img_id) + ".png");
-			if(full_images.empty())
-			{
-				cout << "Cannot read full_img " << img_id << endl;
-				continue;
-			}
-			
-			Mat disp_img = imread(disparityPrefix + to_string(img_id) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-			if(disp_img.empty())
-			{
-				cout << "Cannot read disp_img " << img_id << endl;
-				continue;
-			}
-			//imshow( "dispImg", disp_img );                   // Show our image inside it.
-			//waitKey(1);                                          // Wait for a keystroke in the window
-			//double disp_img_var = getVariance(disp_img, false);
-			//cout << img_id << " disp_img_var " << disp_img_var << endl;
-			//if (disp_img_var > 5)
-			//{
-			//	cout << "\tvariance > 5, Rejected!" << endl;
-			//}
-			//else
-			{
-				img_numbers.push_back(img_id);
-				++n_imgs;
-			}
-			//cout << endl;
-		}
-		
-		cout << "\nAccepted " << n_imgs << " image numbers" << endl;
+		n_imgs = last_img_num - first_img_num + 1;
+		rawImageDataVec = vector<RawImageData>(n_imgs);
+		for (int i = 0; i < n_imgs; i++)
+			rawImageDataVec[i].img_num = first_img_num + i;
 	}
 	
 	return 0;
@@ -558,13 +522,17 @@ int Pose::data_index_finder(int image_number)
 
 void Pose::readImage(int i)
 {
-	rawImageDataVec[i].img_num = img_numbers[i];
-	rawImageDataVec[i].rgb_image = imread(imagePrefix + to_string(img_numbers[i]) + ".png");
+	//rawImageDataVec[i].img_num = img_numbers[i];
+	rawImageDataVec[i].rgb_image = imread(imagePrefix + to_string(rawImageDataVec[i].img_num) + ".png");
 	
 	if(rawImageDataVec[i].rgb_image.empty())
-		throw "Exception: cannot read full_img " + to_string(img_numbers[i]) + "!";
+	{
+		cout << " cannot_read_i" + to_string(rawImageDataVec[i].img_num) + " " << flush;
+		//throw "Exception: cannot read full_img!";
+		return;
+	}
 	
-	cout << " i" << to_string(img_numbers[i]) << " " << std::flush;
+	cout << " i" << to_string(rawImageDataVec[i].img_num) << " " << std::flush;
 }
 
 void Pose::populateImages(int start_index, int end_index)
@@ -577,9 +545,13 @@ void Pose::populateImages(int start_index, int end_index)
 
 void Pose::readDisparityImage(int i)
 {
-	Mat disp_img = imread(disparityPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	Mat disp_img = imread(disparityPrefix + to_string(rawImageDataVec[i].img_num) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
 	if(disp_img.empty())
-		throw "Exception: cannot read disp_image " + to_string(img_numbers[i]) + "!";
+	{
+		cout << " cannot_read_d" + to_string(rawImageDataVec[i].img_num) + " " << flush;
+		//throw "Exception: cannot read disp_image!";
+		//return;
+	}
 	if(blur_kernel > 1)
 	{
 		//blur the disparity image to remove noise
@@ -594,7 +566,7 @@ void Pose::readDisparityImage(int i)
 	}
 	
 	//SEARCH PROCESS: get time NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
-	int image_time_index = binarySearchImageTime(0, images_times_seq.size()-1, img_numbers[i]);
+	int image_time_index = binarySearchImageTime(0, images_times_seq.size()-1, rawImageDataVec[i].img_num);
 	//cout << fixed <<  "image_number: " << image_number << " image_time_index: " << image_time_index << " time: " << images_times_seq[image_time_index] << endl;
 	int pose_index = binarySearchUsingTime(pose_times_seq, 0, pose_times_seq.size()-1, images_times_seq[image_time_index]);
 	
@@ -609,7 +581,7 @@ void Pose::readDisparityImage(int i)
 	rawImageDataVec[i].qz = pose[qz_ind];
 	rawImageDataVec[i].qw = pose[qw_ind];
 	
-	cout << " d" << to_string(img_numbers[i]) << " " << std::flush;
+	cout << " d" << to_string(rawImageDataVec[i].img_num) << " " << std::flush;
 }
 
 void Pose::populateDisparityImages(int start_index, int end_index)
@@ -622,12 +594,15 @@ void Pose::populateDisparityImages(int start_index, int end_index)
 
 void Pose::readSegmentLabelMap(int i)
 {
-	rawImageDataVec[i].segment_map = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-	//segment_maps[i] = imread(segmentlblPrefix + to_string(img_numbers[i]) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
-	if(rawImageDataVec[i].segment_map.empty())
-		throw "Exception: cannot read segment_label_map " + to_string(img_numbers[i]) + "!";
-	
-	cout << " s" << to_string(img_numbers[i]) << " " << std::flush;
+	rawImageDataVec[i].segment_label = imread(segmentlblPrefix + to_string(rawImageDataVec[i].img_num) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	//segment_maps[i] = imread(segmentlblPrefix + to_string(rawImageDataVec[i].img_num) + ".png",CV_LOAD_IMAGE_GRAYSCALE);
+	if(rawImageDataVec[i].segment_label.empty())
+	{
+		cout << " cannot_read_s" + to_string(rawImageDataVec[i].img_num) + " " << flush;
+		//throw "Exception: cannot read segment_label_map!";
+		return;
+	}
+	cout << " s" << to_string(rawImageDataVec[i].img_num) << " " << std::flush;
 }
 
 void Pose::populateSegmentLabelMaps(int start_index, int end_index)
@@ -650,64 +625,64 @@ void Pose::populateData()
 {
 	readCalibFile();
 	readPoseFile();
-	rawImageDataVec = vector<RawImageData>(img_numbers.size());
+	//rawImageDataVec = vector<RawImageData>(img_numbers.size());
 	
 	//logging stuff
 	if(log_stuff)
 		log_file.open(save_log_to.c_str(), ios::out);
 	
 	//test load an image to fix rows, cols and cols_start_aft_cutout
-	Mat test_load_img = imread(imagePrefix + to_string(img_numbers[0]) + ".png");
+	Mat test_load_img = imread(imagePrefix + to_string(rawImageDataVec[0].img_num) + ".png");
 	rows = test_load_img.rows;
 	cols = test_load_img.cols;
 	cols_start_aft_cutout = (int)(cols/cutout_ratio);
 	
 	//4 cores, 2 threads per core, total 8 threads, 1 thread being used by main program, 7 addditional threads can be used here
 	const int divisions = 7;
-	const int imgs_per_division = ceil(1.0 * img_numbers.size() / divisions);
+	const int imgs_per_division = ceil(1.0 * rawImageDataVec.size() / divisions);
 	int i = 0;
 	cout << "\nMulti-threading sequences:" << endl;
 	cout << "divisions " << divisions << " imgs_per_division " << imgs_per_division << endl;
-	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl; i++;
-	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl; i++;
-	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl; i++;
-	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl; i++;
-	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl; i++;
-	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl; i++;
-	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl; i++;
+	cout << i+1 << " : " << i * imgs_per_division << " to " << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl;
 	
 	cout << "\nReading images and disparity images using multithreading" << endl;
 	i = 0;
-	boost::thread img_thread1(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread img_thread2(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread img_thread3(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread img_thread4(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread img_thread5(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread img_thread6(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread img_thread7(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1));
+	boost::thread img_thread1(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread img_thread2(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread img_thread3(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread img_thread4(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread img_thread5(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread img_thread6(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread img_thread7(&Pose::populateImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1));
 	
 	//cout << "\nReading disparity images using multithreading" << endl;
 	i = 0;
-	boost::thread disp_thread1(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread disp_thread2(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread disp_thread3(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread disp_thread4(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread disp_thread5(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread disp_thread6(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-	boost::thread disp_thread7(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1));
+	boost::thread disp_thread1(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread disp_thread2(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread disp_thread3(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread disp_thread4(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread disp_thread5(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread disp_thread6(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+	boost::thread disp_thread7(&Pose::populateDisparityImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1));
 	
 	if(use_segment_labels)
 	{
-		//segment_maps = vector<Mat>(img_numbers.size());
+		//segment_maps = vector<Mat>(rawImageDataVec.size());
 		//cout << "\nReading segment label map images using multithreading" << endl;
 		i = 0;
-		boost::thread segment_map_thread1(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread segment_map_thread2(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread segment_map_thread3(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread segment_map_thread4(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread segment_map_thread5(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread segment_map_thread6(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread segment_map_thread7(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1));
+		boost::thread segment_map_thread1(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread segment_map_thread2(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread segment_map_thread3(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread segment_map_thread4(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread segment_map_thread5(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread segment_map_thread6(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread segment_map_thread7(&Pose::populateSegmentLabelMaps, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1));
 		segment_map_thread1.join();
 		segment_map_thread2.join();
 		segment_map_thread3.join();
@@ -733,16 +708,16 @@ void Pose::populateData()
 	
 	if(use_segment_labels)
 	{
-		//double_disparity_images = vector<Mat>(img_numbers.size());
+		//double_disparity_images = vector<Mat>(rawImageDataVec.size());
 		cout << "\n\nPopulating Double Disp Images using multithreading" << endl;
 		i = 0;
-		boost::thread double_disp_thread1(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread double_disp_thread2(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread double_disp_thread3(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread double_disp_thread4(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread double_disp_thread5(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread double_disp_thread6(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1)); i++;
-		boost::thread double_disp_thread7(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1));
+		boost::thread double_disp_thread1(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread double_disp_thread2(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread double_disp_thread3(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread double_disp_thread4(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread double_disp_thread5(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread double_disp_thread6(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1)); i++;
+		boost::thread double_disp_thread7(&Pose::populateDoubleDispImages, this, i * imgs_per_division, min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1));
 		double_disp_thread1.join();
 		double_disp_thread2.join();
 		double_disp_thread3.join();
@@ -752,7 +727,7 @@ void Pose::populateData()
 		double_disp_thread7.join();
 		cout << endl;
 		
-		//cout << "min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) "  << min((i+1) * imgs_per_division - 1, (int)(img_numbers.size()) - 1) << endl;
+		//cout << "min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) "  << min((i+1) * imgs_per_division - 1, (int)(rawImageDataVec.size()) - 1) << endl;
 	}
 	
 	//for (int i = 0; i < 2; i++)
@@ -863,7 +838,7 @@ void Pose::orbcudaPairwiseMatching()
 	//
 	//Ptr<cuda::ORB> orb = cuda::ORB::create();
 	//
-	//for (int i = 0; i < img_numbers.size(); i++)
+	//for (int i = 0; i < rawImageDataVec.size(); i++)
 	//{
 	//	cv::Mat grayImg;
 	//	cv::cvtColor(full_images[i], grayImg, CV_BGR2GRAY);
@@ -881,15 +856,15 @@ void Pose::orbcudaPairwiseMatching()
 	//
 	//t_BBtime = getTickCount();
 	//t_pt = (t_BBtime - t_AAtime)/getTickFrequency();
-	//t_fpt = img_numbers.size()/t_pt;
+	//t_fpt = rawImageDataVec.size()/t_pt;
 	//printf("orb cuda features %.4lf sec/ %.4lf fps\n",  t_pt, t_fpt );
 	//
 	//cout << "\ncuda pairwise matching start..." ;
 	//vector<vector<vector<DMatch>>> good_matchesVecVec;
-	//for (int i = (range_width > 0 ? range_width : 0); i < img_numbers.size(); i++)
+	//for (int i = (range_width > 0 ? range_width : 0); i < rawImageDataVec.size(); i++)
 	//{
 	//	vector<vector<DMatch>> good_matchesVec;
-	//	for (int j = 0; j < (range_width > 0 ? img_numbers.size() - range_width : img_numbers.size()); j++)
+	//	for (int j = 0; j < (range_width > 0 ? rawImageDataVec.size() - range_width : rawImageDataVec.size()); j++)
 	//	{
 	//		if(i == j)
 	//		{
@@ -917,7 +892,7 @@ void Pose::orbcudaPairwiseMatching()
 	//
 	//t_CCtime = getTickCount();
 	//t_pt = (t_CCtime - t_BBtime)/getTickFrequency();
-	//t_fpt = img_numbers.size()/t_pt;
+	//t_fpt = rawImageDataVec.size()/t_pt;
 	//printf("cuda pairwise matching %.4lf sec/ %.4lf fps\n\n",  t_pt, t_fpt );
 	
 }
@@ -925,7 +900,7 @@ void Pose::orbcudaPairwiseMatching()
 void Pose::createPlaneFittedDisparityImages(int i)
 {
 	//cout << "Image" << i << endl;
-	Mat segment_img = rawImageDataVec[i].segment_map;
+	Mat segment_img = rawImageDataVec[i].segment_label;
 	Mat disp_img = rawImageDataVec[i].disparity_image;
 	Mat new_disp_img = Mat::zeros(disp_img.rows,disp_img.cols, CV_64F);
 	
@@ -998,15 +973,15 @@ void Pose::createPlaneFittedDisparityImages(int i)
 	rawImageDataVec[i].double_disparity_image = new_disp_img;
 	
 	double plane_fitted_disp_img_var = getVariance(new_disp_img, true);
-	//cout << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
-	//log_file << img_numbers[i] << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+	//cout << rawImageDataVec[i].img_num << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
+	//log_file << rawImageDataVec[i].img_num << " plane_fitted_disp_img_var " << plane_fitted_disp_img_var << endl;
 	if (plane_fitted_disp_img_var > 3)
 	{
 		cout << "Exception: plane_fitted_disp_img_var " + to_string(i) + " > 3. Unacceptable disparity image." << endl;
 		throw "Error";
 	}
 	
-	cout << " dd" << img_numbers[i] << std::flush;
+	cout << " dd" << rawImageDataVec[i].img_num << std::flush;
 }
 
 double Pose::getMean(Mat disp_img, bool planeFitted)
@@ -1052,61 +1027,6 @@ double Pose::getVariance(Mat disp_img, bool planeFitted)
 	return var;
 }
 
-void Pose::createPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
-{
-	//cout << "Pt Cloud #" << img_index;
-	cloudrgb->is_dense = true;
-	
-	Mat dispImg;
-	if(use_segment_labels)
-		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image;
-	else
-		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image;
-	
-	vector<KeyPoint> keypoints = acceptedImageDataVec[accepted_img_index].features.keypoints;
-	Mat rgb_image = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image;
-	int img_num = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->img_num;
-	
-	cv::Mat_<double> vec_tmp(4,1);
-	
-	for (int y = boundingBox; y < rows - boundingBox; ++y)
-	{
-		for (int x = cols_start_aft_cutout; x < cols - boundingBox; ++x)
-		{
-			double disp_val = 0;
-			//cout << "y " << y << " x " << x << " disp_img.at<uint16_t>(y,x) " << disp_img.at<uint16_t>(y,x) << endl;
-			//cout << " disp_img.at<double>(y,x) " << disp_img.at<double>(y,x) << endl;
-			if(use_segment_labels)
-				disp_val = dispImg.at<double>(y,x);		//disp_val = (double)disp_img.at<uint16_t>(y,x) / 200.0;
-			else
-				disp_val = (double)dispImg.at<uchar>(y,x);
-			//cout << "disp_val " << disp_val << endl;
-			
-			if (disp_val > minDisparity)
-			{
-				//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
-				vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
-				vec_tmp = Q*vec_tmp;
-				vec_tmp /= vec_tmp(3);
-				
-				pcl::PointXYZRGB pt_3drgb;
-				pt_3drgb.x = (float)vec_tmp(0);
-				pt_3drgb.y = (float)vec_tmp(1);
-				pt_3drgb.z = (float)vec_tmp(2);
-				Vec3b color = rgb_image.at<Vec3b>(Point(x, y));
-				
-				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
-				
-				cloudrgb->points.push_back(pt_3drgb);
-				//cout << pt_3d << endl;
-			}
-		}
-	}
-	cout << " " << img_num << "/" << cloudrgb->points.size() << std::flush;
-	log_file << " " << img_num << "/" << cloudrgb->points.size() << std::flush;
-}
-
 void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb)
 {
 	//cout << " Pt Cloud #" << accepted_img_index << flush;
@@ -1124,34 +1044,40 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 	
 	cv::Mat_<double> vec_tmp(4,1);
 	
+	//when jump_pixels == 1, all keypoints will be already included later as we will take in all points
+	//with jump_pixels == 0, we only want to take in keypoints
 	if (jump_pixels != 1)
 	{
 		for (int i = 0; i < keypoints.size(); i++)
 		{
-			double disp_val = 0;
-			if(use_segment_labels)
-				disp_val = dispImg.at<double>(keypoints[i].pt.y, keypoints[i].pt.x);
-			else
-				disp_val = (double)dispImg.at<uchar>(keypoints[i].pt.y, keypoints[i].pt.x);
-			
-			if (disp_val > minDisparity)
+			int x = keypoints[i].pt.x, y = keypoints[i].pt.y;
+			if (x >= cols_start_aft_cutout && x < cols - boundingBox && y >= boundingBox && y < rows - boundingBox)
 			{
-				//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
-				vec_tmp(0)=keypoints[i].pt.x; vec_tmp(1)=keypoints[i].pt.y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
-				vec_tmp = Q*vec_tmp;
-				vec_tmp /= vec_tmp(3);
+				double disp_val = 0;
+				if(use_segment_labels)
+					disp_val = dispImg.at<double>(y,x);
+				else
+					disp_val = (double)dispImg.at<uchar>(y,x);
 				
-				pcl::PointXYZRGB pt_3drgb;
-				pt_3drgb.x = (float)vec_tmp(0);
-				pt_3drgb.y = (float)vec_tmp(1);
-				pt_3drgb.z = (float)vec_tmp(2);
-				Vec3b color = rgb_image.at<Vec3b>(Point(keypoints[i].pt.x, keypoints[i].pt.y));
-				
-				uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
-				pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
-				
-				cloudrgb->points.push_back(pt_3drgb);
-				//cout << pt_3d << endl;
+				if (disp_val > minDisparity)
+				{
+					//reference: https://stackoverflow.com/questions/22418846/reprojectimageto3d-in-opencv
+					vec_tmp(0)=x; vec_tmp(1)=y; vec_tmp(2)=disp_val; vec_tmp(3)=1;
+					vec_tmp = Q*vec_tmp;
+					vec_tmp /= vec_tmp(3);
+					
+					pcl::PointXYZRGB pt_3drgb;
+					pt_3drgb.x = (float)vec_tmp(0);
+					pt_3drgb.y = (float)vec_tmp(1);
+					pt_3drgb.z = (float)vec_tmp(2);
+					Vec3b color = rgb_image.at<Vec3b>(Point(x, y));
+					
+					uint32_t rgb = ((uint32_t)color[2] << 16 | (uint32_t)color[1] << 8 | (uint32_t)color[0]);
+					pt_3drgb.rgb = *reinterpret_cast<float*>(&rgb);
+					
+					cloudrgb->points.push_back(pt_3drgb);
+					//cout << pt_3d << endl;
+				}
 			}
 		}
 	}
@@ -1238,7 +1164,7 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 //		}
 //		y += jump_pixels;
 //	}
-//	cout << " " << img_numbers[img_index] << "/" << cloudrgb->points.size() << std::flush;
+//	cout << " " << rawImageDataVec[img_index].img_num << "/" << cloudrgb->points.size() << std::flush;
 //}
 
 pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 Pose::generateTmat(int current_idx)
@@ -1541,23 +1467,6 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 			
 		}
 		
-		//for (int i = 0; i < hexPos_cloud->size()/2; i++)
-		//{
-		//	//add UAV pose
-		//	pcl::ModelCoefficients uavMAVLinkPose;
-		//	uavMAVLinkPose.values.resize (6);    // We need 6 values
-		//	uavMAVLinkPose.values[0] = hexPos_cloud->points[hexPos_cloud->size() + i].x;
-		//	uavMAVLinkPose.values[1] = hexPos_cloud->points[hexPos_cloud->size() + i].y;
-		//	uavMAVLinkPose.values[2] = hexPos_cloud->points[hexPos_cloud->size() + i].z;
-		//	uavMAVLinkPose.values[4] = acceptedImageDataVec[i].t_mat_MAVLink(0,0) + acceptedImageDataVec[i].t_mat_MAVLink(1,0) + acceptedImageDataVec[i].t_mat_MAVLink(2,0);
-		//	uavMAVLinkPose.values[3] = acceptedImageDataVec[i].t_mat_MAVLink(0,1) + acceptedImageDataVec[i].t_mat_MAVLink(1,1) + acceptedImageDataVec[i].t_mat_MAVLink(2,1);
-		//	uavMAVLinkPose.values[5] = acceptedImageDataVec[i].t_mat_MAVLink(0,2) + acceptedImageDataVec[i].t_mat_MAVLink(1,2) + acceptedImageDataVec[i].t_mat_MAVLink(2,2);
-		//	viewer->addLine(uavMAVLinkPose, "uavMAVLinkPose"+to_string(i), 0);
-		//	//viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, hexPos_cloud->points[hexPos_cloud->size() + i].rgb, "uavMAVLinkPose"+to_string(i));
-		//	
-		//	
-		//}
-		
 	}
 	
 	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
@@ -1580,6 +1489,63 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 	}
 	
 	return (viewer);
+}
+
+void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
+{
+	//pcl::visualization::PCLVisualizer viewer = *viewerPtr;
+	
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
+	viewer->updatePointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
+	
+	if(displayUAVPositions)
+	{
+		//update old points
+		for (int i = 0; i < last_hexPos_cloud_points; i++)
+		{
+			if(hexPos_cloud->points[i].r == 255)
+				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i));
+			else if(hexPos_cloud->points[i].g == 255)
+				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i));
+			else if(hexPos_cloud->points[i].b == 255)
+				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i));
+			//else
+			//	viewer->updateSphere(hexPos_cloud->points[i], 0.1, "FMFittedaa"+to_string(i));
+			
+			//update line
+			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
+			{
+				viewer->removeShape("line"+to_string(i), 0);
+				viewer->addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
+				viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
+			}
+			
+		}
+		//add new points
+		for (int i = last_hexPos_cloud_points; i < hexPos_cloud->size(); i++)
+		{
+			if(hexPos_cloud->points[i].r == 255)
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i), 0);
+			else if(hexPos_cloud->points[i].g == 255)
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i), 0);
+			else if(hexPos_cloud->points[i].b == 255)
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
+			else
+				viewer->addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
+			
+			//add line
+			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
+			{
+				viewer->addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
+				viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
+			}
+			
+		}
+		
+		//update point counts
+		last_hexPos_cloud_points = hexPos_cloud->size();
+	}
+	viewer->spinOnce(1,true);
 }
 
 //another visualization function made just for noting height difference and location
@@ -1639,97 +1605,6 @@ void Pose::visualize_pt_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, s
 	while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
 		viewer.spinOnce();
 	}
-}
-
-void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb, string pt_cloud_name, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
-{
-	//pcl::visualization::PCLVisualizer viewer = *viewerPtr;
-	
-	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (cloudrgb);
-	viewer->updatePointCloud<pcl::PointXYZRGB> (cloudrgb, rgb, pt_cloud_name);
-	
-	if(displayUAVPositions)
-	{
-		//update old points
-		for (int i = 0; i < last_hexPos_cloud_points; i++)
-		{
-			if(hexPos_cloud->points[i].r == 255)
-				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i));
-			else if(hexPos_cloud->points[i].g == 255)
-				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i));
-			else if(hexPos_cloud->points[i].b == 255)
-				viewer->updateSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i));
-			//else
-			//	viewer->updateSphere(hexPos_cloud->points[i], 0.1, "FMFittedaa"+to_string(i));
-			
-			//update line
-			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
-			{
-				viewer->removeShape("line"+to_string(i), 0);
-				viewer->addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
-				viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
-			}
-			
-		}
-		//for (int i = 0; i < last_hexPos_cloud_points/2; i++)
-		//{
-		//	//add UAV pose
-		//	pcl::ModelCoefficients uavMAVLinkPose;
-		//	uavMAVLinkPose.values.resize (6);    // We need 6 values
-		//	uavMAVLinkPose.values[0] = hexPos_cloud->points[last_hexPos_cloud_points/2 + i].x;
-		//	uavMAVLinkPose.values[1] = hexPos_cloud->points[last_hexPos_cloud_points/2 + i].y;
-		//	uavMAVLinkPose.values[2] = hexPos_cloud->points[last_hexPos_cloud_points/2 + i].z;
-		//	uavMAVLinkPose.values[3] = acceptedImageDataVec[i].t_mat_MAVLink(0,0) + acceptedImageDataVec[i].t_mat_MAVLink(1,0) + acceptedImageDataVec[i].t_mat_MAVLink(2,0);
-		//	uavMAVLinkPose.values[4] = acceptedImageDataVec[i].t_mat_MAVLink(0,1) + acceptedImageDataVec[i].t_mat_MAVLink(1,1) + acceptedImageDataVec[i].t_mat_MAVLink(2,1);
-		//	uavMAVLinkPose.values[5] = acceptedImageDataVec[i].t_mat_MAVLink(0,2) + acceptedImageDataVec[i].t_mat_MAVLink(1,2) + acceptedImageDataVec[i].t_mat_MAVLink(2,2);
-		//	viewer->removeShape("uavMAVLinkPose"+to_string(i), 0);
-		//	viewer->addLine(uavMAVLinkPose, "uavMAVLinkPose"+to_string(i), 0);
-		//	//viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, hexPos_cloud->points[last_hexPos_cloud_points/2 + i].rgb, "uavMAVLinkPose"+to_string(i));
-		//	
-		//	
-		//}
-		
-		//add new points
-		for (int i = last_hexPos_cloud_points; i < hexPos_cloud->size(); i++)
-		{
-			if(hexPos_cloud->points[i].r == 255)
-				viewer->addSphere(hexPos_cloud->points[i], 0.1, 255, 0, 0, "hexPos"+to_string(i), 0);
-			else if(hexPos_cloud->points[i].g == 255)
-				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 255, 0, "hexPos"+to_string(i), 0);
-			else if(hexPos_cloud->points[i].b == 255)
-				viewer->addSphere(hexPos_cloud->points[i], 0.1, 0, 0, 255, "hexPos"+to_string(i), 0);
-			else
-				viewer->addSphere(hexPos_cloud->points[i], 0.1, "hexPos"+to_string(i), 0);
-			
-			//add line
-			if (i > 0 && hexPos_cloud->points[i].r == hexPos_cloud->points[i-1].r && hexPos_cloud->points[i].g == hexPos_cloud->points[i-1].g && hexPos_cloud->points[i].b == hexPos_cloud->points[i-1].b)
-			{
-				viewer->addLine(hexPos_cloud->points[i-1], hexPos_cloud->points[i], hexPos_cloud->points[i].r, hexPos_cloud->points[i].g, hexPos_cloud->points[i].b, "line"+to_string(i), 0);
-				viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "line"+to_string(i));
-			}
-			
-		}
-		//for (int i = last_hexPos_cloud_points/2; i < hexPos_cloud->size()/2; i++)
-		//{
-		//	//add UAV pose
-		//	pcl::ModelCoefficients uavMAVLinkPose;
-		//	uavMAVLinkPose.values.resize (6);    // We need 6 values
-		//	uavMAVLinkPose.values[0] = hexPos_cloud->points[hexPos_cloud->size() + i].x;
-		//	uavMAVLinkPose.values[1] = hexPos_cloud->points[hexPos_cloud->size() + i].y;
-		//	uavMAVLinkPose.values[2] = hexPos_cloud->points[hexPos_cloud->size() + i].z;
-		//	uavMAVLinkPose.values[4] = acceptedImageDataVec[i].t_mat_MAVLink(0,0) + acceptedImageDataVec[i].t_mat_MAVLink(1,0) + acceptedImageDataVec[i].t_mat_MAVLink(2,0);
-		//	uavMAVLinkPose.values[3] = acceptedImageDataVec[i].t_mat_MAVLink(0,1) + acceptedImageDataVec[i].t_mat_MAVLink(1,1) + acceptedImageDataVec[i].t_mat_MAVLink(2,1);
-		//	uavMAVLinkPose.values[5] = acceptedImageDataVec[i].t_mat_MAVLink(0,2) + acceptedImageDataVec[i].t_mat_MAVLink(1,2) + acceptedImageDataVec[i].t_mat_MAVLink(2,2);
-		//	viewer->addLine(uavMAVLinkPose, "uavMAVLinkPose"+to_string(i), 0);
-		//	//viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, hexPos_cloud->points[hexPos_cloud->size() + i].rgb, "uavMAVLinkPose"+to_string(i));
-		//	
-		//	
-		//}
-		
-		//update point counts
-		last_hexPos_cloud_points = hexPos_cloud->size();
-	}
-	viewer->spinOnce(1,true);
 }
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr Pose::read_PLY_File(string point_cloud_filename)
@@ -1929,7 +1804,7 @@ void Pose::meshSurface()
 	cout << "Cya!" << endl;
 }
 
-pcl::PointXYZRGB Pose::createPCLPoint(int current_idx)
+pcl::PointXYZRGB Pose::generateUAVpos(int current_idx)
 {
 	pcl::PointXYZRGB position;
 	position.x = rawImageDataVec[current_idx].tx;

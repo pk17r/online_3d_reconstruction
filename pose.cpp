@@ -35,9 +35,9 @@ Pose::Pose(int argc, char* argv[])
 		return;
 	}
 	
-	if (segment_map_only)
+	if (segment_cloud_only)
 	{
-		cout << "inside segment_map_only" << endl;
+		cout << "inside segment_cloud_only" << endl;
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
 		segmentCloud(cloudrgb);
 		return;
@@ -147,6 +147,7 @@ Pose::Pose(int argc, char* argv[])
 	int last_idx = rawImageDataVec.size() - 1;
 	int cycle = 0;
 	bool red_or_blue = true;
+	cout << "\n\nProgram Start!" << endl;
 	
 	while(current_idx <= last_idx)
 	{
@@ -157,16 +158,39 @@ Pose::Pose(int argc, char* argv[])
 		cout << "\nCycle " << cycle << endl;
 		log_file << "\nCycle " << cycle << endl;
 		int images_in_cycle = 0;
-		cout << "rawImageDataVec.size() " << rawImageDataVec.size() << endl;
-		
+	
 		while(images_in_cycle < seq_len && current_idx <= last_idx)
 		{
+			if (rawImageDataVec[current_idx].rgb_image.empty())
+			{
+				cout << rawImageDataVec[current_idx].img_num << " could not read rgb image. \tRejected!" << endl;
+				log_file << rawImageDataVec[current_idx].img_num << " could not read rgb image. \tRejected!" << endl;
+				current_idx++;
+				continue;
+			}
+			if (rawImageDataVec[current_idx].disparity_image.empty())
+			{
+				cout << rawImageDataVec[current_idx].img_num << " could not read disparity image. \tRejected!" << endl;
+				log_file << rawImageDataVec[current_idx].img_num << " could not read disparity image. \tRejected!" << endl;
+				current_idx++;
+				continue;
+			}
+			if (use_segment_labels && rawImageDataVec[current_idx].segment_label.empty())
+			{
+				cout << rawImageDataVec[current_idx].img_num << " could not read segment_label image. \tRejected!" << endl;
+				log_file << rawImageDataVec[current_idx].img_num << " could not read segment_label image. \tRejected!" << endl;
+				current_idx++;
+				continue;
+			}
+			
+			
 			double disp_img_var = getVariance(rawImageDataVec[current_idx].disparity_image, false);
 			cout << rawImageDataVec[current_idx].img_num << " " << flush;
 			log_file << rawImageDataVec[current_idx].img_num << " disp_img_var " << disp_img_var << "\t";
 			if (disp_img_var > 5)
 			{
 				cout << " disp_img_var = " << disp_img_var << " > 5.\tRejected!" << endl;
+				log_file << " disp_img_var = " << disp_img_var << " > 5.\tRejected!" << endl;
 				current_idx++;
 				continue;
 			}
@@ -180,8 +204,7 @@ Pose::Pose(int argc, char* argv[])
 			//	continue;
 			//}
 			
-			pcl::PointXYZRGB hexPosMAVLink = createPCLPoint(current_idx);
-			cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
+			pcl::PointXYZRGB hexPosMAVLink = generateUAVpos(current_idx);
 			
 			//Find Features
 			ImageData currentImageDataObj = findFeatures(current_idx);
@@ -197,12 +220,12 @@ Pose::Pose(int argc, char* argv[])
 				if (!acceptDecision)
 				{//rejected point -> no matches found
 					cout << "\tLow Feature Matches.\tRejected!" << endl;
-					cloud_hexPos_MAVLink->points.pop_back();
 					current_idx++;
 					continue;
 				}
 				else
 				{
+					cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
 					cout << "\tAccepted!" << endl;
 				}
 				
@@ -213,6 +236,7 @@ Pose::Pose(int argc, char* argv[])
 			else
 			{
 				currentImageDataObj.t_mat_FeatureMatched = t_mat_MAVLink;
+				cloud_hexPos_MAVLink->points.push_back(hexPosMAVLink);
 				pcl::PointXYZRGB hexPosFM;
 				hexPosFM.x = hexPosMAVLink.x;
 				hexPosFM.y = hexPosMAVLink.y;
@@ -220,6 +244,7 @@ Pose::Pose(int argc, char* argv[])
 				uint32_t rgbFM = (uint32_t)255 << 8;	//green
 				hexPosFM.rgb = *reinterpret_cast<float*>(&rgbFM);
 				cloud_hexPos_FM->points.push_back(hexPosFM);
+				cout << "\tAccepted!" << endl;
 			}
 			
 			acceptedImageDataVec.push_back(currentImageDataObj);
@@ -229,11 +254,8 @@ Pose::Pose(int argc, char* argv[])
 			
 		}
 		
-		cout << "Out of Feature Matching and Fitting Block" << endl;
-		log_file << "Out of Feature Matching and Fitting Block" << endl;
-		
 		int64 t2 = getTickCount();
-		cout << "\nMatching features and finding transformations time: " << (t2 - t0) / getTickFrequency() << " sec\n" << endl;
+		cout << "\nMatching features and finding transformations time: " << (t2 - t0) / getTickFrequency() << " sec" << endl;
 		log_file << "Matching features n transformations time:\t" << (t2 - t0) / getTickFrequency() << " sec" << endl;
 		
 		////finding normals of the hexPos
@@ -368,14 +390,8 @@ Pose::Pose(int argc, char* argv[])
 		cout << "\n\nPoint Cloud Creation time: " << (t4 - t3) / getTickFrequency() << " sec" << endl;
 		log_file << "Point Cloud Creation time:\t\t\t" << (t4 - t3) / getTickFrequency() << " sec" << endl;
 		
-		cout << "joining..." << endl;
 		//adding the new downsampled points to old downsampled cloud
 		cloud_big->insert(cloud_big->end(),cloudrgb_FeatureMatched->begin(),cloudrgb_FeatureMatched->end());
-		
-		int64 t5 = getTickCount();
-		
-		cout << "\nDownsampling/Joining time: " << (t5 - t4) / getTickFrequency() << " sec" << endl;
-		log_file << "Downsampling/Joining time:\t\t\t" << (t5 - t4) / getTickFrequency() << " sec" << endl;
 		
 		//visualize
 		if(preview)
@@ -403,8 +419,9 @@ Pose::Pose(int argc, char* argv[])
 	
 	int64 tend = getTickCount();
 	
-	cout << "\nFinished Pose Estimation, total time: " << ((tend - app_start_time) / getTickFrequency()) << " sec at " << 1.0*img_numbers.size()/((tend - app_start_time) / getTickFrequency()) << " fps" 
-		<< "\nimages " << img_numbers.size()
+	cout << "\nFinished Pose Estimation, total time: " << ((tend - app_start_time) / getTickFrequency()) << " sec at " << 1.0*acceptedImageDataVec.size()/((tend - app_start_time) / getTickFrequency()) << " fps" 
+		<< "\nraw_images " << rawImageDataVec.size()
+		<< "\naccepted_images " << acceptedImageDataVec.size()
 		<< "\njump_pixels " << jump_pixels
 		<< "\nseq_len " << seq_len
 		<< "\nrange_width " << range_width
@@ -414,8 +431,9 @@ Pose::Pose(int argc, char* argv[])
 		<< "\ndist_nearby " << dist_nearby
 		<< "\ngood_matched_imgs " << good_matched_imgs
 		<< endl;
-	log_file << "\nFinished Pose Estimation, total time: " << ((tend - app_start_time) / getTickFrequency()) << " sec at " << 1.0*img_numbers.size()/((tend - app_start_time) / getTickFrequency()) << " fps" 
-		<< "\nimages " << img_numbers.size()
+	log_file << "\nFinished Pose Estimation, total time: " << ((tend - app_start_time) / getTickFrequency()) << " sec at " << 1.0*acceptedImageDataVec.size()/((tend - app_start_time) / getTickFrequency()) << " fps" 
+		<< "\nraw_images " << rawImageDataVec.size()
+		<< "\naccepted_images " << acceptedImageDataVec.size()
 		<< "\njump_pixels " << jump_pixels
 		<< "\nseq_len " << seq_len
 		<< "\nrange_width " << range_width
@@ -427,16 +445,16 @@ Pose::Pose(int argc, char* argv[])
 		<< endl;
 	
 	log_file << "\nMAVLink hexacopter positions" << endl;
-	for (int i = 0; i <= last_idx; i++)
-		log_file << img_numbers[i] << "," << cloud_hexPos_MAVLink->points[i].x << "," << cloud_hexPos_MAVLink->points[i].y << "," << cloud_hexPos_MAVLink->points[i].z << endl;
+	for (int i = 0; i < acceptedImageDataVec.size(); i++)
+		log_file << acceptedImageDataVec[i].raw_img_data_ptr->img_num << "," << cloud_hexPos_MAVLink->points[i].x << "," << cloud_hexPos_MAVLink->points[i].y << "," << cloud_hexPos_MAVLink->points[i].z << endl;
 	
 	log_file << "\nFeature Matched and ICP corrected hexacopter positions" << endl;
-	for (int i = 0; i <= last_idx; i++)
-		log_file << img_numbers[i] << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
+	for (int i = 0; i < acceptedImageDataVec.size(); i++)
+		log_file << acceptedImageDataVec[i].raw_img_data_ptr->img_num << "," << cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_FM->points[i].z << endl;
 	
 	log_file << "\nerror in uav positions" << endl;
-	for (int i = 0; i <= last_idx; i++)
-		log_file << img_numbers[i] << "," << cloud_hexPos_MAVLink->points[i].x - cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_MAVLink->points[i].y - cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_MAVLink->points[i].z - cloud_hexPos_FM->points[i].z << endl;
+	for (int i = 0; i < acceptedImageDataVec.size(); i++)
+		log_file << acceptedImageDataVec[i].raw_img_data_ptr->img_num << "," << cloud_hexPos_MAVLink->points[i].x - cloud_hexPos_FM->points[i].x << "," << cloud_hexPos_MAVLink->points[i].y - cloud_hexPos_FM->points[i].y << "," << cloud_hexPos_MAVLink->points[i].z - cloud_hexPos_FM->points[i].z << endl;
 	
 	double error_x = 0, error_y = 0, error_z = 0;
 	for (int i = 0; i <= last_idx; i++)
@@ -472,6 +490,10 @@ Pose::Pose(int argc, char* argv[])
 		cloud_small = downsamplePtCloud(cloud_big, true);
 		cout << "downsampled." << endl;
 	}
+	else
+	{
+		cloud_small = cloud_big;
+	}
 	
 	cout << "Saving point clouds..." << endl;
 	read_PLY_filename0 = folder + "cloud.ply";
@@ -495,7 +517,7 @@ Pose::Pose(int argc, char* argv[])
 	if(preview)
 		the_visualization_thread.join();
 	
-	if (segment_map)
+	if (segment_cloud)
 	{
 		segmentCloud(cloud_small);
 	}
@@ -538,10 +560,7 @@ void Pose::createAndTransformPtCloud(int accepted_img_index, pcl::PointCloud<pcl
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_transformed (new pcl::PointCloud<pcl::PointXYZRGB> ());
 		
-		//if(jump_pixels == 1)
-		//	createPtCloud(img_index, cloudrgb);
-		//else
-			createSingleImgPtCloud(accepted_img_index, cloudrgb);
+		createSingleImgPtCloud(accepted_img_index, cloudrgb);
 		//cout << "Created point cloud " << img_index << endl;
 		
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_FeatureMatched = acceptedImageDataVec[accepted_img_index].t_mat_FeatureMatched;

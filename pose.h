@@ -56,7 +56,7 @@ public:
 	int img_num;
 	Mat rgb_image;
 	Mat disparity_image;
-	Mat segment_map;
+	Mat segment_label;
 	Mat double_disparity_image;
 	
 	double time;	//NSECS
@@ -168,8 +168,8 @@ int range_width = 30;		//matching will be done between range_width number of seq
 bool use_segment_labels = false;
 bool release = true;
 
-bool segment_map = false;
-bool segment_map_only = false;
+bool segment_cloud = false;
+bool segment_cloud_only = false;
 double segment_dist_threashold = voxel_size;		//0.1
 double convexhull_dist_threshold = 2.5 * voxel_size;	//0.25
 double convexhull_alpha = 1.5 * voxel_size;				//0.15
@@ -217,7 +217,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsamplePtCloud(pcl::PointCloud<pcl::Po
 void orbcudaPairwiseMatching();
 void smoothPtCloud();
 void meshSurface();
-pcl::PointXYZRGB createPCLPoint(int current_idx);
+pcl::PointXYZRGB generateUAVpos(int current_idx);
 pcl::PointXYZRGB transformPoint(pcl::PointXYZRGB hexPosMAVLink, pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts);
 void populateDisparityImages(int start_index, int end_index);
 void readDisparityImage(int i);
