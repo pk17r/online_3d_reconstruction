@@ -69,6 +69,7 @@ public:
 	double qw;
 };
 
+//accepted images with secondary data
 class ImageData {
 public:
 	RawImageData* raw_img_data_ptr;
@@ -94,7 +95,6 @@ int boundingBox = 20;
 int rows = 0, cols = 0, cols_start_aft_cutout = 0;
 int jump_pixels = 10;
 int seq_len = -1;
-bool online = false;
 int blur_kernel = 1;	//31 is a good number
 double dist_nearby = 2;	//in meters
 int good_matched_imgs = 0;
@@ -145,6 +145,9 @@ const double trans_z_hi = -0.350;
 const double PI = 3.141592653589793238463;
 const double theta_xi = -1.1408 * PI / 180;
 const double theta_yi = 1.1945 * PI / 180;
+bool only_MAVLink = false;
+bool dont_downsample = false;
+bool dont_icp = false;
 
 //PROCESS: get times in NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
 data_t pose_data;		//header.seq,secs,NSECS,position.x,position.y,position.z,orientation.x,orientation.y,orientation.z,orientation.w
@@ -159,8 +162,6 @@ bool displayUAVPositions = false;
 bool wait_at_visualizer = true;
 bool log_stuff = true;
 bool preview = false;
-bool try_cuda = true;
-string features_type = "orb";
 float match_conf = 0.3f;
 string save_log_to = "";
 int range_width = 30;		//matching will be done between range_width number of sequential images.

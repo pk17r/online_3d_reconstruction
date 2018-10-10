@@ -88,7 +88,8 @@ Pose::Pose(int argc, char* argv[])
 	
 	if(mesh_surface)
 	{
-		void meshSurface();
+		cout << "Yeah!" << endl;
+		meshSurface();
 		return;
 	}
 	
@@ -136,11 +137,7 @@ Pose::Pose(int argc, char* argv[])
 	cloud_hexPos_MAVLink->is_dense = true;
 	cloud_hexPos_FM->is_dense = true;
 	
-	int n_cycle;
-	if(online)
-		n_cycle = ceil(1.0 * rawImageDataVec.size() / seq_len);
-	else
-		n_cycle = 1;
+	int n_cycle = ceil(1.0 * rawImageDataVec.size() / seq_len);
 	
 	boost::thread the_visualization_thread;
 	
@@ -190,7 +187,7 @@ Pose::Pose(int argc, char* argv[])
 			ImageData currentImageDataObj = findFeatures(current_idx);
 			currentImageDataObj.t_mat_MAVLink = t_mat_MAVLink;
 			
-			if (current_idx > 0)
+			if (!only_MAVLink && current_idx > 0)
 			{
 				//Feature Matching Alignment
 				//generate point clouds of matched keypoints and estimate rigid body transform between them
@@ -245,16 +242,20 @@ Pose::Pose(int argc, char* argv[])
 		//cout << "cloud_hexPos_MAVLink: ";
 		//findNormalOfPtCloud(cloud_hexPos_MAVLink);
 		
-		//transforming the camera positions using ICP
-		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
-		//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(row12_FM_UAV_pos, row12_MAV_UAV_pos);
-		
-		//correcting old tf_mats
-		for (int i = 0; i < acceptedImageDataVec.size(); i++)
-			acceptedImageDataVec[i].t_mat_FeatureMatched = tf_icp * acceptedImageDataVec[i].t_mat_FeatureMatched;
-		
-		//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
-		transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, tf_icp);
+		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp;
+		if (!(only_MAVLink || dont_icp))
+		{
+			//transforming the camera positions using ICP
+			tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
+			//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(row12_FM_UAV_pos, row12_MAV_UAV_pos);
+			
+			//correcting old tf_mats
+			for (int i = 0; i < acceptedImageDataVec.size(); i++)
+				acceptedImageDataVec[i].t_mat_FeatureMatched = tf_icp * acceptedImageDataVec[i].t_mat_FeatureMatched;
+			
+			//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
+			transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, tf_icp);
+		}
 		
 		//add additional correction for each individual UAV position -> translate back to MAVLink location by a percentage value
 		//find distance and then translate
@@ -284,8 +285,11 @@ Pose::Pose(int argc, char* argv[])
 		//	//cloud_hexPos_FM->points[i].z += error_z;
 		//}
 		
-		//correcting old point cloud
-		transformPtCloud(cloud_big, cloud_big, tf_icp);
+		if (!(only_MAVLink || dont_icp))
+		{
+			//correcting old point cloud
+			transformPtCloud(cloud_big, cloud_big, tf_icp);
+		}
 		
 		int64 t3 = getTickCount();
 		cout << "\nICP alignment and point cloud correction time: " << (t3 - t2) / getTickFrequency() << " sec\n" << endl;
@@ -364,21 +368,9 @@ Pose::Pose(int argc, char* argv[])
 		cout << "\n\nPoint Cloud Creation time: " << (t4 - t3) / getTickFrequency() << " sec" << endl;
 		log_file << "Point Cloud Creation time:\t\t\t" << (t4 - t3) / getTickFrequency() << " sec" << endl;
 		
-		if(online)
-		{
-			cout << "joining..." << endl;
-			//adding the new downsampled points to old downsampled cloud
-			cloud_big->insert(cloud_big->end(),cloudrgb_FeatureMatched->begin(),cloudrgb_FeatureMatched->end());
-		}
-		else
-		{
-			//downsample
-			wait_at_visualizer = false;
-			cout << "downsampling..." << endl;
-			cloud_small = downsamplePtCloud(cloudrgb_FeatureMatched, true);
-			//adding the new downsampled points to old downsampled cloud
-			cloud_big->insert(cloud_big->end(),cloudrgb_FeatureMatched->begin(),cloudrgb_FeatureMatched->end());
-		}
+		cout << "joining..." << endl;
+		//adding the new downsampled points to old downsampled cloud
+		cloud_big->insert(cloud_big->end(),cloudrgb_FeatureMatched->begin(),cloudrgb_FeatureMatched->end());
 		
 		int64 t5 = getTickCount();
 		
@@ -389,20 +381,14 @@ Pose::Pose(int argc, char* argv[])
 		if(preview)
 		{
 			bool last_cycle = current_idx > last_idx;
-			if (online)
-			{
-				pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_big_copy (new pcl::PointCloud<pcl::PointXYZRGB>());
-				copyPointCloud(*cloud_big, *cloud_big_copy);
-				
-				if(cycle > 0)
-					the_visualization_thread.join();
-				
-				the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_big_copy, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, last_cycle);
-			}
-			else
-			{
-				the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_small, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, last_cycle);
-			}
+			
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_big_copy (new pcl::PointCloud<pcl::PointXYZRGB>());
+			copyPointCloud(*cloud_big, *cloud_big_copy);
+			
+			if(cycle > 0)
+				the_visualization_thread.join();
+			
+			the_visualization_thread = boost::thread(&Pose::displayPointCloudOnline, this, cloud_big_copy, cloud_hexPos_FM, cloud_hexPos_MAVLink, cycle, last_cycle);
 		}
 		
 		finder->collectGarbage();
@@ -480,7 +466,7 @@ Pose::Pose(int argc, char* argv[])
 	cout << "std deviation in UAV localization error in x " << stddev_error_x << " y " << stddev_error_y << " z " << stddev_error_z << endl << endl;
 	log_file << "std deviation in UAV localization error in x " << stddev_error_x << " y " << stddev_error_y << " z " << stddev_error_z << endl << endl;
 	
-	if(online)
+	if (!dont_downsample)
 	{
 		cout << "downsample before saving..." << endl;
 		cloud_small = downsamplePtCloud(cloud_big, true);
@@ -561,10 +547,16 @@ void Pose::createAndTransformPtCloud(int accepted_img_index, pcl::PointCloud<pcl
 		pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_mat_FeatureMatched = acceptedImageDataVec[accepted_img_index].t_mat_FeatureMatched;
 		transformPtCloud(cloudrgb, cloudrgb_transformed, t_mat_FeatureMatched);
 		//cout << "transformed point cloud " << img_index << endl;
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_downsampled = downsamplePtCloud(cloudrgb_transformed, false);
-		//cout << "Downsampled point cloud " << img_index << endl;
-		copyPointCloud(*cloudrgb_downsampled, *cloudrgb_return);
-			
+		if (!dont_downsample)
+		{
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb_downsampled = downsamplePtCloud(cloudrgb_transformed, false);
+			//cout << "Downsampled point cloud " << img_index << endl;
+			copyPointCloud(*cloudrgb_downsampled, *cloudrgb_return);
+		}
+		else
+		{
+			copyPointCloud(*cloudrgb_transformed, *cloudrgb_return);
+		}
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -589,7 +581,7 @@ void Pose::displayPointCloudOnline(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud
 {
 	wait_at_visualizer = false;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb (new pcl::PointCloud<pcl::PointXYZRGB> ());
-	if(online)
+	if(!dont_downsample)
 	{
 		cloudrgb = downsamplePtCloud(cloud_combined_copy, true);
 	}

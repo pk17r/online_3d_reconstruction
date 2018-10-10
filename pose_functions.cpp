@@ -27,11 +27,7 @@ void Pose::printUsage()
 		"\n      number of pixels to jump on in each direction to make semi-dense 3D reconstruction"
 		"\n      to get sparse 3D reconstruction put this as 0"
 		"\n  --seq_len [int]"
-		"\n      number of images to consider during online visualization cycles. Enter -1 to have a single cycle run"
-		"\n  --max_depth [double]"
-		"\n      max depth in field. Will remove points below this or outliers. Enter positive depth value."
-		"\n  --max_height [double]"
-		"\n      max height in field. Will remove points above this or outliers."
+		"\n      number of images to consider during online visualization cycles"
 		"\n  --range_width [int]"
 		"\n      Number of nearby images to do pairwise matching on for every image"
 		"\n  --dist_nearby [double]"
@@ -62,6 +58,12 @@ void Pose::printUsage()
 		"\n      Mesh surface using triangulation"
 		"\n  --log 0/1"
 		"\n      log most things in log.txt file. Default true. Enter 0 to stop logging."
+		"\n  --only_MAVLink"
+		"\n      dont do feature matching, create point cloud only using MAVLink pose"
+		"\n  --dont_downsample"
+		"\n      dont use the VoxelGrid Filter to create a 2.5D Digital Elevation Map"
+		"\n  --dont_icp"
+		"\n      dont use ICP to correct orientation of point cloud"
 		<< endl;
 }
 
@@ -195,12 +197,6 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "seq_len " << seq_len << endl;
 			if (seq_len == 0 || seq_len < -1)
 				throw "Exception: invalid seq_len value!";
-			
-			if(seq_len != -1)
-			{
-				online = true;
-				cout << "online 3D reconstruction" << endl;
-			}
 			i++;
 		}
 		else if (string(argv[i]) == "--jump_pixels")
@@ -232,22 +228,20 @@ int Pose::parseCmdArgs(int argc, char** argv)
 			cout << "use_segment_labels" << endl;
 			use_segment_labels = true;
 		}
-		else if (string(argv[i]) == "--try_cuda")
+		else if (string(argv[i]) == "--only_MAVLink")
 		{
-			if (string(argv[i + 1]) == "no")
-				try_cuda = false;
-			else if (string(argv[i + 1]) == "yes")
-				try_cuda = true;
-			else
-				throw "Exception: Bad --try_cuda flag value!";
-			i++;
+			only_MAVLink = true;
+			cout << "only_MAVLink " << endl;
 		}
-		else if (string(argv[i]) == "--features")
+		else if (string(argv[i]) == "--dont_downsample")
 		{
-			features_type = argv[i + 1];
-			if (features_type == "orb")
-				match_conf = 0.3f;
-			i++;
+			dont_downsample = true;
+			cout << "dont_downsample " << endl;
+		}
+		else if (string(argv[i]) == "--dont_icp")
+		{
+			dont_icp = true;
+			cout << "dont_icp " << endl;
 		}
 		else
 		{
@@ -1546,6 +1540,24 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> Pose::visualize_pt_cloud(bo
 			}
 			
 		}
+		
+		//for (int i = 0; i < hexPos_cloud->size()/2; i++)
+		//{
+		//	//add UAV pose
+		//	pcl::ModelCoefficients uavMAVLinkPose;
+		//	uavMAVLinkPose.values.resize (6);    // We need 6 values
+		//	uavMAVLinkPose.values[0] = hexPos_cloud->points[hexPos_cloud->size() + i].x;
+		//	uavMAVLinkPose.values[1] = hexPos_cloud->points[hexPos_cloud->size() + i].y;
+		//	uavMAVLinkPose.values[2] = hexPos_cloud->points[hexPos_cloud->size() + i].z;
+		//	uavMAVLinkPose.values[4] = acceptedImageDataVec[i].t_mat_MAVLink(0,0) + acceptedImageDataVec[i].t_mat_MAVLink(1,0) + acceptedImageDataVec[i].t_mat_MAVLink(2,0);
+		//	uavMAVLinkPose.values[3] = acceptedImageDataVec[i].t_mat_MAVLink(0,1) + acceptedImageDataVec[i].t_mat_MAVLink(1,1) + acceptedImageDataVec[i].t_mat_MAVLink(2,1);
+		//	uavMAVLinkPose.values[5] = acceptedImageDataVec[i].t_mat_MAVLink(0,2) + acceptedImageDataVec[i].t_mat_MAVLink(1,2) + acceptedImageDataVec[i].t_mat_MAVLink(2,2);
+		//	viewer->addLine(uavMAVLinkPose, "uavMAVLinkPose"+to_string(i), 0);
+		//	//viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, hexPos_cloud->points[hexPos_cloud->size() + i].rgb, "uavMAVLinkPose"+to_string(i));
+		//	
+		//	
+		//}
+		
 	}
 	
 	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, pt_cloud_name);
@@ -1659,6 +1671,24 @@ void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 			}
 			
 		}
+		//for (int i = 0; i < last_hexPos_cloud_points/2; i++)
+		//{
+		//	//add UAV pose
+		//	pcl::ModelCoefficients uavMAVLinkPose;
+		//	uavMAVLinkPose.values.resize (6);    // We need 6 values
+		//	uavMAVLinkPose.values[0] = hexPos_cloud->points[last_hexPos_cloud_points/2 + i].x;
+		//	uavMAVLinkPose.values[1] = hexPos_cloud->points[last_hexPos_cloud_points/2 + i].y;
+		//	uavMAVLinkPose.values[2] = hexPos_cloud->points[last_hexPos_cloud_points/2 + i].z;
+		//	uavMAVLinkPose.values[3] = acceptedImageDataVec[i].t_mat_MAVLink(0,0) + acceptedImageDataVec[i].t_mat_MAVLink(1,0) + acceptedImageDataVec[i].t_mat_MAVLink(2,0);
+		//	uavMAVLinkPose.values[4] = acceptedImageDataVec[i].t_mat_MAVLink(0,1) + acceptedImageDataVec[i].t_mat_MAVLink(1,1) + acceptedImageDataVec[i].t_mat_MAVLink(2,1);
+		//	uavMAVLinkPose.values[5] = acceptedImageDataVec[i].t_mat_MAVLink(0,2) + acceptedImageDataVec[i].t_mat_MAVLink(1,2) + acceptedImageDataVec[i].t_mat_MAVLink(2,2);
+		//	viewer->removeShape("uavMAVLinkPose"+to_string(i), 0);
+		//	viewer->addLine(uavMAVLinkPose, "uavMAVLinkPose"+to_string(i), 0);
+		//	//viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, hexPos_cloud->points[last_hexPos_cloud_points/2 + i].rgb, "uavMAVLinkPose"+to_string(i));
+		//	
+		//	
+		//}
+		
 		//add new points
 		for (int i = last_hexPos_cloud_points; i < hexPos_cloud->size(); i++)
 		{
@@ -1679,6 +1709,23 @@ void Pose::visualize_pt_cloud_update(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 			}
 			
 		}
+		//for (int i = last_hexPos_cloud_points/2; i < hexPos_cloud->size()/2; i++)
+		//{
+		//	//add UAV pose
+		//	pcl::ModelCoefficients uavMAVLinkPose;
+		//	uavMAVLinkPose.values.resize (6);    // We need 6 values
+		//	uavMAVLinkPose.values[0] = hexPos_cloud->points[hexPos_cloud->size() + i].x;
+		//	uavMAVLinkPose.values[1] = hexPos_cloud->points[hexPos_cloud->size() + i].y;
+		//	uavMAVLinkPose.values[2] = hexPos_cloud->points[hexPos_cloud->size() + i].z;
+		//	uavMAVLinkPose.values[4] = acceptedImageDataVec[i].t_mat_MAVLink(0,0) + acceptedImageDataVec[i].t_mat_MAVLink(1,0) + acceptedImageDataVec[i].t_mat_MAVLink(2,0);
+		//	uavMAVLinkPose.values[3] = acceptedImageDataVec[i].t_mat_MAVLink(0,1) + acceptedImageDataVec[i].t_mat_MAVLink(1,1) + acceptedImageDataVec[i].t_mat_MAVLink(2,1);
+		//	uavMAVLinkPose.values[5] = acceptedImageDataVec[i].t_mat_MAVLink(0,2) + acceptedImageDataVec[i].t_mat_MAVLink(1,2) + acceptedImageDataVec[i].t_mat_MAVLink(2,2);
+		//	viewer->addLine(uavMAVLinkPose, "uavMAVLinkPose"+to_string(i), 0);
+		//	//viewer->setShapeRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, hexPos_cloud->points[hexPos_cloud->size() + i].rgb, "uavMAVLinkPose"+to_string(i));
+		//	
+		//	
+		//}
+		
 		//update point counts
 		last_hexPos_cloud_points = hexPos_cloud->size();
 	}
@@ -1816,6 +1863,7 @@ void Pose::smoothPtCloud()
 
 void Pose::meshSurface()
 {
+	cout << "Yeah2!" << endl;
 	int64 t0 = getTickCount();
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudrgb = read_PLY_File(read_PLY_filename0);
 	
@@ -1915,7 +1963,7 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	
 	//find matches and create matched point clouds
 	int good_matches_count = generate_Matched_Keypoints_Point_Cloud(currentImageDataObj, current_img_matched_keypoints, fitted_cloud_matched_keypoints);
-	if (good_matches_count <= 500)
+	if (good_matches_count < 5 * featureMatchingThreshold)
 	{
 		dist_nearby *= 2;
 		cout << "  retrying in larger radius.." << endl;
@@ -1932,7 +1980,6 @@ pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>:
 	{
 		acceptDecision = false;
 	}
-	
 	
 	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> te2;
 	pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 T_SVD_matched_pts;
@@ -2102,7 +2149,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr &fitted_cloud_matched_keypoints)
 		
 		//cout << " good_matches.size() " << good_matches.size() << flush;
 		
-		if(good_matches.size() < featureMatchingThreshold)	//less number of matches.. don't bother working on this one. good matches are around 500-600
+		if(good_matches.size() < featureMatchingThreshold/2)	//less number of matches.. don't bother working on this one. good matches are around 200-500
 			continue;
 		good_matched_imgs++;
 		good_matched_imgs_this_src++;
