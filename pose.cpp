@@ -271,12 +271,52 @@ Pose::Pose(int argc, char* argv[])
 			tf_icp = runICPalignment(cloud_hexPos_FM, cloud_hexPos_MAVLink);
 			//pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 tf_icp = runICPalignment(row12_FM_UAV_pos, row12_MAV_UAV_pos);
 			
-			//correcting old tf_mats
-			for (int i = 0; i < acceptedImageDataVec.size(); i++)
-				acceptedImageDataVec[i].t_mat_FeatureMatched = tf_icp * acceptedImageDataVec[i].t_mat_FeatureMatched;
+			////correcting old tf_mats
+			//for (int i = 0; i < acceptedImageDataVec.size(); i++)
+			//	acceptedImageDataVec[i].t_mat_FeatureMatched = tf_icp * acceptedImageDataVec[i].t_mat_FeatureMatched;
 			
 			//fit FM camera positions to MAVLink camera positions using ICP and use the tf to correct point cloud
 			transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, tf_icp);
+			
+			//new code to correct translation
+			pcl::registration::TransformationEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB>::Matrix4 t_translation_bw_clouds;
+			for (int i = 0; i <= 3; i++)
+			{
+				for (int j = 0; j < 3; j++)
+				{
+					if (i == j)
+						t_translation_bw_clouds(i,j) = 1;
+					else
+						t_translation_bw_clouds(i,j) = 0;
+				}
+			}
+			t_translation_bw_clouds(0,3) = cloud_hexPos_MAVLink->points[0].x - cloud_hexPos_FM->points[0].x;
+			t_translation_bw_clouds(1,3) = cloud_hexPos_MAVLink->points[0].y - cloud_hexPos_FM->points[0].y;
+			t_translation_bw_clouds(2,3) = cloud_hexPos_MAVLink->points[0].z - cloud_hexPos_FM->points[0].z;
+			cout << "t_translation_bw_clouds:\n" << t_translation_bw_clouds << endl;
+			transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, t_translation_bw_clouds);
+			tf_icp = t_translation_bw_clouds * tf_icp;
+			
+			//correct z height by averaging out the error in z
+			double avg_z_FM = 0, avg_z_MAVLink = 0;
+			for (int i = 0; i < cloud_hexPos_MAVLink->points.size(); i++)
+			{
+				avg_z_FM += cloud_hexPos_FM->points[i].z;
+				avg_z_MAVLink += cloud_hexPos_MAVLink->points[i].z;
+			}
+			avg_z_FM /= cloud_hexPos_MAVLink->points.size();
+			avg_z_MAVLink /= cloud_hexPos_MAVLink->points.size();
+			cout << "z Height diff b/w cloud_hexPos_MAVLink and cloud_hexPos_FM: " << avg_z_MAVLink - avg_z_FM << endl;
+			t_translation_bw_clouds(0,3) = 0;
+			t_translation_bw_clouds(1,3) = 0;
+			t_translation_bw_clouds(2,3) = avg_z_MAVLink - avg_z_FM;
+			cout << "t_translation_bw_clouds:\n" << t_translation_bw_clouds << endl;
+			transformPtCloud(cloud_hexPos_FM, cloud_hexPos_FM, t_translation_bw_clouds);
+			tf_icp = t_translation_bw_clouds * tf_icp;
+			
+			//correcting old tf_mats
+			for (int i = 0; i < acceptedImageDataVec.size(); i++)
+				acceptedImageDataVec[i].t_mat_FeatureMatched = tf_icp * acceptedImageDataVec[i].t_mat_FeatureMatched;
 		}
 		
 		//add additional correction for each individual UAV position -> translate back to MAVLink location by a percentage value
