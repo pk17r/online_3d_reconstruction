@@ -392,9 +392,9 @@ Pose::Pose(int argc, char* argv[])
 				boost::thread pt_cloud_thread1, pt_cloud_thread2, pt_cloud_thread3, pt_cloud_thread4, pt_cloud_thread5, pt_cloud_thread6, pt_cloud_thread7;
 				
 				//cout << "Start threads for creation of single image point clouds... i " << i << endl;
-				for (int j = i; j < min(i+7, (int)acceptedImageDataVec.size()); j++)
-					cout << acceptedImageDataVec[j].raw_img_data_ptr->img_num << " " << flush;
-				cout << endl;
+				//for (int j = i; j < min(i+7, (int)acceptedImageDataVec.size()); j++)
+				//	cout << acceptedImageDataVec[j].raw_img_data_ptr->img_num << " " << flush;
+				//cout << endl;
 				pt_cloud_thread1 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb1); i++;
 				if(i < acceptedImageDataVecSize) { pt_cloud_thread2 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb2); i++; }
 				if(i < acceptedImageDataVecSize) { pt_cloud_thread3 = boost::thread(&Pose::createAndTransformPtCloud, this, i, transformed_cloudrgb3); i++; }

@@ -45,3 +45,7 @@ Program to do online 3D reconstruction with pose correction of UAV. Very high lo
 pcl 1.6 requires vtk 5.10.1 to work
 install using
 sudo apt-get install libvtk5.10-qt4 libvtk5.10 libvtk5-dev
+
+## Usage:
+./pose 1230 1400 --seq_len 50 --preview --voxel_size 0.05 --jump_pixels 15 --range_width 100 --dist_nearby 6 --min_points_per_voxel 1 --blur_kernel 30 
+./pose 1230 1400 --seq_len 50 --preview --voxel_size 0.05 --jump_pixels 15 --range_width 100 --dist_nearby 6 --min_points_per_voxel 1 --blur_kernel 30 --dont_downsample 

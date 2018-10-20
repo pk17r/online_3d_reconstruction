@@ -552,18 +552,18 @@ void Pose::readDisparityImage(int i)
 		//throw "Exception: cannot read disp_image!";
 		//return;
 	}
-	if(blur_kernel > 1)
-	{
-		//blur the disparity image to remove noise
-		Mat disp_img_blurred;
-		//bilateralFilter ( disp_img, disp_img_blurred, blur_kernel, blur_kernel*2, blur_kernel/2 );
-		medianBlur ( disp_img, disp_img_blurred, blur_kernel );
-		rawImageDataVec[i].disparity_image = disp_img_blurred;
-	}
-	else
-	{
+	//if(blur_kernel > 1)
+	//{
+	//	//blur the disparity image to remove noise
+	//	Mat disp_img_blurred;
+	//	bilateralFilter ( disp_img, disp_img_blurred, blur_kernel, blur_kernel*2, blur_kernel/2 );
+	//	//medianBlur ( disp_img, disp_img_blurred, blur_kernel );
+	//	rawImageDataVec[i].disparity_image = disp_img_blurred;
+	//}
+	//else
+	//{
 		rawImageDataVec[i].disparity_image = disp_img;
-	}
+	//}
 	
 	//SEARCH PROCESS: get time NSECS from images_times_data and search for corresponding or nearby entry in pose_data and heading_data
 	int image_time_index = binarySearchImageTime(0, images_times_seq.size()-1, rawImageDataVec[i].img_num);
@@ -1037,6 +1037,14 @@ void Pose::createSingleImgPtCloud(int accepted_img_index, pcl::PointCloud<pcl::P
 		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->double_disparity_image;
 	else
 		dispImg = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->disparity_image;
+	if(blur_kernel > 1)
+	{
+		//blur the disparity image to remove noise
+		Mat disp_img_blurred;
+		bilateralFilter ( dispImg, disp_img_blurred, blur_kernel, blur_kernel*2, blur_kernel/2 );
+		//medianBlur ( disp_img, disp_img_blurred, blur_kernel );
+		dispImg = disp_img_blurred;
+	}
 	
 	vector<KeyPoint> keypoints = acceptedImageDataVec[accepted_img_index].features.keypoints;
 	Mat rgb_image = acceptedImageDataVec[accepted_img_index].raw_img_data_ptr->rgb_image;
